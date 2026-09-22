@@ -3,7 +3,7 @@
  *
  * Two fields take Markdown now — the description editor and the comment
  * composer (LC-211) — and the toolbar over them is one object: the same six
- * actions in the order `screen-specs.md:234-235` lists them, the same roving
+ * actions in the order `screen-specs.md:248-249` lists them, the same roving
  * tabindex so the group costs its surface one Tab stop rather than six
  * (`keyboard-focus-map.md:62`), and the same accessible names, because an icon
  * alone is not a name.

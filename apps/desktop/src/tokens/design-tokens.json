@@ -122,7 +122,8 @@
     "board-card-acknowledged": 136,
     "board-card-properties": 132,
     "board-card-acknowledged-properties": 160,
-    "board-stack": "calc(100vh - 123px)",
+    "statusbar": 26,
+    "board-stack": "calc(100vh - 149px)",
     "panel-gutter": 16,
     "panel-gutter-lg": 24,
     "panel-rail": 232

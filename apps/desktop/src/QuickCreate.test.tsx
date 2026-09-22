@@ -5,7 +5,7 @@
  * it by two more and gave it a loop, and LC-227 gave it whichever properties the
  * project turned on: title, description, status, priority, labels, a **Create
  * more** checkbox, and a door to the surface that owns the checklist
- * (`screen-specs.md:253-262`).
+ * (`screen-specs.md:267-276`).
  */
 
 import {
@@ -724,7 +724,7 @@ describe("quick create prototype parity", () => {
 
     expect(priorityTrigger().getAttribute("aria-haspopup")).toBe("menu");
     // Status first, then priority — the meta grid's order everywhere else in
-    // the app (`screen-specs.md:229`), and the Tab order the focus map states
+    // the app (`screen-specs.md:243`), and the Tab order the focus map states
     // (`keyboard-focus-map.md:134`).
     expect(
       statusTrigger().compareDocumentPosition(priorityTrigger()) &

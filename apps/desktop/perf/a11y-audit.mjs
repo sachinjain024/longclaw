@@ -245,7 +245,7 @@ async function auditLifecycle(browser) {
       "`Enter` creates the ticket and focus moves to the new card",
       createdKey !== undefined,
       `focus=${createdKey ?? (afterCreate.className || afterCreate.tag)}`,
-      "keyboard-focus-map.md:132,239 — focus moves to the new card",
+      "keyboard-focus-map.md:132,254 — focus moves to the new card",
     );
 
     // Find (§ Global `⌘F`, and the filter's rung of the `Esc` ladder).
@@ -401,7 +401,7 @@ async function auditLifecycle(browser) {
       "`Esc` closes the panel and focus returns to the card that opened it",
       isCard(backOnCard),
       `focus=${backOnCard.ticketKey ?? (backOnCard.className || backOnCard.tag)}`,
-      "keyboard-focus-map.md:61,235",
+      "keyboard-focus-map.md:61,250",
     );
     const movedFrom = backOnCard.ticketKey;
     await page.keyboard.press("s");
@@ -595,7 +595,7 @@ async function auditFocusOrder(browser) {
       "canceling quick create returns focus to where it was",
       afterCancel.ticketKey === card,
       `${card} → ${afterCancel.ticketKey ?? (afterCancel.className || afterCancel.tag)}`,
-      "keyboard-focus-map.md:231",
+      "keyboard-focus-map.md:246",
     );
 
     // Menu → the focused card (the single-key path).
@@ -653,7 +653,7 @@ async function auditFocusOrder(browser) {
       "closing the ticket panel returns focus to the card that opened it",
       opened && afterPanel.ticketKey === card,
       `${card} → ${afterPanel.ticketKey ?? (afterPanel.className || afterPanel.tag)}`,
-      "keyboard-focus-map.md:235",
+      "keyboard-focus-map.md:250",
     );
 
     // Reading order inside the panel: the Tab sequence must run down the page.
@@ -784,7 +784,7 @@ async function auditFocusOrder(browser) {
       !(await visible(page, ".settings-panel")) &&
         afterSettings.label === "Project settings",
       `focus=${afterSettings.label || afterSettings.className || afterSettings.tag}`,
-      "keyboard-focus-map.md:241 — settings returns focus to its opener",
+      "keyboard-focus-map.md:256 — settings returns focus to its opener",
     );
 
     /**
@@ -910,7 +910,7 @@ async function auditFocusOrder(browser) {
         inRun.label === "Title" &&
         emptied === "",
       `modal=${await visible(page, "form.quick-create-modal")} focus=${inRun.label || inRun.className || inRun.tag} title="${emptied}"`,
-      "keyboard-focus-map.md:239 — the created row, and the run's exception to it",
+      "keyboard-focus-map.md:254 — the created row, and the run's exception to it",
     );
     await page.keyboard.press("Escape");
     await settle(page);
@@ -1532,7 +1532,7 @@ async function auditPanelResize(browser) {
       "the panel opens at the width LC-227's properties rail needs",
       Math.round(opened) === 800,
       `${Math.round(opened)}px, rail floor 660`,
-      "screen-specs.md:213 — 800px wide by default",
+      "screen-specs.md:227 — 800px wide by default",
     );
 
     await page.keyboard.press("Tab");
@@ -1573,7 +1573,7 @@ async function auditPanelResize(browser) {
       "`→` stops at 660px rather than folding the properties rail away",
       Math.round(floored) === 660 && railed,
       `${Math.round(floored)}px, rail drawn=${railed}`,
-      "screen-specs.md:214 — between 660px and 88%",
+      "screen-specs.md:228 — between 660px and 88%",
     );
 
     /*
@@ -1602,7 +1602,7 @@ async function auditPanelResize(browser) {
       "a window with no travel says so, and still draws a grip",
       unavailable.said === "true" && painted,
       `aria-disabled=${unavailable.said} grip=${unavailable.grip}`,
-      "screen-specs.md:215 — `ink-disabled` and unavailable rather than hidden",
+      "screen-specs.md:229 — `ink-disabled` and unavailable rather than hidden",
     );
     await page.setViewportSize(VIEWPORT);
     await settle(page);
@@ -1619,7 +1619,7 @@ async function auditPanelResize(browser) {
       "the next panel opens at the width the last one was left at",
       Math.round(reopened) === 660,
       `${Math.round(reopened)}px`,
-      "screen-specs.md:214 — remembered for this machine",
+      "screen-specs.md:228 — remembered for this machine",
     );
   } finally {
     await context.close();
@@ -1654,10 +1654,19 @@ async function auditUpdates(browser) {
   );
   const { context, page } = await board(browser, {
     query: { update: "available" },
-    // Focus, dropped on the floor for the one control the panel owes it back
-    // to. Everything else still works — the link is reachable, `Enter` opens
-    // the pane, `Esc` closes it — and focus lands on `<body>` instead of on
-    // the link a reader pressed, which is what a lost focus return is.
+    // Two breaks, because this row now covers two controls and one injection
+    // would leave the other's checks unable to fail — which is how a probe
+    // stops checking without anyone noticing.
+    //
+    // Focus is dropped on the floor for the one control the panel owes it back
+    // to: everything else still works — the link is reachable, `Enter` opens
+    // the pane, `Esc` closes it — and focus lands on `<body>` instead of on the
+    // link a reader pressed, which is what a lost focus return is.
+    //
+    // And the star loses its `aria-label`, which for a control with no visible
+    // words is the whole of what it says. The walk below finds it by class, so
+    // it still terminates and the rest of the row still runs; what goes red is
+    // the pair of claims about what the star is and where it stands.
     selfTest: (target) =>
       target.evaluate(() => {
         const real = HTMLElement.prototype.focus;
@@ -1665,11 +1674,26 @@ async function auditUpdates(browser) {
           if (this.classList?.contains("upd-link")) return undefined;
           return real.apply(this, rest);
         };
+        const strip = () =>
+          document
+            .querySelector(".app-statusbar .gh-star")
+            ?.removeAttribute("aria-label");
+        strip();
+        new globalThis.MutationObserver(strip).observe(document.body, {
+          childList: true,
+          subtree: true,
+        });
       }),
   });
   /** The link's accessible name, which names the version it would fetch. */
   const LINK = "Update to LongClaw 0.2.0";
   const onLink = (at) => at.label === LINK;
+  /** The star's accessible name with no count known, which a harness build has
+   *  (it serves no `star_count`). It is the whole of the control's copy. */
+  const STAR = "Star LongClaw on GitHub. Opens github.com in your browser.";
+  /** Found by class rather than by name, so the walk terminates even when the
+   *  self-test has taken the name away — the thing being checked. */
+  const onStar = (at) => (at.className || "").includes("gh-star");
   /** What holds focus, in the terms a checkbox with no name of its own needs. */
   const activeShape = () =>
     page.evaluate(() => {
@@ -1683,24 +1707,65 @@ async function auditUpdates(browser) {
       };
     });
   try {
-    // The shell's order (rule 1): the footer pair, then the version line's
-    // link. Walked rather than queried — the question is what a reader reaches
-    // and in what order, and a selector answers neither.
+    // The shell's order (rule 1): the side panel, then the header's controls,
+    // then the status bar — the `Update` link and, last of all, the star.
+    // Walked rather than queried: the question is what a reader reaches and in
+    // what order, and a selector answers neither.
+    //
+    // LC-257s moved the link out of the side panel's footer, so it is no
+    // longer the stop after `Open folder`. What has to hold now is that it is
+    // *after* the footer pair and the header, and that the star is the stop
+    // immediately after it — which is also the only way this row sees the star
+    // at all.
     const stops = [];
-    for (let press = 0; press < 16; press += 1) {
+    for (let press = 0; press < 32; press += 1) {
       await page.keyboard.press("Tab");
       const at = await focused(page);
       stops.push(at.label || at.text || at.className || at.tag);
-      if (onLink(at)) break;
+      if (onStar(at)) break;
     }
     const linkAt = stops.findIndex((stop) => stop === LINK);
+    const starAt = stops.findIndex((stop) => stop === STAR);
     const openFolderAt = stops.findIndex((stop) => stop === "Open folder");
     check(
-      "the footer's `Update` link is a Tab stop, straight after the footer pair",
-      linkAt > 0 && openFolderAt >= 0 && linkAt === openFolderAt + 1,
+      "the status bar's `Update` link is a Tab stop, after the footer pair and the header",
+      linkAt > 0 && openFolderAt >= 0 && linkAt > openFolderAt + 1,
       `${stops.slice(Math.max(0, linkAt - 3), linkAt + 1).join(" → ")}`,
       "keyboard-focus-map.md:12,197 — the shell's order follows the DOM",
     );
+    check(
+      "the star control is the stop after it, and the last stop in the shell",
+      starAt === linkAt + 1 && starAt === stops.length - 1,
+      `${stops.slice(-3).join(" → ")}`,
+      "keyboard-focus-map.md:214 — the star is the last stop in the shell",
+    );
+    check(
+      "the star says what it is, having no visible label to repeat",
+      await page.evaluate(() => {
+        const star = document.querySelector(".app-statusbar .gh-star");
+        const mark = star?.querySelector("svg");
+        return Boolean(
+          star &&
+          star.getAttribute("tabindex") === "0" &&
+          /^Star LongClaw on GitHub/.test(
+            star.getAttribute("aria-label") || "",
+          ) &&
+          /Opens github\.com in your browser/.test(
+            star.getAttribute("aria-label") || "",
+          ) &&
+          mark?.getAttribute("aria-hidden") === "true",
+        );
+      }),
+      await page.evaluate(() => {
+        const star = document.querySelector(".app-statusbar .gh-star");
+        return `label=${JSON.stringify(star?.getAttribute("aria-label") || "")} text=${JSON.stringify((star?.textContent || "").trim())}`;
+      }),
+      "keyboard-focus-map.md:217-223 — the aria-label is the whole offer, and the mark is decorative",
+    );
+
+    // Back to the link, so the rest of this row runs from where it used to.
+    await page.keyboard.press("Shift+Tab");
+    await settle(page);
 
     await page.keyboard.press("Enter");
     await settle(page);
@@ -1785,7 +1850,7 @@ async function auditUpdates(browser) {
       "`Esc` closes the pane and focus returns to the link that opened it",
       !(await visible(page, ".settings-panel")) && onLink(back),
       `focus=${back.label || back.className || back.tag}`,
-      "keyboard-focus-map.md:241 — settings returns focus to its opener",
+      "keyboard-focus-map.md:256 — settings returns focus to its opener",
     );
 
     // A ticket write, held open, so the restart has something to wait for.
@@ -1923,7 +1988,7 @@ async function auditSidebarOrder(browser) {
         advertised.includes("Alt+ArrowDown"),
       ),
       `aria-keyshortcuts=${JSON.stringify(advertised ?? "")}`,
-      "keyboard-focus-map.md:215 — `⌥↑`/`⌥↓` move the row within its section",
+      "keyboard-focus-map.md:230 — `⌥↑`/`⌥↓` move the row within its section",
     );
 
     const before = await local();
@@ -1938,7 +2003,7 @@ async function auditSidebarOrder(browser) {
         after[1]?.id === reached.at.projectId,
       `${before.map((one) => one.name).join(", ")} → ` +
         `${after.map((one) => one.name).join(", ")}`,
-      "keyboard-focus-map.md:215 — `⌥↑`/`⌥↓` move the row within its section",
+      "keyboard-focus-map.md:230 — `⌥↑`/`⌥↓` move the row within its section",
     );
     check(
       "the badge follows the row, so the chord and the number still agree",
@@ -1962,7 +2027,7 @@ async function auditSidebarOrder(browser) {
       said.includes(`Moved ${before[0]?.name} to 2 of 10`) &&
         said.includes("⌘2"),
       JSON.stringify(said.slice(0, 80)),
-      "keyboard-focus-map.md:221-223 — the move is announced, place and chord",
+      "keyboard-focus-map.md:236-238 — the move is announced, place and chord",
     );
 
     // The ninth place, which is the one boundary on this surface: nine chords
@@ -2002,7 +2067,7 @@ async function auditSidebarOrder(browser) {
       lost.includes(`Moved ${ninth?.name} to 10 of 10`) &&
         lost.includes("no shortcut"),
       JSON.stringify(lost.slice(0, 80)),
-      "keyboard-focus-map.md:221-223 — the move is announced, place and chord",
+      "keyboard-focus-map.md:236-238 — the move is announced, place and chord",
     );
   } finally {
     await context.close();

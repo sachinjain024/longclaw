@@ -32,7 +32,7 @@ export async function listProjects(): Promise<ProjectReference[]> {
  * One body under two names, because after LC-170 the title is the only thing
  * about a picker that may differ by the button that opened it: what happens to
  * the folder it answers with is a fact about the folder
- * (`screen-specs.md:99-101`). The choose-and-act pairs these replace — a picker
+ * (`screen-specs.md:113-115`). The choose-and-act pairs these replace — a picker
  * that registered, or created in, whatever it was handed — could not survive
  * that, because both now have to be able to end on either screen.
  */
@@ -42,7 +42,7 @@ function chooseFolder(title: string): Promise<string | null> {
 
 /**
  * First launch asks the folder before it asks anything else
- * (`screen-specs.md:97-106`, D-11): the create form shows the chosen path back
+ * (`screen-specs.md:111-120`, D-11): the create form shows the chosen path back
  * (D-13), which it cannot do while the picker is the last step rather than the
  * first.
  */
@@ -444,4 +444,30 @@ export async function installUpdate(): Promise<void> {
 /** The way out when the in-app update cannot finish. The webview names no URL. */
 export async function openDownloadPage(): Promise<void> {
   return invoke("open_download_page");
+}
+
+/**
+ * Opens the LongClaw repository on GitHub, in the default browser (LC-257s).
+ *
+ * The webview names no URL, the same way it names none for `openTicketFile` or
+ * `openDownloadPage`: it asks for *the repository* and Rust holds the one it
+ * means. A surface that could pass a URL here would be a network capability
+ * spelled differently.
+ */
+export async function openRepository(): Promise<void> {
+  return invoke("open_repository");
+}
+
+/**
+ * The repository's star count, or `null` when there is nothing to say
+ * (LC-257s, [ADR 0015](../../../docs/adr/0015-the-star-count-rides-the-update-path.md)).
+ *
+ * **`null` is an answer, never an error.** Offline, rate limited, refused by a
+ * proxy, or asked again inside the same slot: all of them come back as `null`,
+ * the control stays in its no-count state, and nothing is raised. Rust owns the
+ * host and the slot — at most one request a day however often this is called —
+ * so a caller cannot turn a re-render into a second request.
+ */
+export async function starCount(): Promise<number | null> {
+  return invoke("star_count");
 }

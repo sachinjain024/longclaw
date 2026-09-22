@@ -1,5 +1,5 @@
 /**
- * The confirm a destructive action goes behind (`screen-specs.md:335-336`).
+ * The confirm a destructive action goes behind (`screen-specs.md:349-350`).
  *
  * There is one destructive-looking action in v0 — **Remove from app** — and it
  * fired on the first click, from a red button, with its guarantee unstated
@@ -194,7 +194,7 @@ export function ConfirmDialog(props: {
 
 /**
  * What **Remove from app** asks before it does anything, from either of the two
- * places that offer it (`screen-specs.md:333-336`).
+ * places that offer it (`screen-specs.md:347-350`).
  *
  * One component rather than one per surface, because the guarantee is the point:
  * the same action must not repeat it in two different sets of words, and it must

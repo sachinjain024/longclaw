@@ -102,6 +102,26 @@ type DevicePreferences = {
      *  failure knows nothing. */
     lastCheckedAt?: string;
   };
+
+  /**
+   * The repository's star count, as it was last known (LC-257s).
+   *
+   * Cached so that the control draws a number on the frame it mounts rather
+   * than a frame after the network answers — a count that appears late reads as
+   * a count that went up. Device-local rather than per project for the obvious
+   * reason: it is a fact about LongClaw, and every project window would
+   * otherwise fetch it again.
+   *
+   * **The pair is written together or not at all.** A count with no timestamp
+   * is a number nothing can age out, and a timestamp with no count is a claim
+   * that a fetch succeeded with nothing to show for it.
+   */
+  stars?: {
+    /** What GitHub last said. */
+    count: number;
+    /** When it said it, ISO-8601. Only a success writes here. */
+    fetchedAt: string;
+  };
 };
 
 /**
@@ -145,6 +165,24 @@ function adopt(stored: unknown): DevicePreferences {
       kept.lastCheckedAt = fields.lastCheckedAt;
     }
     if (Object.keys(kept).length > 0) adopted.updates = kept;
+  }
+  const stars = value.stars;
+  if (stars && typeof stars === "object" && !Array.isArray(stars)) {
+    const fields = stars as Record<string, unknown>;
+    // Both, or neither. A hand-edited half is the one shape that would let a
+    // stale number live forever or an empty success be recorded.
+    if (
+      typeof fields.count === "number" &&
+      Number.isFinite(fields.count) &&
+      fields.count >= 0 &&
+      typeof fields.fetchedAt === "string" &&
+      !Number.isNaN(Date.parse(fields.fetchedAt))
+    ) {
+      adopted.stars = {
+        count: Math.floor(fields.count),
+        fetchedAt: fields.fetchedAt,
+      };
+    }
   }
   const saved = value.projectWorkspaces;
   if (saved && typeof saved === "object" && !Array.isArray(saved)) {
@@ -191,6 +229,7 @@ function isEmpty(preferences: DevicePreferences) {
     preferences.commandLinePrompted === undefined &&
     preferences.panelWidth === undefined &&
     preferences.updates === undefined &&
+    preferences.stars === undefined &&
     Object.keys(preferences.projectWorkspaces).length === 0
   );
 }
@@ -206,6 +245,7 @@ function serialized(): Record<string, unknown> {
   if (held.commandLinePrompted) written.commandLinePrompted = true;
   if (held.panelWidth !== undefined) written.panelWidth = held.panelWidth;
   if (held.updates) written.updates = held.updates;
+  if (held.stars) written.stars = held.stars;
   return written;
 }
 
@@ -433,5 +473,31 @@ export function rememberAutomaticUpdateCheck(automatic: boolean) {
  */
 export function rememberUpdateCheck(checkedAt = new Date().toISOString()) {
   held = { ...held, updates: { ...held.updates, lastCheckedAt: checkedAt } };
+  flush();
+}
+
+/**
+ * The star count as it was last known, and when (LC-257s).
+ *
+ * Returned whole so a caller cannot read one half without the other: the count
+ * alone cannot be aged, and the timestamp alone says nothing.
+ */
+export function readStarCount():
+  { count: number; fetchedAt: string } | undefined {
+  return held.stars;
+}
+
+/**
+ * Records a count GitHub actually returned.
+ *
+ * Only a success, for the same reason `rememberUpdateCheck` records only a
+ * success: a failed fetch knows nothing, and moving the timestamp for one would
+ * age out a number that is still the best thing the app has.
+ */
+export function rememberStarCount(
+  count: number,
+  fetchedAt = new Date().toISOString(),
+) {
+  held = { ...held, stars: { count, fetchedAt } };
   flush();
 }

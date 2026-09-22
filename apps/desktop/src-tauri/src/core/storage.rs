@@ -1529,7 +1529,7 @@ pub fn discard_claimed_ticket_directory(ticket_path: &Path) {
 
 /// Whether a folder already holds a LongClaw project, which is the one thing the
 /// folder picker needs to know before it decides which screen comes next
-/// (`screen-specs.md:99-101`). `longclaw.yaml`, not the `.longclaw/` directory
+/// (`screen-specs.md:113-115`). `longclaw.yaml`, not the `.longclaw/` directory
 /// around it: that is what `initialize_project` refuses on below, what
 /// `read_project` goes on to read, and what ADR 0009 names as the thing Rust
 /// validates. The spec line said the directory until LC-170's review, and was
@@ -2310,7 +2310,7 @@ mod tests {
         assert!(project.join(".longclaw/tickets").is_dir());
     }
 
-    /// The folder picker's branch (`screen-specs.md:99-101`) and creation's
+    /// The folder picker's branch (`screen-specs.md:113-115`) and creation's
     /// refusal have to be the same question asked twice, or the picker sends a
     /// folder to the create form that creation will not take — three answered
     /// questions and then `This folder already holds a LongClaw project`, which
@@ -2352,7 +2352,7 @@ mod tests {
     /// "already contains `.longclaw/`" until LC-170's review, and a picker that
     /// took it literally would call the residue folder of a failed create a
     /// project and send the user to `read_project`, which has nothing to read.
-    /// `screen-specs.md:99-101` now names the file, so this pins the spec rather
+    /// `screen-specs.md:113-115` now names the file, so this pins the spec rather
     /// than a departure from it.
     #[test]
     fn a_longclaw_directory_without_the_project_file_is_not_a_project() {

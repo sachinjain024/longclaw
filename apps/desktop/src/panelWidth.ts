@@ -26,7 +26,7 @@
 
 /**
  * The container query LC-227's properties rail is behind
- * (`styles.css:3192`). `scripts/panel-width-guard.mjs` is what holds this
+ * (`styles.css:3244`). `scripts/panel-width-guard.mjs` is what holds this
  * number and that query together: they are two statements of one bound, and
  * the one that goes stale reads exactly like the one that did not. Not a
  * vitest file — the suite loads no stylesheet, and a `?raw` import of one
@@ -54,7 +54,7 @@ export const PANEL_WIDTH_MAX = 4_000;
 
 /**
  * The share of the window the panel may cover — `88vw`, the ceiling the panel
- * has had since the spec (`screen-specs.md:214`). The board and list stay
+ * has had since the spec (`screen-specs.md:228`). The board and list stay
  * visible and clickable behind it, so the workspace keeps a strip that is
  * always the board's rather than the panel's.
  */

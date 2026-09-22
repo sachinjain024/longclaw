@@ -190,7 +190,7 @@ describe("the create-project form as first launch's second step", () => {
     expect(row.getAttribute("title")).toBe("/Users/dev/repo/.longclaw");
   });
 
-  // `screen-specs.md:103`: Name prefilled from the folder name, Key from the
+  // `screen-specs.md:117`: Name prefilled from the folder name, Key from the
   // name. The picker has already answered by the time this form exists, so the
   // folder's own name is the best guess anyone has — and it is what focus lands
   // in, which is a poor place for an empty box.
@@ -248,7 +248,7 @@ describe("the create-project form as first launch's second step", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("");
   });
 
-  // `keyboard-focus-map.md:242`: the folder picker hands focus to the name
+  // `keyboard-focus-map.md:257`: the folder picker hands focus to the name
   // field. Only on this path — the sidebar's quick create opens beside a board
   // someone is already working in.
   it("puts the caret where the picker left off", () => {

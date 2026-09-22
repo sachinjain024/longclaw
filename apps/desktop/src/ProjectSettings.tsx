@@ -1,5 +1,5 @@
 /**
- * Project settings (`screen-specs.md:327-336`), as a right-hand panel with a
+ * Project settings (`screen-specs.md:341-350`), as a right-hand panel with a
  * side nav (LC-208).
  *
  * Two shapes preceded it. It was a section that expanded *inside* the main
@@ -415,7 +415,7 @@ function GeneralSection(props: {
           <label htmlFor={nameId}>Name</label>
           <div className="field-row">
             {/* `Enter` or blur commits, as the panel's title does
-                (`screen-specs.md:225`). The `Rename` button beside this was the
+                (`screen-specs.md:239`). The `Rename` button beside this was the
                 only way to save it, and pressing `Done` with a typed name threw
                 the name away without saying so. */}
             <input
@@ -821,7 +821,7 @@ function ProjectLabels(props: {
  *
  * The row used to carry a `Save label X` and a `Remove label X` button, which
  * was two buttons per row saying the row's name twice (D-4J). It commits the
- * way the panel's title does instead (`screen-specs.md:225`) — `Enter` or blur
+ * way the panel's title does instead (`screen-specs.md:239`) — `Enter` or blur
  * — and a colour applies the moment it is picked, the way the theme picker
  * does, so the only button left is the one that takes the row away.
  *

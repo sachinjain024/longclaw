@@ -1,5 +1,5 @@
 /**
- * The empty-project invitation (`states.md:28-35`, `screen-specs.md:161-163`,
+ * The empty-project invitation (`states.md:28-35`, `screen-specs.md:175-177`,
  * prototype.js `guideCardHTML`).
  *
  * It used to be a full-width dashed panel that stood *instead of* the board —

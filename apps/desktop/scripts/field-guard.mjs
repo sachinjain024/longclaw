@@ -89,7 +89,7 @@ for (const [selector, prose] of Object.entries(FIELDS)) {
 /* Six facts about the cascade that no test in `verify` can see (LC-229).
    Three are the borderless title's: it is spec'd as a field —
    `--lc-type-title`, hover `wash`, focus the field treatment
-   (`screen-specs.md:224-225`) — and being borderless is what let it drift off
+   (`screen-specs.md:238-239`) — and being borderless is what let it drift off
    that spec without anything looking broken, because a box nobody can see at
    rest is a box nobody checks. All three were wrong for as long as the rule had
    existed. The fourth is the caret the whole field foundation asks for
@@ -97,7 +97,7 @@ for (const [selector, prose] of Object.entries(FIELDS)) {
 
    The last two are the *other* title's, the quick create modal's, which the
    first pass left alone as a decision rather than a fix. It is a different
-   field on a different spec — `screen-specs.md:256` asks for a borderless 15px
+   field on a different spec — `screen-specs.md:270` asks for a borderless 15px
    title field, because that modal is one field and two menus and a box around
    it is a frame around nothing — but borderless earns it the same blind
    spot, and it had drifted off the prototype in the two ways below.
@@ -281,7 +281,7 @@ const CASCADE_CHECKS = [
      prototype draws, and the placeholder weight that follows from it.
 
      The size is asked for first because it is the one number
-     `screen-specs.md:256` actually writes down — "Row 2: borderless 15px title
+     `screen-specs.md:270` actually writes down — "Row 2: borderless 15px title
      input" — and because 15px is not a step on any scale in this app. Every
      other field here takes its size from a token, so this one reads as an
      arbitrary number to anybody tidying up, and the tidy is to replace it with
@@ -299,7 +299,7 @@ const CASCADE_CHECKS = [
     if (size !== "15px") {
       return (
         `${QUICK_TITLE} declares font-size: ${size ?? "nothing"} — ` +
-        `screen-specs.md:256 asks for a borderless 15px title field, and 15px ` +
+        `screen-specs.md:270 asks for a borderless 15px title field, and 15px ` +
         `is the only measurement that line states`
       );
     }
@@ -340,7 +340,7 @@ const CASCADE_CHECKS = [
 
      Borderless is checked first, because it is the premise and not a
      decoration: cancelling the ring is only right while there is no box, and
-     the boxed field this modal deliberately does not have (`screen-specs.md:256`,
+     the boxed field this modal deliberately does not have (`screen-specs.md:270`,
      D-47) is a standing suggestion. A field that grew a border under a
      cancelled ring would be the one field in the app with a visible edge and
      no focus indicator at all — worse than the square this check was written

@@ -5,7 +5,7 @@
  * per-ticket `rank`. LC-227 adds Due as another read-only ordering. These live
  * here rather than inside `layOutColumns`, so a surface picks an order instead
  * of owning one — the list reads the same preference for the rows inside a
- * group (`screen-specs.md:180`).
+ * group (`screen-specs.md:194`).
  *
  * Which order is in force is a device-local view preference and never project
  * data, so nothing in this file writes anything and switching mode moves cards
@@ -248,7 +248,7 @@ export function rankForDrop(
  *
  * `Array.prototype.sort` has been stable since ES2019, which is what makes the
  * order within one priority level the order the tickets arrived in — the store's
- * key sort (`screen-specs.md:132`).
+ * key sort (`screen-specs.md:146`).
  */
 export function orderColumn(
   tickets: TicketRow[],

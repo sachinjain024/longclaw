@@ -1,0 +1,1419 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-lc-theme="indigo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LC-257s — A GitHub star control: five places it could stand</title>
+
+<!-- The app's own fonts, tokens and stylesheet. Nothing here re-implements a
+     component: the side panel, the content header, the welcome column and the
+     command palette below are the markup `App.tsx` and `CommandPalette.tsx`
+     render, wearing the rules `styles.css` already carries, so what is on
+     screen is what would ship rather than a drawing of it. -->
+<link rel="stylesheet" href="../../design/foundations/proof/fonts.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/styles.css">
+
+<!-- ====================================================================
+     PROPOSED — the additions this ticket would ask of
+     `apps/desktop/src/styles.css`. Five placements are drawn, and **at most
+     one of them ships**: the rules below are five alternatives, not a set.
+     Whichever is chosen, `.gh-star` itself is the same control.
+     ==================================================================== -->
+<style id="proposed">
+/* ---- the control itself (LC-257s)
+
+   One ghost control, wherever it ends up standing: the GitHub mark, the words
+   `Star on GitHub`, and — only once a count has arrived — the count.
+
+   **The mark is GitHub's, not a star, and that is a decision.** A star already
+   means something in this app: `.star-mark` draws `★` at 11px `ink-2` on every
+   starred project row in the side panel, and `Star project` is a row in both
+   the gear menu and the command palette. A second ★ in the same 240px column,
+   meaning a different thing, is the kind of collision nobody notices in a
+   mockup and everybody notices in the app. The word `star` survives — it is
+   what the control does — but it is spelled out next to GitHub's own mark
+   rather than drawn as a second glyph.
+
+   Ghost rather than secondary: `components.md:49-53` keeps the one filled
+   accent on screen for `New ticket`, and this is a courtesy, not the app's
+   primary action. */
+.gh-star {
+  display: inline-flex;
+  height: var(--lc-size-control-sm);
+  align-items: center;
+  gap: 6px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  padding: 0 8px;
+  color: var(--lc-ink-2);
+  background: none;
+  font: 500 11.5px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.gh-star:hover {
+  border-color: var(--lc-line-strong);
+  color: var(--lc-ink);
+  background: var(--lc-wash);
+}
+
+.gh-star .gh-mark {
+  flex: none;
+  opacity: 0.85;
+}
+
+/* Mono and tabular, because this number changes under the reader and a
+   proportional `1` is a different width from a proportional `8`: a count that
+   re-flows the control it sits in every time it refreshes is a control that
+   twitches. `ink-3` keeps it quieter than the label — the label is the offer,
+   the number is evidence for it. */
+.gh-star .gh-count {
+  flex: none;
+  color: var(--lc-ink-3);
+  font: var(--lc-type-code-weight) 10.5px / 1 var(--lc-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- the pill (LC-257s, the shape the review asked for)
+
+   The reference shape: a solid dark lozenge carrying GitHub's mark and the
+   count, and no words. It is the form the rest of the world already uses for
+   exactly this, which is most of the argument for it — a reader has seen it
+   before and does not have to be taught what it is.
+
+   **`--lc-tile`, not `--lc-inverse-surface`.** The inverse pair is not "the
+   dark ones", it is *the inverse of the current appearance*: a pill built on it
+   would turn light grey the moment the app went dark, which is the trap
+   `.cli-preview` records at `styles.css:6310`. `--lc-tile` is near-black in
+   both appearances and `--lc-tile-ink` is the only ink that goes with it;
+   `tile-contrast-guard.mjs` is what holds the pair together.
+
+   **What it costs.** `components.md:49-53` keeps exactly one filled accent on
+   screen, and that is `New ticket`. A near-black pill is not that accent, but
+   it is the darkest object in the chrome, and in the side panel it will be the
+   loudest thing in the footer. Judge it against its neighbours, not on its own.
+
+   The count is not optional here the way it is in the ghost variant: a solid
+   pill with a mark and nothing else is a blob with no message, so the no-count
+   state keeps a word. */
+.gh-star.pill {
+  height: 22px;
+  border: 0;
+  border-radius: var(--lc-radius-full);
+  padding: 0 9px;
+  gap: 5px;
+  color: var(--lc-tile-ink);
+  background: var(--lc-tile);
+}
+
+.gh-star.pill:hover {
+  color: var(--lc-tile-ink);
+  background: var(--lc-tile);
+  filter: brightness(1.18);
+}
+
+.gh-star.pill .gh-mark {
+  opacity: 1;
+}
+
+/* The count is the loud half of this shape, not the quiet half it is in the
+   ghost: it is what the pill is *for*. Same tabular mono, full ink. */
+.gh-star.pill .gh-count {
+  color: var(--lc-tile-ink);
+  font-size: 11px;
+}
+
+/* The reference's trailing outline star. It is safe *here* and nowhere else in
+   this panel: inside a near-black lozenge it reads as part of one object rather
+   than as another row's `.star-mark`, which is the collision the ghost variant
+   spells its way around. */
+.gh-star.pill .gh-tail {
+  flex: none;
+  opacity: 0.75;
+}
+
+/* ---- A · on the side panel's version line
+
+   The compact variant: mark and count only, riding the row that already names
+   the running version. There is no room for the words here, so the control has
+   to carry its whole meaning in its accessible name — which is the argument
+   against this placement as much as the argument for its shape.
+
+   `margin-left: auto` puts it at the row's right end. That is the same end
+   `.app-version .upd-dot` claims, which is the collision this scene exists to
+   show: on the one day the `Update` link matters, the two are in each other's
+   way. */
+.app-version .gh-star {
+  margin-left: auto;
+}
+
+/* Stripping the border and the padding is the *ghost's* way of getting small
+   enough for this row. The pill must keep its own box or it stops being a pill,
+   so it only loses a little height. Both selectors are two classes deep, so
+   without the `:not()` the later one would simply win and quietly un-pill the
+   pill — which is what it did the first time this was written. */
+.app-version .gh-star:not(.pill) {
+  height: 18px;
+  border: 0;
+  padding: 0 2px;
+}
+
+.app-version .gh-star:not(.pill):hover {
+  color: var(--lc-ink);
+  background: none;
+}
+
+.app-version .gh-star.pill {
+  height: 19px;
+  padding: 0 7px;
+}
+
+/* When both want the row's right end, the star gives it up: `Update` is news
+   with a half-life and this is a standing offer. It keeps its place in the
+   flow rather than being hidden — a control that disappears for a week is a
+   control nobody learns. */
+.app-version.has-update .gh-star {
+  order: -1;
+  margin-right: 4px;
+  margin-left: 0;
+}
+
+/* ---- B · its own row in the side panel footer
+
+   The full control, full width, under the version line. This is the variant
+   with room for the label, the count and a hover target that is not 18px tall,
+   and it is the only one that never competes with `Update` for a right edge.
+
+   `justify-content: flex-start` rather than centred: it reads as a row in a
+   list of app-level things, which is what the footer is, and a centred label
+   in a 216px box reads as a button someone forgot to size.
+
+   **The pill is excluded from all of it.** A lozenge stretched to 216px is a
+   bar, and a bar is not the shape the reference proposes — a pill has to hug
+   its content or it stops being one. So the pill sits left in the row at its
+   own width, and only the ghost fills it. */
+.side-panel-footer .gh-star:not(.pill) {
+  width: 100%;
+  margin-top: 6px;
+  justify-content: flex-start;
+}
+
+/* `justify-self`, not `align-self`: `.side-panel-footer` is a grid, so its
+   children stretch the column unless one of them says otherwise, and the flex
+   keyword is inert here. */
+.side-panel-footer .gh-star.pill {
+  justify-self: start;
+  margin-top: 8px;
+}
+
+/* The count goes to the far end of the row, where the footer's update dot
+   already puts news. Nothing else in this row wants that edge — and the pill
+   wants the opposite, its number tight against its mark. */
+.side-panel-footer .gh-star:not(.pill) .gh-count {
+  margin-left: auto;
+}
+
+/* ---- C · the content header, after `New ticket`
+
+   Nothing is needed for the control itself — `.toolbar-actions` is already a
+   flex row with an 8px gap. What is needed is the admission of what it costs:
+   the filter field is `flex: 1 1 240px; max-width: 380px` with a 120px floor,
+   so every pixel this takes comes out of the field's growth first and its
+   floor last. The band is what `probe:header` measures and this scene cannot
+   settle — see the note on the scene. */
+.content-header .gh-star {
+  flex: none;
+}
+
+/* ---- D · the welcome column, under the trust line
+
+   Not a control in the chrome at all: a quiet line at the foot of the first
+   screen a new user sees, where the trust line already speaks about the app
+   rather than about a project. It is the highest-intent moment in the product
+   and the cheapest surface to put anything on, and it is gone the moment a
+   project opens — which is why it is a companion here, never the answer. */
+.welcome-gh {
+  margin-top: 14px;
+}
+
+.welcome-gh .gh-star {
+  height: 26px;
+  padding: 0 10px;
+}
+
+/* ---- G · an app-wide status bar
+
+   The shell grows a row. `.app-shell` is `240px | 1fr | auto` over a single
+   implicit row today; a status bar is a second row that every column stands
+   on, so the bar spans `1 / -1` and the three regions above it lose its height
+   rather than sharing it.
+
+   This is the only one of the five that changes the shell, and it changes it
+   for every surface at every window size: 26px comes off the board, the list,
+   the ticket panel and the settings panel, all of which are sized against the
+   window today. Read the scene's note before pricing it. */
+.app-shell.has-statusbar {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.app-statusbar {
+  display: flex;
+  height: 26px;
+  align-items: center;
+  gap: var(--lc-space-3);
+  border-top: var(--lc-border-hairline) solid var(--lc-line);
+  padding: 0 var(--lc-space-3);
+  background: var(--lc-bg);
+  grid-column: 1 / -1;
+}
+
+.app-statusbar .ver {
+  color: var(--lc-ink-3);
+  font: var(--lc-type-code-weight) var(--lc-type-micro-size) /
+    var(--lc-type-code-leading) var(--lc-font-mono);
+}
+
+.app-statusbar .upd-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+
+.app-statusbar .upd-link {
+  border: 0;
+  padding: 0;
+  color: var(--lc-accent-human-text);
+  background: none;
+  font: 500 11px / 1.4 var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.app-statusbar .upd-link:hover {
+  text-decoration: underline;
+}
+
+/* Opposite ends: the app's identity and its news at one, the standing offer at
+   the other. Nothing is fighting for an edge here, which is the whole appeal of
+   a bar that runs the window's full width. */
+.app-statusbar .gh-star {
+  margin-left: auto;
+}
+
+.app-statusbar .gh-star:not(.pill) {
+  height: 18px;
+  border: 0;
+  padding: 0 2px;
+}
+
+.app-statusbar .gh-star:not(.pill):hover {
+  color: var(--lc-ink);
+  background: none;
+}
+
+/* A 26px bar with a 19px pill in it leaves 3.5px above and below, which is the
+   whole reason the bar is 26px rather than 22px. */
+.app-statusbar .gh-star.pill {
+  height: 19px;
+  padding: 0 7px;
+}
+</style>
+
+<!-- ====================================================================
+     HARNESS — the page around the proposal. None of this ships.
+     ==================================================================== -->
+<style id="harness">
+body {
+  margin: 0;
+  padding: 20px 24px 64px;
+  color: var(--lc-ink);
+  background: var(--lc-bg);
+  font: var(--lc-type-body-weight) var(--lc-type-body-size) /
+    var(--lc-type-body-leading) var(--lc-type-body-font);
+}
+
+.h-head {
+  max-width: 900px;
+  margin-bottom: 18px;
+}
+
+.h-eyebrow {
+  margin: 0 0 6px;
+  color: var(--lc-ink-3);
+  font: 500 11px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.h-head h1 {
+  margin: 0 0 8px;
+  font: 600 22px/1.25 var(--lc-font-display);
+  letter-spacing: -0.02em;
+}
+
+.h-head p {
+  margin: 0 0 8px;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+.h-bar {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  border: var(--lc-border-hairline) dashed var(--lc-line-strong);
+  border-radius: var(--lc-radius-panel);
+  padding: 10px 12px;
+  background: var(--lc-surface);
+}
+
+.h-bar .h-tag {
+  margin-right: 4px;
+  color: var(--lc-ink-3);
+  font: 500 10px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.h-bar button {
+  height: 24px;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 0 9px;
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  font: 500 11.5px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.h-bar button[aria-pressed="true"] {
+  border-color: var(--lc-accent-human);
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+}
+
+.h-bar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lc-ink-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* The app's own checkbox rules are written for a 16px control inside its
+   surfaces and make a bare one in this bar 20px and round. The bar is harness,
+   so it takes the browser's. */
+.h-bar label input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  margin: 0;
+  border-radius: 3px;
+  appearance: auto;
+}
+
+.h-bar .h-spacer {
+  flex: 1;
+}
+
+/* Where the number on screen came from. Never green: `components.md` keeps the
+   agent accent for things an agent did, and GitHub answering a request is not
+   one. */
+.h-bar .h-src {
+  border-radius: var(--lc-radius-full);
+  padding: 2px 8px;
+  color: var(--lc-ink-3);
+  background: var(--lc-wash);
+  font: 500 10.5px var(--lc-font-mono);
+}
+
+.h-bar .h-src-live {
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+}
+
+.h-bar .h-src-unreachable {
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+}
+
+.h-note {
+  max-width: 940px;
+  margin: 0 0 14px;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.h-note strong {
+  color: var(--lc-ink-2);
+}
+
+.h-note + .h-note {
+  margin-top: -6px;
+}
+
+/* Measured in the page, under the band it describes, rather than asserted in
+   prose that goes stale the first time a label changes. */
+.h-pair {
+  gap: 6px;
+}
+
+.h-pair .h-measure {
+  margin-top: 2px;
+}
+
+.h-measure {
+  margin: 0;
+  color: var(--lc-ink-3);
+  font: 400 11px var(--lc-font-mono);
+}
+
+.h-measure .over {
+  color: var(--lc-warn-ink);
+}
+
+.h-measure .fits {
+  color: var(--lc-ink-2);
+}
+
+.h-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.h-col {
+  display: grid;
+  gap: 18px;
+}
+
+.h-case {
+  display: grid;
+  margin: 0;
+  gap: 8px;
+}
+
+.h-case > figcaption {
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The shell's grid gives `.side-panel` its 240px; standing alone it needs the
+   column from somewhere, and a height, so the footer's `margin-top: auto` has
+   something to push against. */
+.h-shell {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  width: 240px;
+  height: 460px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  background: var(--lc-bg);
+  grid-template-columns: 240px;
+}
+
+.h-shell .side-panel {
+  min-height: 0;
+  border-right: 0;
+}
+
+/* The content header is `position: sticky` against the main region and escapes
+   `.main-panel`'s 18px inset with negative margins. Here the inset comes from a
+   box of a stated width, so a band can be read at a width the window can
+   actually be. */
+.h-band {
+  overflow: hidden;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  padding: 0 18px;
+  background: var(--lc-bg);
+}
+
+.h-band .content-header {
+  position: static;
+}
+
+/* A whole window, for the one variant that changes the shell. */
+.h-window {
+  overflow: hidden;
+  width: 100%;
+  max-width: 1180px;
+  height: 420px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  background: var(--lc-bg);
+}
+
+.h-window .app-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+.h-window .side-panel {
+  min-height: 0;
+}
+
+/* The board is not this ticket's question, so the main region is left as an
+   empty surface under its own header rather than drawn. */
+.h-stub {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.h-welcome {
+  display: grid;
+  overflow: hidden;
+  width: 560px;
+  height: 460px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  background: var(--lc-bg);
+}
+
+/* The palette is `position: fixed` inside a scrim in the app. Inside a harness
+   box it is a plain box on the page. */
+.h-palette .command-palette {
+  position: static;
+  width: 520px;
+  transform: none;
+  animation: none;
+}
+
+.h-deck {
+  overflow: hidden;
+  max-width: 1180px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  background: var(--lc-surface);
+}
+
+.h-deck table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.h-deck th {
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+  padding: 9px 14px;
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.h-deck td {
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line-soft);
+  padding: 9px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  vertical-align: top;
+}
+
+.h-deck td.id {
+  color: var(--lc-ink-2);
+  font: 400 11.5px var(--lc-font-mono);
+  white-space: nowrap;
+}
+
+.h-deck td.where {
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
+.h-deck td.text {
+  color: var(--lc-ink);
+}
+
+.h-deck .rowhint {
+  display: block;
+  margin-top: 3px;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+}
+
+.h-deck .st {
+  display: inline-block;
+  border-radius: var(--lc-radius-full);
+  padding: 1px 7px;
+  font: 500 10px var(--lc-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.h-deck .st-new {
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+}
+
+.h-deck .st-changed {
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+}
+
+.h-deck .st-moved {
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+}
+
+.h-deck .st-existing {
+  color: var(--lc-ink-3);
+  background: var(--lc-wash);
+}
+</style>
+</head>
+<body>
+
+<div class="h-head">
+  <p class="h-eyebrow">LC-257s · ux prototype</p>
+  <h1>A GitHub star control: five places it could stand</h1>
+  <p>
+    The ticket settles that the control lives in the app chrome and carries a
+    live count. It does not settle <em>where</em>, and the five candidates cost
+    very different amounts. Each scene is the app's own markup and styles, so
+    what is on screen is what would ship.
+  </p>
+  <p>
+    <strong>The no-count state is the default everywhere</strong>, and the
+    driver starts with it. A count that has not arrived — first paint, offline,
+    behind a proxy, rate-limited at 60 requests an hour per IP — draws no
+    number, no placeholder and no spinner, following ADR 0014's own rule that a
+    failed check claims nothing.
+  </p>
+  <p>
+    <strong>The count is real.</strong> The page asks
+    <code>api.github.com</code> for
+    <code>sachinjain024/longclaw</code>'s actual star count and fills it in a
+    beat after first paint, which is the designed behaviour demonstrated rather
+    than described. The chip in the driver says what GitHub answered.
+    <em>The page's own <code>fetch</code> is not the proposal:</em> the app's
+    webview has no network capability, so in the app the webview names an
+    intent and Rust decides the host, makes the request and caches the answer.
+  </p>
+  <p>
+    <strong>Two shapes are on the table.</strong> <code>pill</code> is the
+    reference shape — a solid near-black lozenge carrying GitHub's mark and
+    the count and no words, optionally with a trailing outline star — and it
+    is what the driver opens on. <code>labelled ghost</code> is the quieter
+    bordered control with <code>Star on GitHub</code> spelled out. The pill is
+    the shape a reader has already learned elsewhere; the ghost is the one that
+    never needs its accessible name to carry the whole meaning, and never needs
+    a fallback word when the count is withheld. Switch between them in every
+    scene.
+  </p>
+  <p>
+    <strong>Read the chip before reviewing anything else.</strong> At the
+    repository's count today the number is small enough to argue against the
+    control it decorates, which is why this prototype proposes a
+    <strong>floor</strong>: the count is drawn at or above
+    <code>50</code> and the control is the no-count state below it. That gives
+    the no-count state a second job — not only what offline looks like, but what
+    a young repository looks like — and it costs nothing, because that state has
+    to be designed and legible either way. The three <code>count</code> buttons
+    let you review all of it: no number, the live number, and the number this
+    repository will have later.
+  </p>
+</div>
+
+<div class="h-bar" id="driver"></div>
+<div id="stage"></div>
+
+<script>
+/* ------------------------------------------------------------------ the copy
+ * The one object the scenes and the deck both render from. Reply with an id to
+ * change a row (`github.star.aria.count → …`). `{count}` and `{version}` are
+ * filled at render rather than by string replacement at the call site.
+ */
+const COPY = {
+  version: {
+    running: "0.2.0",
+    available: "0.3.0",
+    repo: "sachinjain024/longclaw",
+    /* The stand-in, used only when the live fetch below does not land. */
+    stars: 1284,
+  },
+  rows: [
+    /* ---- the control */
+    { id: "github.star.label", kind: "button", where: "the control, in every placement except A and G, which have no room for it", text: "Star on GitHub", status: "new",
+      note: "The ghost shape’s label, and the pill drops it entirely to lean on github.star.aria — the trade that shape makes. Not just “Star”: that is the gear menu’s and the palette’s word for starring a project, and this control is nowhere near far enough from those to borrow it. Naming GitHub is also what says the press leaves the app." },
+    { id: "github.star.count", kind: "count", where: "the control, after the label — only once a count has arrived", text: "{countShort}", status: "new",
+      note: "Under 1,000 the number is written out (847); at and above it, one decimal and a k (1.3k), because the sidebar row has ~40px for it and a five-digit count is a different width every week. Nothing announces a count that arrives after first paint: it is not news, and a live region for it would interrupt a reader mid-sentence to tell them a number went up." },
+    { id: "github.star.pill.nocount", kind: "button", where: "the pill shape only, while no count is drawn", text: "Star", status: "new",
+      note: "The pill’s whole message is the number, so with the number withheld it needs a word or it is a black lozenge that means nothing. One word rather than the full label, because the shape has room for one — and “Star” alone is only safe here because GitHub’s mark is sitting next to it; the same word without the mark is what project.menu.star already means. The ghost shape needs no equivalent, which is the sharpest practical difference between the two." },
+    { id: "github.star.floor", kind: "rule, not a string", where: "decides whether github.star.count is drawn at all", text: "Draw the count at 50 stars and above. Below it, the control is the no-count state.", status: "new",
+      note: "The one decision on this page that is a judgement rather than a measurement, and the one most worth arguing with. The ticket’s case for paying three gates’ worth of cost is that the number is social proof; at a count this repository can currently show, the number is the opposite, and a control that talks a reader out of the thing it asks for is worse than the bare link the ticket rejected. A floor costs nothing to build, because the no-count state is required anyway — it just gains a second reason to exist. What it does cost is a promise: until the floor is cleared, the expensive half of this ticket buys nothing a static link would not." },
+    { id: "github.star.aria", kind: "aria-label", where: "the control, no count known", text: "Star LongClaw on GitHub. Opens github.com in your browser.", status: "new",
+      note: "The second sentence is doing real work in placements A and G, where the visible control is a mark and nothing else. It is also the only warning that a press leaves the app — a local-first app opening a browser is a surprise worth naming." },
+    { id: "github.star.aria.count", kind: "aria-label", where: "the control, count known", text: "Star LongClaw on GitHub, {count} stars. Opens github.com in your browser.", status: "new",
+      note: "The full number, not the abbreviated one: 1.3k is a thing to read at a glance, not a thing to hear. Read this row against the live count and it says \u201c1 stars\u201d \u2014 left visible on purpose, because it is the plural that github.star.floor is quietly holding up. At or above the floor the plural is always right and no singular form is needed; remove the floor and this string needs one. Two rows, one grammar." },
+    { id: "github.star.title", kind: "title", where: "hover, every placement", text: "github.com/{repo}", status: "new",
+      note: "A title rather than a visible sub-label, because where the press goes is a thing to confirm, not a thing to read every time. Note what LC-204 does to this string: transferring the repository leaves every github.com/sachinjain024/… path depending on a redirect GitHub owns (apps/website/src/lib/site.ts:27). A browser follows that; a Rust HTTP client follows it only if it is told to, and api.github.com/repos/… answers a moved repository with a 301. Whoever builds the fetch owns that decision." },
+    { id: "github.open.failed", kind: "refusal (toast)", where: "when the browser could not be opened", text: "Couldn’t open GitHub.", status: "new",
+      note: "The Rust command can fail and today nothing says so. It claims nothing about why — the same shape as the update path’s three-into-one “couldn’t check”, because a person cannot act on a distinction between “no handler” and “the open call returned an error”." },
+
+    /* ---- where it is explained */
+    { id: "github.settings.note", kind: "note", where: "Settings › Updates, under the automatic-check note", text: "The star count is fetched the same way, at most once a day, and sends nothing about you or your projects.", status: "new",
+      note: "ADR 0014 moved the promise from “no connection” to “no information”, and the price of a second caller on that road is that it is stated in the same place as the first. It sits under updates.pane.automatic.note deliberately: two sentences about one mechanism, not two mechanisms." },
+
+    /* ---- the companions */
+    { id: "github.palette.label", kind: "palette row", where: "command palette, root list", text: "Open LongClaw on GitHub", status: "new",
+      note: "“Open”, not “Star”, because the palette already has a Star project row and the two would sort next to each other under the same three keystrokes. This is the keyboard twin of whichever visible control wins, and is worth shipping alongside any of them." },
+    { id: "github.welcome.label", kind: "link", where: "welcome screen, under the trust line", text: "Star LongClaw on GitHub", status: "new",
+      note: "Here the word Star is safe: there is no project open, so no project can be starred, and nothing else on the screen uses it." },
+
+    /* ---- the neighbours, for tone and for what moves */
+    { id: "updates.footer.version", kind: "note", where: "side panel footer (A, B) — the status bar (G)", text: "LongClaw {version}", status: "moved",
+      note: "Unchanged as a string, and in variant G it is the whole proposal: the version leaves the side panel and stands in the status bar instead. Everywhere else it stays where LC-256a put it." },
+    { id: "updates.footer.update", kind: "link", where: "beside the version, when an update is waiting", text: "Update", status: "existing",
+      note: "The reason the count and the news collide in variant A: both want the row’s right end, and this one is the one with a half-life." },
+    { id: "updates.footer.update.aria", kind: "aria-label", where: "the Update link", text: "Update to LongClaw {version}", status: "existing" },
+    { id: "project.menu.star", kind: "menu row", where: "the gear menu and the command palette", text: "Star project", status: "existing",
+      note: "The collision, in words. It is why github.star.label spells out GitHub and why github.palette.label says Open." },
+    { id: "project.row.starred", kind: "visually-hidden", where: "a starred project’s row in the side panel", text: "Starred", status: "existing",
+      note: "The collision, as a glyph: .star-mark draws ★ at 11px ink-2 on these rows, which is why the new control leads with GitHub’s mark instead of a second star." },
+    { id: "welcome.trustline", kind: "note", where: "welcome screen, last line", text: "no account · no cloud · your files, on your disk", status: "existing",
+      note: "The line the welcome placement would stand under, and the tone it has to survive next to. “Your files, on your disk” and “opens github.com” are one sentence apart." }
+  ]
+};
+const T = {};
+COPY.rows.forEach((r) => { T[r.id] = r.text; });
+const V = COPY.version;
+/* `count` is whether the control is drawing a number at all — the ticket's
+   no-count state is the first paint, here as in the app. `stars` and `source`
+   are filled by the live fetch below. */
+/* Opens on the settled design — variant G, the labelled ghost. `count` is left
+   at `none` because the live fetch below overwrites it a beat after first
+   paint, and what it decides is the thing worth watching. */
+const app = { scene: "g", count: "none", style: "labelled", pending: false, stars: null, source: "checking" };
+
+/* ------------------------------------------------------------------ the floor
+ * **The count is drawn only at or above this number.** Below it, the control is
+ * the no-count state — the same state offline and a rate limit produce.
+ *
+ * This is not a technical constraint; it is the finding this prototype exists
+ * to surface. The ticket's premise is that a live number is worth its
+ * considerable cost because the number is social proof. At the repository's
+ * real count today — go and read the chip in the driver, it is fetched live —
+ * the number is an argument *against* pressing the control, and a control that
+ * talks a reader out of the thing it is asking for is worse than the bare link
+ * the ticket rejected.
+ *
+ * The no-count state therefore earns a second job: it is not only what a failed
+ * fetch looks like, it is what a young repository looks like. That costs
+ * nothing extra, because the ticket already requires that state to be designed
+ * first and to be legible on its own.
+ *
+ * **50 is a judgement, and it is the one number here that wants arguing about.**
+ * It is the only value in this file that is neither measured nor quoted from a
+ * spec.
+ */
+const COUNT_FLOOR = 50;
+
+/* ------------------------------------------------------------- the real count
+ * The prototype asks GitHub for the repository's actual star count, so the
+ * control is reviewed at the width a real number gives it rather than at the
+ * width of an invented one.
+ *
+ * **This is a harness convenience and NOT the proposed mechanism.** The app
+ * has no frontend network capability — `capabilities/main.json` states the
+ * webview has none — so in the app the webview names an intent and Rust
+ * decides the host, makes the request and caches the answer in device
+ * preferences. A `fetch` from the page is something only this file can do.
+ *
+ * A failure is not handled, because there is nothing to handle: the control
+ * stays in the no-count state, which is the state this ticket asks to be
+ * designed first and is what offline, a proxy, or GitHub's 60-per-hour
+ * unauthenticated limit actually look like.
+ */
+function fetchStars() {
+  fetch("https://api.github.com/repos/" + COPY.version.repo, {
+    headers: { Accept: "application/vnd.github+json" },
+  })
+    .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+    .then((data) => {
+      if (typeof data.stargazers_count !== "number") return Promise.reject("no count");
+      app.stars = data.stargazers_count;
+      app.source = "live";
+      /* The number arrives after first paint and the floor rule decides what to
+         do with it, which is exactly what the app would do. Nothing announces
+         it either way. */
+      app.count = autoMode();
+      render();
+    })
+    .catch(() => {
+      app.source = "unreachable";
+      renderDriver();
+    });
+}
+
+/* The number the control draws. `live` is whatever GitHub said; `grown` is the
+   stand-in, so the control can be reviewed at the width it will one day have
+   rather than only at the width it has today. */
+function stars() {
+  if (app.count === "grown") return COPY.version.stars;
+  return app.stars === null ? COPY.version.stars : app.stars;
+}
+
+/* Whether a number is drawn at all. `none` is the state the page opens in. */
+function countKnown() {
+  return app.count !== "none";
+}
+
+/* What the floor rule would choose, left to itself, once a fetch has landed. */
+function autoMode() {
+  if (app.stars === null) return "none";
+  return app.stars >= COUNT_FLOOR ? "live" : "none";
+}
+
+/* Under a thousand, written out. At and above it, one decimal and a `k`. */
+function countText(n) {
+  if (n < 1000) return String(n);
+  return (Math.round(n / 100) / 10).toFixed(1).replace(/\.0$/, "") + "k";
+}
+
+function fill(str, extra) {
+  const map = Object.assign(
+    {
+      version: V.running,
+      repo: V.repo,
+      /* Grouped, the way it is spoken. */
+      count: stars().toLocaleString("en-US"),
+      /* Abbreviated, the way it is drawn. */
+      countShort: countText(stars()),
+    },
+    extra || {},
+  );
+  return String(str).replace(/\{(\w+)\}/g, (m, k) => (k in map ? map[k] : m));
+}
+const esc = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/* GitHub's own mark (octicon `mark-github`), the one glyph this ticket adds to
+   `glyphs.svg`. A fill rather than the 1.3px stroke the app's other glyphs are
+   drawn in, because it is somebody else's brand mark and a re-drawn one is not
+   it. Decorative in every caller: the control names itself in words, or in its
+   accessible name where it has no room for words. */
+const GH =
+  '<svg class="gh-mark" width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">' +
+  '<path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>' +
+  "</svg>";
+
+/* The trailing outline star of the reference pill. The app's own stroke
+   language — 1.3px, `currentColor`, a 14px box — rather than a filled glyph,
+   so it sits beside the GitHub mark without shouting over it. */
+const STAR =
+  '<svg class="gh-tail" width="11" height="11" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<path d="M7 1.6 L8.66 5.02 L12.4 5.56 L9.7 8.2 L10.34 11.95 L7 10.18 L3.66 11.95 L4.3 8.2 L1.6 5.56 L5.34 5.02 Z"' +
+  ' fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+
+const GEAR =
+  '<svg class="gear-glyph" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="1.9" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5.9 1.5 L8.1 1.5 L8.4 2.9 A4.3 4.3 0 0 1 9.6 3.6 L10.95 3.15 L12.05 5.05 L11 6 A4.4 4.4 0 0 1 11 8 L12.05 8.95 L10.95 10.85 L9.6 10.4 A4.3 4.3 0 0 1 8.4 11.1 L8.1 12.5 L5.9 12.5 L5.6 11.1 A4.3 4.3 0 0 1 4.4 10.4 L3.05 10.85 L1.95 8.95 L3 8 A4.4 4.4 0 0 1 3 6 L1.95 5.05 L3.05 3.15 L4.4 3.6 A4.3 4.3 0 0 1 5.6 2.9 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+const CHEVRON =
+  '<svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.8 5.4 L7 8.6 L10.2 5.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const VIEW_BOARD =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.8" y="2.6" width="3.4" height="8.8" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="6.4" y="2.6" width="3.4" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="2.6" width="1.2" height="4" rx="0.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+const VIEW_LIST =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.6 H12 M2 7 H12 M2 10.4 H12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+
+/* ------------------------------------------------------------- the control
+ * One function, five placements. `variant` only picks how much of it is drawn:
+ * `full` is mark, label and count; `compact` is mark and count, and leans on
+ * the accessible name for everything the label would have said.
+ */
+function ghStar(variant) {
+  const known = countKnown();
+  const aria = fill(known ? T["github.star.aria.count"] : T["github.star.aria"]);
+  const count = known
+    ? '<span class="gh-count">' + esc(countText(stars())) + "</span>"
+    : "";
+  const pill = app.style !== "labelled";
+
+  /* The pill carries no words while it has a number, and one word when it has
+     none: a solid lozenge holding a mark and nothing else is an object with no
+     message. The ghost variant needs no such fallback, because its label is
+     always there — which is the clearest difference between the two shapes. */
+  let label = "";
+  if (pill) {
+    if (!known) label = '<span class="gh-label">' + esc(T["github.star.pill.nocount"]) + "</span>";
+  } else if (variant !== "compact") {
+    label = '<span class="gh-label">' + esc(T["github.star.label"]) + "</span>";
+  }
+
+  const tail = pill && app.style === "pillstar" && known ? STAR : "";
+
+  return (
+    '<button tabindex="0" type="button" class="gh-star' + (pill ? " pill" : "") +
+      '" data-act="github"' +
+      ' aria-label="' + esc(aria) + '"' +
+      ' title="' + esc(fill(T["github.star.title"])) + '">' +
+      GH + label + count + tail +
+    "</button>"
+  );
+}
+
+/* ------------------------------------------------------------ the side panel
+ * `App.tsx`'s own markup. The project list is one row deep — context, not
+ * proposal — and it keeps its `★`, because that star is half of this ticket's
+ * naming problem and hiding it would hide the problem.
+ */
+function sidePanel(placement) {
+  const hasUpdate = app.pending;
+  const updateBits = hasUpdate
+    ? '<span class="upd-dot" aria-hidden="true"></span>' +
+      '<button tabindex="0" class="upd-link" aria-label="' +
+        esc(fill(T["updates.footer.update.aria"], { version: V.available })) + '">' +
+        esc(T["updates.footer.update"]) + "</button>"
+    : "";
+  /* Variant G takes the version out of this panel entirely. */
+  const versionRow =
+    placement === "g"
+      ? ""
+      : '<div class="app-version' + (hasUpdate ? " has-update" : "") + '">' +
+          '<span class="ver">' + esc(fill(T["updates.footer.version"], { version: V.running })) + "</span>" +
+          (placement === "a" ? ghStar("compact") : "") +
+          updateBits +
+        "</div>";
+  return (
+    '<aside class="side-panel">' +
+      '<header class="project-identity">' +
+        '<div class="identity-row">' +
+          '<span class="project-tile" aria-hidden="true">L</span>' +
+          '<div class="identity-text">' +
+            '<div class="identity-name"><h1>longclaw</h1>' +
+              '<button tabindex="0" class="ghost settings-button" aria-label="Project settings"' +
+                ' aria-haspopup="menu" aria-expanded="false" title="Project settings">' + GEAR + "</button>" +
+            "</div>" +
+            '<button tabindex="0" class="path-chip" aria-label="Copy path — /Users/you/personal/repo/longclaw" title="/Users/you/personal/repo/longclaw">' +
+              '<span class="txt"><span class="head">~/personal/repo/</span><span class="tail">longclaw</span></span>' +
+            "</button>" +
+          "</div>" +
+        "</div>" +
+        '<div class="identity-disk"></div>' +
+      "</header>" +
+      '<section class="project-section"><h2>Starred</h2>' +
+        '<div class="project-row selected">' +
+          '<button tabindex="0" class="project-link selected" title="/Users/you/personal/repo/longclaw" aria-keyshortcuts="Meta+1">' +
+            '<span class="project-number" aria-hidden="true">⌘1</span>' +
+            "<strong>longclaw</strong>" +
+            '<span class="star-mark"><span aria-hidden="true">★</span><span class="visually-hidden">Starred</span></span>' +
+          "</button>" +
+        "</div>" +
+      "</section>" +
+      '<div class="side-panel-footer">' +
+        '<section class="project-actions">' +
+          '<button tabindex="0" class="secondary">Create project</button>' +
+          '<button tabindex="0" class="ghost">Open folder</button>' +
+        "</section>" +
+        versionRow +
+        (placement === "b" ? ghStar("full") : "") +
+      "</div>" +
+    "</aside>"
+  );
+}
+
+/* --------------------------------------------------------- the content header
+ * `App.tsx`'s band: filter field, ordering control, view segment, `New ticket`
+ * — the four `screen-specs.md:81-83` names, in that order — and, in variant C,
+ * a fifth control after them.
+ */
+function contentHeader(withStar) {
+  return (
+    '<header class="content-header">' +
+      '<div class="toolbar-actions">' +
+        '<div class="filter-wrap">' +
+          '<input class="input filter-field" type="text" name="longclaw-filter" autocomplete="off"' +
+            ' aria-label="Filter tickets" aria-keyshortcuts="Meta+F" placeholder="Filter tickets">' +
+          '<kbd class="kbd-chip filter-kbd" aria-hidden="true">⌘F</kbd>' +
+        "</div>" +
+        '<div class="ordering-control"><span>Order</span>' +
+          '<button tabindex="0" type="button" class="menu-trigger" aria-haspopup="menu" aria-expanded="false"' +
+            ' aria-label="Order: Priority"><span>Priority</span>' + CHEVRON + "</button>" +
+        "</div>" +
+        '<div class="view-segment" role="group" aria-label="View">' +
+          '<button tabindex="0" class="selected" aria-pressed="true">' + VIEW_BOARD + "Board</button>" +
+          '<button tabindex="0" aria-pressed="false">' + VIEW_LIST + "List</button>" +
+        "</div>" +
+        '<button tabindex="0" class="primary" aria-keyshortcuts="C">New ticket<kbd aria-hidden="true">C</kbd></button>' +
+        (withStar ? ghStar("full") : "") +
+      "</div>" +
+    "</header>"
+  );
+}
+
+/* A band drawn at a stated width, with the main region's 18px inset around it.
+   `.h-band` is a box, so the sub-760px media query — which is on the viewport —
+   does not fire here. That is stated on the scene rather than worked around:
+   what this scene can show is whether the controls fit, and what it cannot
+   show is what `probe:header` exists to measure. */
+function band(width, caption) {
+  return (
+    '<figure class="h-case h-pair">' +
+      "<figcaption>" + esc(caption) + "</figcaption>" +
+      '<div class="h-band" data-band="today" style="width:' + width + 'px">' +
+        contentHeader(false) + "</div>" +
+      '<div class="h-band" data-band="star" style="width:' + width + 'px">' +
+        contentHeader(true) + "</div>" +
+      '<p class="h-measure"></p>' +
+    "</figure>"
+  );
+}
+
+/* --------------------------------------------------------- measuring the band
+ * Scene C's pictures are of a *mock* of the content header, and a mock's labels
+ * are not to the pixel the app's. The row drawn here is some 40px wider than
+ * the shipped one at the same width — the `today` band overflows a 760px window
+ * that `probe:header` says is fine — so **this page may not be read as a
+ * verdict on whether the header fits.**
+ *
+ * What it can be read as is a difference. The star's own width and the gap
+ * before it are the same in the mock and in the app, so the number this
+ * measures and prints — how much wider the star makes the row — is the one
+ * figure scene C is entitled to report. `probe:header` decides the rest.
+ */
+function measureBands() {
+  document.querySelectorAll(".h-pair").forEach((pair) => {
+    const read = (which) => {
+      const actions = pair.querySelector('[data-band="' + which + '"] .toolbar-actions');
+      const kids = [...actions.children];
+      const gap = parseFloat(getComputedStyle(actions).columnGap) || 0;
+      return {
+        gap,
+        filter: Math.round(actions.querySelector(".filter-wrap").getBoundingClientRect().width),
+        needs: Math.round(
+          kids.reduce((sum, k) => sum + k.getBoundingClientRect().width, 0) + gap * (kids.length - 1),
+        ),
+        room: Math.round(actions.getBoundingClientRect().width),
+        star: actions.querySelector(".gh-star"),
+      };
+    };
+    const today = read("today");
+    const withStar = read("star");
+    const cost = Math.round(withStar.star.getBoundingClientRect().width + withStar.gap);
+
+    /* The filter field is the only control in this row that is a size rather
+       than a content, so it is where the star's width is actually paid — until
+       it reaches its 120px floor, after which the row has nowhere to put it. */
+    const paid =
+      today.filter === withStar.filter
+        ? '<span class="over">and the filter field has nothing left to give: already at its ' +
+          withStar.filter + "px floor in both</span>"
+        : "and the filter field pays it, " + today.filter + "px → " + withStar.filter + "px";
+
+    pair.querySelector(".h-measure").innerHTML =
+      "the star costs <strong>+" + cost + "px</strong> " + paid +
+      (withStar.needs > withStar.room
+        ? ' · <span class="over">the row then wants ' + withStar.needs +
+          "px and has " + withStar.room + "px</span>"
+        : "");
+  });
+}
+
+/* --------------------------------------------------------------- the welcome
+ * `App.tsx`'s welcome column, with one line added under the trust line.
+ */
+function welcome() {
+  return (
+    '<div class="h-welcome"><section class="welcome-panel">' +
+      '<svg class="owl-mark" viewBox="0 0 64 64" width="52" height="52" role="img" aria-label="LongClaw">' +
+        '<path fill="currentColor" d="M1 1 L32 18.8 L63 1 L61.5 12.2 L35.2 27.5 L32 34 L28.8 27.5 L2.5 12.2 Z"/>' +
+        '<path fill="currentColor" d="M32 35.3 L35.6 40.6 L32 47.5 L28.4 40.6 Z"/>' +
+        '<path fill="none" stroke="currentColor" stroke-width="7" d="M52.13 20.43 A24 24 0 1 1 11.87 20.43"/>' +
+      "</svg>" +
+      "<h1>Plan with your agents.</h1>" +
+      '<p class="welcome-subtitle">Tickets live as plain files in a folder you choose — ideally inside your repo. Humans plan, agents execute, and both write to the same record.</p>' +
+      '<div class="welcome-actions">' +
+        '<button tabindex="0" class="primary">Create a project</button>' +
+        '<button tabindex="0" class="secondary">Open a folder</button>' +
+      "</div>" +
+      '<p class="trust-line">' + esc(T["welcome.trustline"]) + "</p>" +
+      '<div class="welcome-gh">' + ghStarWelcome() + "</div>" +
+    "</section></div>"
+  );
+}
+
+/* The welcome screen's own wording: no project is open, so nothing else on this
+   screen can be starred and the label is free to lead with the verb. */
+function ghStarWelcome() {
+  const known = countKnown();
+  const aria = fill(known ? T["github.star.aria.count"] : T["github.star.aria"]);
+  const pill = app.style !== "labelled";
+  /* The welcome screen is the one surface with room for the long label in any
+     shape, so the pill keeps its words here rather than falling to a mark. */
+  const label = pill ? T["github.welcome.label"] : T["github.welcome.label"];
+  return (
+    '<button tabindex="0" type="button" class="gh-star' + (pill ? " pill" : "") +
+      '" data-act="github"' +
+      ' aria-label="' + esc(aria) + '" title="' + esc(fill(T["github.star.title"])) + '">' +
+      GH + '<span class="gh-label">' + esc(label) + "</span>" +
+      (known ? '<span class="gh-count">' + esc(countText(stars())) + "</span>" : "") +
+      (pill && app.style === "pillstar" && known ? STAR : "") +
+    "</button>"
+  );
+}
+
+/* --------------------------------------------------------------- the palette
+ * `CommandPalette.tsx`'s markup, four rows deep. The two rows that matter are
+ * adjacent on purpose: this is what `Star project` and the new row look like
+ * in the same list.
+ */
+function palette() {
+  const row = (label, active, tag) =>
+    '<button tabindex="-1" role="option" aria-selected="' + active + '"' +
+      (active ? ' class="active"' : "") + ">" +
+      '<span class="palette-label">' + esc(label) + "</span>" +
+      (tag ? '<small class="palette-tag">· ' + esc(tag) + "</small>" : "") +
+    "</button>";
+  return (
+    '<div class="h-palette"><section class="command-palette" role="dialog" aria-label="Command palette">' +
+      '<div class="palette-input-row">' +
+        '<span class="palette-input-glyph" aria-hidden="true">⌕</span>' +
+        '<input value="git" placeholder="Type a command…" aria-label="Command palette input" role="combobox" aria-expanded="true">' +
+        '<kbd class="kbd-chip palette-esc">esc</kbd>' +
+      "</div>" +
+      '<div role="listbox" aria-label="Commands">' +
+        row(T["github.palette.label"], true, "GitHub") +
+        row(T["project.menu.star"], false, "") +
+        row("Toggle appearance", false, "") +
+        row("Reload from disk", false, "") +
+      "</div>" +
+    "</section></div>"
+  );
+}
+
+/* ------------------------------------------------------------- the status bar
+ * The shell as a whole, with a second grid row under it. The version and the
+ * update news move here out of the side panel; the star takes the other end.
+ */
+function statusBar() {
+  const updateBits = app.pending
+    ? '<span class="upd-dot" aria-hidden="true"></span>' +
+      '<button tabindex="0" class="upd-link" aria-label="' +
+        esc(fill(T["updates.footer.update.aria"], { version: V.available })) + '">' +
+        esc(T["updates.footer.update"]) + "</button>"
+    : "";
+  return (
+    '<div class="app-statusbar">' +
+      '<span class="ver">' + esc(fill(T["updates.footer.version"], { version: V.running })) + "</span>" +
+      updateBits +
+      ghStar("compact") +
+    "</div>"
+  );
+}
+
+function windowG() {
+  return (
+    '<div class="h-window"><div class="app-shell has-statusbar">' +
+      sidePanel("g") +
+      '<section class="main-panel">' + contentHeader(false) +
+        '<div class="h-stub">the board · not this ticket’s question</div>' +
+      "</section>" +
+      statusBar() +
+    "</div></div>"
+  );
+}
+
+/* ------------------------------------------------------------------ the deck
+ * Rendered from the same object the scenes read, so a string cannot be spelled
+ * two ways. Every row is addressable by its id.
+ */
+function deck() {
+  const rows = COPY.rows.map((r) =>
+    "<tr>" +
+      '<td class="id">' + esc(r.id) + "</td>" +
+      "<td>" + esc(r.kind) + "</td>" +
+      '<td class="where">' + esc(r.where) + "</td>" +
+      '<td class="text">' + esc(fill(r.text)) +
+        (r.note ? '<span class="rowhint">' + esc(r.note) + "</span>" : "") +
+      "</td>" +
+      '<td><span class="st st-' + r.status + '">' + r.status + "</span></td>" +
+    "</tr>").join("");
+  return '<div class="h-deck"><table><thead><tr><th>Id</th><th>Kind</th><th>Where</th><th>Text</th><th>Status</th></tr></thead><tbody>' +
+    rows + "</tbody></table></div>";
+}
+
+/* --------------------------------------------------------------- the driver */
+const SCENES = [
+  ["a", "A · Version line"],
+  ["b", "B · Footer row"],
+  ["c", "C · Content header"],
+  ["df", "D+F · Welcome & palette"],
+  ["g", "G · Status bar"],
+  ["deck", "Copy deck"],
+];
+
+const NOTES = {
+  a: [
+    'The compact variant, on the row LC-256a put the version on. It is the cheapest thing to build and the most crowded thing to read: there is no room for the words <code>Star on GitHub</code>, so the mark carries the whole offer and <code>github.star.aria</code> carries the whole meaning.',
+    '<strong>Turn on <code>an update is waiting</code>, and this scene answers itself.</strong> Both controls want the row’s right end; the proposed rule gives it to <code>Update</code>, because that is the one with a half-life, and moves the star left rather than hiding it — a control that vanishes for a week is a control nobody learns. What the row then does is the finding: <code>LongClaw 0.2.0</code> is the only flexible thing left in 216px, so it gives up its width and <em>wraps onto two lines</em>, and the count ends up sitting to the left of the version with nothing nearby to say what it counts. Read in order, the row becomes mark, number, app, version, dot, link.',
+    'That is not a rule that can be tuned out. The width simply is not there, and the two things competing for it are the app’s identity and its only piece of urgent news — neither of which a courtesy control should be pushing around. <strong>Variant A is here to be ruled out with evidence</strong>, and B and G are the two that answer the same brief without the collision.'
+  ],
+  b: [
+    'Its own row in the footer, and the roomiest of the five. The pill sits left at its own width; the ghost fills the row and sends its count to the far end. Either way there is no competition for a right edge on any day, and the footer is already the one part of this panel that is about the app rather than the open project — which is exactly the argument LC-256a made when it put the version here.',
+    'The costs are vertical, not horizontal: a fourth thing in a pinned footer, and the height it takes from a project list that scrolls. Note that <code>.app-version</code> is rendered inside <code>{update &amp;&amp; …}</code> at <code>App.tsx:2451</code> and <code>update</code> starts <code>undefined</code>, so that row is absent on first paint — this control must be its own child of <code>.side-panel-footer</code>, not a passenger inside that guard, or it inherits a delay that has nothing to do with it.',
+    'Switch the count to <code>no number</code> and watch what each shape does with it. The ghost keeps saying <code>Star on GitHub</code> and simply loses its number; the pill has no words to fall back on and takes <code>github.star.pill.nocount</code> instead. Given the floor, and given how often a count will be missing, that fallback is not an edge case — it is the shape the pill will wear most of the time until the repository grows.'
+  ],
+  c: [
+    'The literal reading of “the app chrome”, drawn at three widths the window can actually be. <code>screen-specs.md:81-83</code> names this row’s four controls in order and <code>citation-guard</code> pins those lines, so a fifth is a spec edit as well as a code edit.',
+    '<strong>Read the measurement, not the picture.</strong> These are mocks of the header’s controls, and a mock’s labels are not the app’s to the pixel — this row measures some 40px wider than the shipped one, which is why even the bottom band, the row as it ships <em>today</em>, is drawn overflowing a width that <code>probe:header</code> says is fine. The overflow figures below are therefore this page’s arithmetic and <em>not</em> a verdict on the app. The one number that carries over is the last one: the star’s own width, plus the gap before it, is the same here as it would be there.',
+    'That width comes out of the filter field first. The field is <code>flex: 1 1 240px</code> with a <code>max-width: 380px</code> and a <code>120px</code> floor, so the star eats its growth at 1180px and pushes against its floor at 760px — and once the floor is reached the row has nothing left to give. The sub-760px wrap rule is a viewport media query and these bands are boxes, so it does not fire here either. <code>probe:header</code> at every width from 1440 down to 760, and <code>a11y:audit</code>’s A5 row, are what actually decide this.',
+    'The other objection is not about width at all: this band is absent when a project is unreachable and absent on the welcome screen, so “always visible” fails precisely where a brand-new user is standing.'
+  ],
+  df: [
+    'Not the persistent control — companions to it. The welcome line is the highest-intent moment in the product and the cheapest surface in the app, and it is gone the moment a project opens. The palette row is the keyboard path, and is worth shipping alongside whichever visible control wins.',
+    'The palette is drawn with <code>Star project</code> directly under the new row, which is the point: read the two together and decide whether <code>Open LongClaw on GitHub</code> is far enough from it.'
+  ],
+  g: [
+    '<strong>Settled, 2026-09-21.</strong> This is the placement that was chosen, in the <code>labelled ghost</code> shape and with the count drawn. In this bar the control is the compact form, so it carries no visible words at all — the mark and the number, and <code>github.star.aria</code> holding the whole meaning. The decision and the settled deck are recorded on LC-257s.',
+    'A new app-wide bar across the foot of the window, carrying the version and the update news <em>out of</em> the side panel and giving the star the far end. Nothing competes for an edge, the star is visible on every screen including the welcome one, and the sidebar footer gets its row back.',
+    '<strong>It is also the only variant that changes the shell.</strong> <code>.app-shell</code> gains a second grid row, and 26px comes off the board, the list, the ticket panel and the settings panel — all of which size themselves against the window today. <code>screen-specs.md:20-30</code> describes the shell as a side panel and a main region; a status bar amends that. Price it as a chrome change that a star count happens to ride on, not as a place to put a star count.'
+  ],
+  deck: [
+    'Every user-facing string this ticket proposes, including the ones no screen shows. The scenes above render from this same object, so the deck cannot go stale against them. The <code>existing</code> rows are neighbours — they are here for tone, and because two of them are the reason the new copy is worded the way it is.'
+  ]
+};
+
+/* Two functions rather than one, so a toggle repaints the stage and leaves the
+   driver alone: rebuilding the bar's `innerHTML` replaces the checkbox that was
+   just clicked, which takes focus off it mid-gesture. The bar is rebuilt only
+   when the scene changes, because that is when its own contents change. */
+/* Where the number on screen came from, said out loud, because a reviewer
+   looking at a count deserves to know whether GitHub said so — and, when the
+   floor is what is hiding it, which number was hidden. */
+const SOURCE_NOTE = {
+  checking: () => "asking GitHub…",
+  live: () =>
+    app.stars >= COUNT_FLOOR
+      ? "GitHub says " + app.stars.toLocaleString("en-US")
+      : "GitHub says " + app.stars + " — under the floor of " + COUNT_FLOOR + ", so no number is drawn",
+  unreachable: () => "GitHub not reached — the no-count state, for real",
+};
+
+/* The two shapes on the table. `pill` is the reference the review supplied —
+   a solid dark lozenge with the mark and the number and no words — and
+   `labelled` is the ghost control this prototype opened with. */
+const STYLES = [
+  ["pill", "pill"],
+  ["pillstar", "pill + star"],
+  ["labelled", "labelled ghost"],
+];
+
+/* Three states to review, named by what they draw rather than by why. */
+const COUNT_MODES = [
+  ["none", () => "no number"],
+  ["live", () => "the live count" + (app.stars === null ? "" : " (" + app.stars.toLocaleString("en-US") + ")")],
+  ["grown", () => "a grown count (" + COPY.version.stars.toLocaleString("en-US") + ")"],
+];
+
+function renderDriver() {
+  const bar = ['<span class="h-tag">scene</span>'];
+  SCENES.forEach(([id, label]) => {
+    bar.push('<button data-scene="' + id + '" aria-pressed="' + (app.scene === id) + '">' + label + "</button>");
+  });
+  if (app.scene !== "deck") {
+    bar.push('<span class="h-spacer"></span>');
+    bar.push('<span class="h-tag">shape</span>');
+    STYLES.forEach(([id, label]) => {
+      bar.push('<button data-style="' + id + '" aria-pressed="' + (app.style === id) + '">' +
+        esc(label) + "</button>");
+    });
+    bar.push('<span class="h-tag" style="margin-left:10px">count</span>');
+    COUNT_MODES.forEach(([id, label]) => {
+      bar.push('<button data-count="' + id + '" aria-pressed="' + (app.count === id) + '">' +
+        esc(label()) + "</button>");
+    });
+    bar.push('<span class="h-src h-src-' + app.source + '">' + esc(SOURCE_NOTE[app.source]()) + "</span>");
+    if (app.scene === "a" || app.scene === "b" || app.scene === "g") {
+      bar.push('<label><input type="checkbox" data-toggle="pending"' + (app.pending ? " checked" : "") +
+        "> an update is waiting</label>");
+    }
+  }
+  document.getElementById("driver").innerHTML = bar.join("");
+}
+
+function renderStage() {
+  const notes = (NOTES[app.scene] || []).map((n) => '<p class="h-note">' + n + "</p>").join("");
+  let stage = "";
+
+  if (app.scene === "a" || app.scene === "b") {
+    const other = app.scene === "a" ? "b" : "a";
+    stage =
+      '<div class="h-rail">' +
+        '<figure class="h-case"><figcaption>' + (app.scene === "a" ? "A · on the version line" : "B · its own row") +
+          "</figcaption>" +
+          '<div class="h-shell">' + sidePanel(app.scene) + "</div></figure>" +
+        '<figure class="h-case"><figcaption>the other one, for comparison</figcaption>' +
+          '<div class="h-shell">' + sidePanel(other) + "</div></figure>" +
+        '<figure class="h-case"><figcaption>today, for comparison</figcaption>' +
+          '<div class="h-shell">' + sidePanel("none") + "</div></figure>" +
+      "</div>";
+  } else if (app.scene === "c") {
+    stage =
+      '<div class="h-col">' +
+        band(1180 - 240, "1180px window, the default size · today, then with it") +
+        band(980 - 240, "980px window · today, then with it") +
+        band(760 - 240, "760px window, the window’s own minWidth · today, then with it") +
+      "</div>";
+  } else if (app.scene === "df") {
+    stage =
+      '<div class="h-rail">' +
+        '<figure class="h-case"><figcaption>D · the welcome column</figcaption>' + welcome() + "</figure>" +
+        '<figure class="h-case"><figcaption>F · the command palette</figcaption>' + palette() + "</figure>" +
+      "</div>";
+  } else if (app.scene === "g") {
+    stage = windowG();
+  } else {
+    stage = deck();
+  }
+
+  document.getElementById("stage").innerHTML = notes + stage;
+  if (app.scene === "c") measureBands();
+}
+
+function render() {
+  renderDriver();
+  renderStage();
+}
+
+document.addEventListener("click", (event) => {
+  const el = event.target.closest("[data-scene], [data-count], [data-style], [data-act]");
+  if (!el) return;
+  if (el.dataset.scene) { app.scene = el.dataset.scene; return render(); }
+  if (el.dataset.count) { app.count = el.dataset.count; return render(); }
+  if (el.dataset.style) { app.style = el.dataset.style; return render(); }
+  /* The press opens the repository in the browser. Here it says so and does
+     nothing, because a prototype that opened a tab would be a prototype nobody
+     could click twice. */
+  if (el.dataset.act === "github") {
+    el.blur();
+  }
+});
+
+document.addEventListener("change", (event) => {
+  const toggle = event.target.dataset && event.target.dataset.toggle;
+  if (toggle === "pending") { app.pending = event.target.checked; renderStage(); }
+});
+
+render();
+fetchStars();
+</script>
+</body>
+</html>

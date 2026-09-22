@@ -288,7 +288,7 @@ export function ProjectMenu(
         </span>
       ),
       // The ellipsis is the promise: this raises the confirm that names the
-      // path and repeats the guarantee (`screen-specs.md:335-336`).
+      // path and repeats the guarantee (`screen-specs.md:349-350`).
       label: "Remove from app",
       run: props.onRemove,
     },

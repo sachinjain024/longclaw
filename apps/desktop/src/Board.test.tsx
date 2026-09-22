@@ -834,7 +834,7 @@ describe("priority on the board", () => {
   });
 
   it("moves down the column in the order it is looking at", () => {
-    // `screen-specs.md:135`: keyboard navigation follows the visual order, so
+    // `screen-specs.md:149`: keyboard navigation follows the visual order, so
     // the second card down is the second card drawn, not the next key.
     render(board({ tickets: column }));
     card("LC-3").focus();
@@ -976,7 +976,7 @@ describe("label chips on a card (V0-10)", () => {
   });
 
   it("stops at two chips, and at one beside a checklist fraction", () => {
-    // The footer never wraps (`screen-specs.md:155-156`).
+    // The footer never wraps (`screen-specs.md:169-170`).
     const carrying = ["backend", "reliability", "docs"];
     render(
       board({

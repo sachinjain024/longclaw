@@ -59,7 +59,7 @@ export function isProjectKey(key: string) {
  *
  * A hyphen, an underscore and a dot are word breaks, not characters to delete.
  * They stopped being an edge case when the create form began prefilling the
- * name from the chosen folder (`screen-specs.md:103`): folder names are where
+ * name from the chosen folder (`screen-specs.md:117`): folder names are where
  * `-` and `_` live, and swallowing them made `my-app` one word and `M` its key.
  */
 export function defaultProjectKey(name: string) {

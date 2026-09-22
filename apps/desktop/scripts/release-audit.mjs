@@ -108,6 +108,37 @@ function failOnMatch(files, patterns) {
 const SANCTIONED_ROOT = "tauri-plugin-updater";
 
 /**
+ * The app's own crate, and the second place a client may now arrive
+ * (LC-257s, ADR 0015).
+ *
+ * The star count is a second *caller* rather than a second *road*: it uses the
+ * `reqwest` the updater already compiles in, declared directly so the
+ * dependency is visible instead of borrowed in silence. Declaring it moves one
+ * arrival of that crate from under `tauri-plugin-updater` to under the app —
+ * which the ancestry rule below would otherwise read as a client arriving on
+ * its own, the exact thing it exists to catch.
+ *
+ * So the rule is widened by exactly one crate at exactly one place, and two
+ * controls are added to pay for it: `reqwest` may only be declared with the
+ * updater's own feature set (`FROZEN_REQWEST_FEATURES`), and the set of
+ * network-capable crates in the graph must be exactly the set that was there
+ * before (`FROZEN_NETWORK_CRATES`). Together those say what the old rule said
+ * on its own: nothing new can reach the network, and nothing already here can
+ * grow.
+ */
+const CRATE_ROOT = "longclaw-desktop";
+
+/**
+ * The client the app declares, and the only crate `CRATE_ROOT` may hold.
+ *
+ * Everything under it — the TLS stack, the connection pool, the runtime — is
+ * permitted under this name rather than under either root, because it arrives
+ * under the same client in both paths and the client's own arrival is what is
+ * actually being judged.
+ */
+const APP_CLIENT = "reqwest";
+
+/**
  * Every crate the macOS host target compiles that can open a socket, speak TLS,
  * or drive the runtime that does, mapped to the dependency each one is allowed
  * to arrive under.
@@ -151,10 +182,65 @@ const NETWORK_CAPABLE = new Map(
   ]
     .map((crate) => [crate, [SANCTIONED_ROOT]])
     .concat([
-      ["tokio", [SANCTIONED_ROOT, "tauri"]],
-      ["socket2", [SANCTIONED_ROOT, "tauri"]],
+      ["tokio", [SANCTIONED_ROOT, "tauri", APP_CLIENT]],
+      ["socket2", [SANCTIONED_ROOT, "tauri", APP_CLIENT]],
+      // The client itself, at the two places it now arrives (ADR 0015).
+      [APP_CLIENT, [SANCTIONED_ROOT, CRATE_ROOT]],
+      // Its stack, which arrives under the client in both paths. Naming the
+      // client rather than adding `CRATE_ROOT` to each is what keeps the rule
+      // narrow: `rustls` directly under the app is still a finding.
+      ...[
+        "h2",
+        "hyper",
+        "hyper-rustls",
+        "hyper-util",
+        "rustls",
+        "rustls-native-certs",
+        "rustls-platform-verifier",
+        "rustls-webpki",
+        "security-framework",
+        "tokio-rustls",
+      ].map((crate) => [crate, [SANCTIONED_ROOT, APP_CLIENT]]),
     ]),
 );
+
+/**
+ * Every network-capable crate the graph is allowed to contain, and no others.
+ *
+ * The ancestry rule answers "did this arrive somewhere sanctioned"; this one
+ * answers "is this here at all". It exists because ADR 0015 widened the first
+ * question by one crate, and a rule that has been widened once needs something
+ * beside it that cannot be widened by the same argument. **Measured off the
+ * graph, not predicted** — `npm run verify` is what reports a drift, and the
+ * fix for a red run is to decide whether the new crate belongs, never to paste
+ * it in here.
+ */
+const FROZEN_NETWORK_CRATES = [
+  APP_CLIENT,
+  "hyper",
+  "hyper-rustls",
+  "hyper-util",
+  "rustls",
+  "rustls-platform-verifier",
+  "rustls-webpki",
+  "security-framework",
+  "socket2",
+  "tokio",
+  "tokio-rustls",
+];
+
+/**
+ * The features `reqwest` may be declared with by `CRATE_ROOT`.
+ *
+ * This is the control that makes "a second caller, not a second road" a fact
+ * rather than an intention. reqwest's defaults are `default-tls`, `charset`,
+ * `http2` and `system-proxy`; `tauri-plugin-updater` turns none of them on, so
+ * an ordinary `reqwest = "0.13"` here would pull `h2` and `encoding_rs` into a
+ * binary that has never had them — and `h2` is on the list above. The feature
+ * union has to stay exactly what the updater already asked for, and the only
+ * way to say that in a manifest is `default-features = false` plus a subset.
+ */
+const FROZEN_REQWEST_FEATURES = ["json", "stream"];
 
 /**
  * The inversion: run the allowlist against two graphs it must reject, and one
@@ -174,7 +260,7 @@ const NETWORK_CAPABLE = new Map(
  */
 if (SELF_TEST) {
   const rows = (...names) => [
-    [0, "longclaw-desktop"],
+    [0, CRATE_ROOT],
     [1, "tauri"],
     [2, "tokio"],
     [3, "socket2"],
@@ -208,11 +294,64 @@ if (SELF_TEST) {
       rows: rows([1, SANCTIONED_ROOT], [1, "some-other-crate"], [2, "rustls"]),
       red: true,
     },
+    {
+      what: "the app's own caller, declared beside the updater's (ADR 0015)",
+      rows: rows(
+        [1, APP_CLIENT],
+        [2, "hyper"],
+        [2, "rustls"],
+        [1, SANCTIONED_ROOT],
+        [2, APP_CLIENT],
+        [3, "hyper"],
+        [3, "rustls"],
+      ),
+      red: false,
+    },
+    {
+      what: "the client arriving under neither root",
+      rows: rows(
+        [1, SANCTIONED_ROOT],
+        [2, APP_CLIENT],
+        [1, "some-other-crate"],
+        [2, APP_CLIENT],
+      ),
+      red: true,
+    },
+    {
+      what: "the stack loose under the app rather than under its client",
+      rows: rows([1, SANCTIONED_ROOT], [2, APP_CLIENT], [1, "rustls"]),
+      red: true,
+    },
   ];
 
-  const wrong = cases.filter(
-    (probe) => networkArrivalFindings(probe.rows).length > 0 !== probe.red,
-  );
+  const everything = FROZEN_NETWORK_CRATES.map((crate) => [1, crate]);
+  const frozenCases = [
+    {
+      what: "the graph the frozen set was measured from",
+      rows: everything,
+      red: false,
+    },
+    {
+      what: "a network-capable crate the frozen set does not name",
+      rows: [...everything, [1, "ureq"]],
+      red: true,
+    },
+    {
+      what: "a frozen crate that has left the graph",
+      rows: everything.slice(1),
+      red: true,
+    },
+  ];
+
+  const wrong = cases
+    .filter(
+      (probe) => networkArrivalFindings(probe.rows).length > 0 !== probe.red,
+    )
+    .concat(
+      frozenCases.filter(
+        (probe) => frozenSetFindings(probe.rows).length > 0 !== probe.red,
+      ),
+    );
   if (wrong.length > 0) {
     console.error(
       "release-audit --self-test: the inversion did not hold\n" +
@@ -226,7 +365,7 @@ if (SELF_TEST) {
     process.exit(1);
   }
   console.log(
-    `release-audit --self-test: the allowlist accepts ${cases.filter((probe) => !probe.red).length} narrow graph and rejects ${cases.filter((probe) => probe.red).length} broad ones`,
+    `release-audit --self-test: the allowlist accepts ${cases.filter((probe) => !probe.red).length} narrow graphs and rejects ${cases.filter((probe) => probe.red).length} broad ones; the frozen set accepts ${frozenCases.filter((probe) => !probe.red).length} and rejects ${frozenCases.filter((probe) => probe.red).length}`,
   );
   process.exit(0);
 }
@@ -258,12 +397,44 @@ for (const dep of [
   "tauri-plugin-http",
   "tauri-plugin-shell",
   "sentry",
-  "reqwest",
   "ureq",
 ]) {
   const directDependency = new RegExp(`^${dep}\\s*=`, "m");
   if (directDependency.test(cargoToml))
     fail(`forbidden direct Cargo dependency: ${dep}`);
+}
+
+/* `reqwest` left the list above when ADR 0015 made the star count a second
+   caller on the update path's client. It is not merely tolerated here: how it
+   is declared is the control. Defaults on would pull `h2` and `encoding_rs`
+   into a binary that has never had them, so the declaration must turn defaults
+   off and ask for nothing the updater has not already asked for — which is what
+   keeps "a second caller, not a second road" a fact about the build rather than
+   a sentence in an ADR. */
+const reqwestDeclaration = /^reqwest\s*=\s*(.+)$/m.exec(cargoToml);
+if (reqwestDeclaration) {
+  const declaration = reqwestDeclaration[1];
+  if (!/default-features\s*=\s*false/.test(declaration)) {
+    fail(
+      `reqwest is declared directly without default-features = false: ${declaration.trim()}`,
+    );
+  }
+  const features = [...declaration.matchAll(/"([^"]+)"/g)]
+    .map(([, value]) => value)
+    .filter(
+      (value) =>
+        FROZEN_REQWEST_FEATURES.concat("json", "stream").includes(value) ||
+        !/^[\d.^~=*]/.test(value),
+    )
+    .filter((value) => !/^[\d.^~=*]/.test(value));
+  const extra = features.filter(
+    (feature) => !FROZEN_REQWEST_FEATURES.includes(feature),
+  );
+  if (extra.length > 0) {
+    fail(
+      `reqwest is declared with features beyond the updater's own: ${extra.join(", ")} — the union has to stay what tauri-plugin-updater already asked for`,
+    );
+  }
 }
 
 /* The one sanctioned network arrival, asserted present rather than tolerated.
@@ -339,7 +510,13 @@ function networkArrivalFindings(rows) {
     const permitted = NETWORK_CAPABLE.get(crate);
     if (!permitted || reported.has(crate)) continue;
     const through = ancestry.slice(0, depth);
-    if (permitted.some((under) => through.includes(under))) continue;
+    // `CRATE_ROOT` is the root of every ancestry, so "is it in the chain" would
+    // permit the crate at any depth under the app — which is no rule at all.
+    // Permitted *there* means declared there: a direct dependency, nothing
+    // deeper. Every other permitted ancestor is an ordinary "somewhere above".
+    const admits = (under) =>
+      under === CRATE_ROOT ? through.length === 1 : through.includes(under);
+    if (permitted.some(admits)) continue;
     reported.add(crate);
     found.push(
       `network-capable crate ${crate} arrives outside ${permitted.join(" or ")}: ${ancestry
@@ -356,6 +533,43 @@ function networkArrivalFindings(rows) {
   return found;
 }
 
+/**
+ * The second question the ancestry rule does not ask: not "did this arrive
+ * somewhere sanctioned" but "is this here at all" (ADR 0015).
+ *
+ * Separate from `networkArrivalFindings` because it judges a whole graph rather
+ * than each arrival in one, and because the ancestry rule's self-test feeds it
+ * fragments — a fragment is missing almost everything, and a set control run
+ * over one would report nothing but absences.
+ *
+ * Both directions are findings. A crate that appears is the obvious one. A
+ * crate that *disappears* is the one worth having: a frozen set that has
+ * quietly shrunk is a control asserting more than the build contains, and it
+ * would keep passing long after it stopped meaning anything.
+ */
+function frozenSetFindings(rows) {
+  const present = new Set(
+    rows
+      .map(([, crate]) => crate)
+      .filter((crate) => NETWORK_CAPABLE.has(crate)),
+  );
+  const frozen = new Set(FROZEN_NETWORK_CRATES);
+  const arrived = [...present].filter((crate) => !frozen.has(crate)).sort();
+  const gone = [...frozen].filter((crate) => !present.has(crate)).sort();
+  const found = [];
+  if (arrived.length > 0) {
+    found.push(
+      `network-capable crates in the graph that ADR 0015's frozen set does not name: ${arrived.join(", ")} — decide whether they belong, rather than pasting them in`,
+    );
+  }
+  if (gone.length > 0) {
+    found.push(
+      `frozen network-capable crates the graph no longer has: ${gone.join(", ")} — the set is asserting more than the build contains`,
+    );
+  }
+  return found;
+}
+
 const hostRows = hostGraphRows();
 if (hostRows) {
   if (hostRows.length < 100) {
@@ -364,6 +578,7 @@ if (hostRows) {
     );
   }
   for (const finding of networkArrivalFindings(hostRows)) fail(finding);
+  for (const finding of frozenSetFindings(hostRows)) fail(finding);
 }
 
 const tauriConfig = readJson(join(appRoot, "src-tauri/tauri.conf.json"));
@@ -443,6 +658,12 @@ if (/connect-src[^;]*(https?:\/\/(?!ipc\.localhost)|wss?:)/.test(csp)) {
  * ever reads a release bundle, is where a real key is required.
  */
 const ALLOWED_UPDATE_HOSTS = ["github.com", "objects.githubusercontent.com"];
+
+/* Every GitHub host this app may name, the update path's and the star count's
+   together (ADR 0014, ADR 0015). `api.github.com` is not an update endpoint and
+   never appears in `tauri.conf.json`; it is a constant in `github.rs`, which is
+   why the check below reads source rather than configuration. */
+const ALLOWED_GITHUB_HOSTS = [...ALLOWED_UPDATE_HOSTS, "api.github.com"];
 const updaterConfig = tauriConfig.plugins?.updater;
 if (!updaterConfig) {
   fail(
@@ -479,6 +700,92 @@ if (!updaterConfig) {
   }
 }
 
+/* The second caller's address, checked the way the updater's endpoints are
+   (LC-257s, ADR 0015).
+
+   The star count's URL is a Rust constant rather than a configuration entry —
+   the webview names no URL, so there is nothing for the config audit above to
+   read. That does not make it unchecked: it makes it a different file to read.
+   Both constants must be https, and the API one must name the host the frozen
+   allowlist and the runtime audit are both looking for. A constant quietly
+   repointed at another host is exactly the change this catches. */
+const githubSource = readFileSync(
+  join(appRoot, "src-tauri/src/github.rs"),
+  "utf8",
+);
+const constantUrl = (name) => {
+  const match = new RegExp(`pub const ${name}: &str = "([^"]+)"`).exec(
+    githubSource,
+  );
+  if (!match) {
+    fail(
+      `github.rs declares no ${name} — the address audit has nothing to read`,
+    );
+    return null;
+  }
+  return match[1];
+};
+const apiHostMatch = /pub const API_HOST: &str = "([^"]+)"/.exec(githubSource);
+const apiHost = apiHostMatch?.[1];
+if (!apiHost) {
+  fail(
+    "github.rs declares no API_HOST — the runtime audit's allowlist has no source",
+  );
+} else if (!ALLOWED_GITHUB_HOSTS.includes(apiHost)) {
+  fail(
+    `github.rs names API_HOST ${apiHost}, which ADR 0015 does not sanction (${ALLOWED_GITHUB_HOSTS.join(", ")})`,
+  );
+}
+for (const name of ["REPOSITORY_URL", "API_URL"]) {
+  const value = constantUrl(name);
+  if (!value) continue;
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    fail(`github.rs ${name} is not a URL: ${value}`);
+    continue;
+  }
+  if (url.protocol !== "https:")
+    fail(`github.rs ${name} is not https: ${value}`);
+  if (!ALLOWED_GITHUB_HOSTS.includes(url.host)) {
+    fail(
+      `github.rs ${name} names ${url.host}, which ADR 0015 does not sanction (${ALLOWED_GITHUB_HOSTS.join(", ")})`,
+    );
+  }
+}
+if (apiHost && !constantUrl("API_URL")?.includes(apiHost)) {
+  fail(
+    "github.rs API_HOST is not the host API_URL names — the runtime audit would be watching for an address the app never asks for",
+  );
+}
+
+/* The repository is spelled twice, so the second spelling is checked too.
+
+   Rust owns the URLs because the webview names none; `github.ts` names the
+   repository anyway, for the tooltip the control shows on hover. Two spellings
+   of one fact is a drift waiting for a rename — and a rename is precisely when
+   nobody thinks to grep the frontend, because the audit above stays green on
+   the Rust side alone. So the frontend's constant must be the path both Rust
+   URLs already name. */
+const frontendRepo = /export const GITHUB_REPO = "([^"]+)"/.exec(
+  readFileSync(join(appRoot, "src/github.ts"), "utf8"),
+)?.[1];
+if (!frontendRepo) {
+  fail(
+    "github.ts declares no GITHUB_REPO — the tooltip's address is unchecked",
+  );
+} else {
+  for (const name of ["REPOSITORY_URL", "API_URL"]) {
+    const value = constantUrl(name);
+    if (value && !value.endsWith(`/${frontendRepo}`)) {
+      fail(
+        `github.ts names ${frontendRepo}, which is not the repository github.rs ${name} names (${value}) — the control's tooltip and its request disagree`,
+      );
+    }
+  }
+}
+
 const capability = readJson(join(appRoot, "src-tauri/capabilities/main.json"));
 failUnlessSameSet(capability.windows, ["main"], "capability windows");
 failUnlessSameSet(capability.platforms, ["macOS"], "capability platforms");
@@ -505,10 +812,23 @@ failOnMatch(shippedFrontendFiles, [
   [/\bEventSource\b/, "EventSource"],
 ]);
 
-failOnMatch(shippedRustFiles, [
-  [/\bhttp::|reqwest::|ureq::/, "Rust HTTP client"],
-  [/\bCommand::new\s*\(/, "process launch"],
-]);
+/**
+ * The one file that may name an HTTP client (LC-257s, ADR 0015).
+ *
+ * Narrower than the old rule rather than wider: it used to say "no Rust file",
+ * which was true while the updater plugin made every request itself. The star
+ * count is the app's own request, so one file makes it — and naming that file
+ * here is what keeps a second one from quietly appearing. Everything that is a
+ * *decision* about the request still lives in `github.rs`, which is on the
+ * wrong side of this line and must stay there.
+ */
+const HTTP_CLIENT_FILE = "github_client.rs";
+
+failOnMatch(
+  shippedRustFiles.filter((file) => !file.endsWith(`/${HTTP_CLIENT_FILE}`)),
+  [[/\bhttp::|reqwest::|ureq::/, "Rust HTTP client"]],
+);
+failOnMatch(shippedRustFiles, [[/\bCommand::new\s*\(/, "process launch"]]);
 
 /**
  * The update path is reached from three files and no others.
@@ -544,5 +864,5 @@ report({
   remedy:
     "release boundary violation(s) — the v0 boundary is docs/acceptance/release-candidate.md:",
   clean:
-    "narrow Tauri capabilities, every network-capable crate arriving under the one sanctioned updater dependency, update endpoints on sanctioned hosts only, no telemetry dependency, and no network, process or update-path call anywhere else in shipped source",
+    "narrow Tauri capabilities, every network-capable crate arriving under the sanctioned updater dependency or the one client the app declares beside it, that client declared with no feature the updater did not already ask for, the frozen set of network-capable crates unchanged, update endpoints and the star count's two constants on sanctioned hosts only and naming the repository the frontend does, no telemetry dependency, and no network, process or update-path call anywhere else in shipped source",
 });

@@ -27,7 +27,7 @@ export interface RowCopy {
   /** Absent on a degraded row: nothing in the file said what status it had. */
   status?: TicketStatus;
   priority?: TicketPriority;
-  /** Already capped to the two the row holds (`screen-specs.md:178`). */
+  /** Already capped to the two the row holds (`screen-specs.md:192`). */
   labels: ResolvedLabel[];
   /** `1/3`, and empty when the ticket has no checklist (`components.md:190`). */
   checklist: string;

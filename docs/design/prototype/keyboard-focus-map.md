@@ -9,7 +9,7 @@
 ## Rules
 
 1. **Every pointer action has a keyboard path.** Anything clickable is
-   reachable via focus + Enter, a single-key action, or a palette command. The shell's order follows the DOM: the side panel's gear, its project rows, its footer pair, the `Update` link beside its version line where one is waiting (LC-256a), then the header's controls (LC-239w).
+   reachable via focus + Enter, a single-key action, or a palette command. The shell's order follows the DOM: the side panel's gear, its project rows, its footer pair (LC-239w), then the header's controls, and last the status bar's — the `Update` link where one is waiting, then the GitHub star control, which is the final stop in the shell (LC-256a, LC-257s).
 2. **Single-key shortcuts suspend while any input has focus.** Chords
    (`⌘K`, `⌘F`, `⌘Z`, `⌘↵`, `⌘1`…`⌘9`) stay live everywhere except where the
    OS owns them (e.g. `⌘Z` in a focused text field is the field's undo).
@@ -190,15 +190,15 @@ and follows the cursor. The grid is 42 cells and one tab stop, roving the way a
 board column does. The month steppers and **Clear** are tab stops, so the
 context-menu calendar can be operated without a date field.
 
-## Updates (the settings pane, and the side panel's footer)
+## Updates (the settings pane, and the status bar)
 
 | Key | Action |
 |---|---|
-| `Tab` | The footer's `Update` link, after the footer pair and before the header's controls. It is on screen only while an update is waiting |
+| `Tab` | The status bar's `Update` link, after the header's controls and before the star control. It is on screen only while an update is waiting; it stood in the side panel's footer until LC-257s |
 | `Enter` on it | Opens the settings panel on `Updates`, and focus enters the pane's first control — `Check now` |
 | `Tab` in the pane | `Check now` → the update's own press, `Update` before the download and `Restart to update` after it → `Check for updates automatically`. A failure puts `Try again` and `Open the download page` where the press was |
 | `Enter` / `Space` on a held `Restart to update` | Says why it is held rather than doing nothing. It is `aria-disabled` and not `disabled`, so it keeps its stop and the reason is announced |
-| `Esc` | Closes the panel → focus returns to the control that opened it: the footer link, or the gear |
+| `Esc` | Closes the panel → focus returns to the control that opened it: the status bar's link, or the gear |
 
 The dot beside the link, and the one on the nav's `Updates` row, are
 decorative — the link's own `aria-label` and a visually-hidden line on the nav
@@ -206,6 +206,21 @@ row carry the words, because colour is never the only channel. A build with no
 updater (`npm run dev`, the perf harness) hides `Check now` and the toggle
 rather than disabling them, so the pane's scroll container is the only stop
 inside it and one sentence says why (LC-256a, ADR 0014).
+
+## The status bar (LC-257s)
+
+| Key | Action |
+|---|---|
+| `Tab` | The `Update` link where one is waiting, then the **GitHub star control**. Both come after the header's controls, and the star is the last stop in the shell |
+| `Enter` / `Space` on the star | Opens the repository in the default browser. Focus stays on the control: nothing in the window changed, so there is nowhere to send it |
+
+**The star control has no visible label**, which is unusual enough here to be
+worth stating: it draws GitHub's mark and, at or above the floor, a count. So
+its `aria-label` is the whole offer — *Star LongClaw on GitHub* — and the only
+warning that a press leaves the app, which a local-first app owes a reader. The
+mark is `aria-hidden`; a decorative glyph that repeated the label would say it
+twice. When the browser cannot be opened the toast says so and claims nothing
+about why.
 
 ## The sidebar's project rows
 

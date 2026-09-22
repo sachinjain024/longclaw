@@ -16,6 +16,7 @@ import * as api from "./api";
 import { CARD_STRIDE } from "./boardGeometry";
 import {
   readLastUpdateCheck,
+  readStarCount,
   resetDevicePreferences,
   restoreDevicePreferences,
 } from "./devicePreferences";
@@ -35,6 +36,7 @@ import type {
 } from "./types";
 import { NO_PROPERTIES, startOfDay, toIso } from "./properties";
 import { UPDATE_COPY } from "./updates";
+import { GITHUB_COPY, STAR_FLOOR } from "./github";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
@@ -62,6 +64,8 @@ vi.mock("./api", () => ({
   reportVisibleUi: vi.fn(),
   searchTickets: vi.fn(),
   setProjectStarred: vi.fn(),
+  openRepository: vi.fn(),
+  starCount: vi.fn(),
   updateStatus: vi.fn(),
   updateProjectName: vi.fn(),
   updateProjectTheme: vi.fn(),
@@ -132,6 +136,13 @@ beforeEach(() => {
   // asks about updates until one says otherwise.
   vi.mocked(api.updateStatus).mockRejectedValue(
     new Error("update_status is not served here"),
+  );
+  // And the same for the star count: a test host serves no `star_count`, so the
+  // control is in its no-count state everywhere unless a test says otherwise
+  // (LC-257s). Rejecting rather than resolving `null` is the truer stub — a
+  // host with no backend throws, and the hook has to survive that.
+  vi.mocked(api.starCount).mockRejectedValue(
+    new Error("star_count is not served here"),
   );
   // Every picked folder is a plain one unless a test says otherwise: that is the
   // answer that leads to the create form, which is where most of these are
@@ -311,7 +322,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     await screen.findByRole("button", { name: "Board", pressed: true });
   }
 
-  /** Quick create: title, Enter, done (`screen-specs.md:253-262`). */
+  /** Quick create: title, Enter, done (`screen-specs.md:267-276`). */
   function submitNewTicket(title: string, priority?: string) {
     fireEvent.click(screen.getAllByText("New ticket")[0]);
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -491,7 +502,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:235` at size as well as :124.
+   * covers `keyboard-focus-map.md:250` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -926,7 +937,7 @@ describe("the full create surface (V0-16)", () => {
     settle(created());
 
     // "On create the panel swaps to view mode of the real ticket"
-    // (`screen-specs.md:270-271`) — the real one, LC-7, not the guessed LC-1.
+    // (`screen-specs.md:284-285`) — the real one, LC-7, not the guessed LC-1.
     const panel = await screen.findByRole("complementary", {
       name: "Ticket LC-7",
     });
@@ -1859,7 +1870,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   });
 
   /**
-   * `screen-specs.md:335-336`. The settings panel offers the same removal the
+   * `screen-specs.md:349-350`. The settings panel offers the same removal the
    * unreachable screen does, so it has to ask the same question first — an
    * action that confirms on one screen and fires on the next is not a confirm.
    */
@@ -1997,7 +2008,7 @@ describe("the disk-state indicator (LC-69, moved by LC-239w)", () => {
 });
 
 /**
- * First launch, against `screen-specs.md:88-110` and `states.md:22-27`
+ * First launch, against `screen-specs.md:102-124` and `states.md:22-27`
  * (LC-76 … LC-82).
  *
  * What it was: the app shell with a 240px sidebar reading `No starred
@@ -2115,7 +2126,7 @@ describe("first launch (LC-76 … LC-82)", () => {
       "/Users/dev/my-app/.longclaw",
     );
     // And works from it, rather than only displaying it
-    // (`screen-specs.md:103`) — this is the whole return on asking the folder
+    // (`screen-specs.md:117`) — this is the whole return on asking the folder
     // first, and the field focus lands in.
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
       "my-app",
@@ -2164,7 +2175,7 @@ describe("first launch (LC-76 … LC-82)", () => {
         },
       ),
     );
-    // Creation lands on the board (`screen-specs.md:109-110`).
+    // Creation lands on the board (`screen-specs.md:123-124`).
     await screen.findByRole("button", { name: "Board", pressed: true });
   });
 
@@ -2203,7 +2214,7 @@ describe("first launch (LC-76 … LC-82)", () => {
   });
 
   /**
-   * The picker's branch (`screen-specs.md:99-101`, LC-170). The folder decides
+   * The picker's branch (`screen-specs.md:113-115`, LC-170). The folder decides
    * which screen comes next, not the button: each button used to own one half
    * of that sentence and neither fell through, so `Create a project` on an
    * initialised repo asked for a name, a key and a theme and *then* refused,
@@ -3620,7 +3631,7 @@ describe("archive and unarchive (V0-11)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
 
-    // The panel stays: only archiving closes it (`screen-specs.md:221`).
+    // The panel stays: only archiving closes it (`screen-specs.md:235`).
     expect(screen.getByRole("complementary", { name: "Ticket LC-1" }));
     // Back among the statuses, and out of the archived group it was opened in.
     expect(screen.getByRole("heading", { name: /^Todo/ })).toBeTruthy();
@@ -4792,7 +4803,7 @@ describe("the side panel against its spec (Step 16a)", () => {
   it("marks an unreachable project without hiding or disabling it", async () => {
     await renderPanel();
 
-    // The row keeps its place and stays clickable (`screen-specs.md:60-62`):
+    // The row keeps its place and stays clickable (`screen-specs.md:74-76`):
     // relocating a project starts by opening it.
     const link = [
       ...localSection().querySelectorAll<HTMLElement>(".project-link"),
@@ -5329,7 +5340,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       // This surface asks the three questions *before* the folder, so the
       // refusal LC-170 was filed over lands here too — same wasted answers,
       // reached in the other order. The picker's branch is the folder's to
-      // decide on this path as well: `screen-specs.md:99-101` puts it on the
+      // decide on this path as well: `screen-specs.md:113-115` puts it on the
       // picker, not on the screen that opened it.
       const existing = {
         id: "project-existing",
@@ -6088,7 +6099,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       expect.objectContaining({ projectId: bravo.id }),
     );
     // Full create's ending survives the question it was held behind
-    // (`screen-specs.md:270-271`): the panel opens on the ticket Rust keyed.
+    // (`screen-specs.md:284-285`): the panel opens on the ticket Rust keyed.
     await screen.findByRole("complementary", { name: "Ticket BR-2" });
     expect(api.readTicket).toHaveBeenCalledWith(bravo.id, "BR-2");
   });
@@ -7761,7 +7772,7 @@ describe("a failed update check (LC-256a, ADR 0014)", () => {
     expect(screen.queryByText(UPDATE_COPY.pane.checkFailed)).toBeNull();
     expect(screen.queryByText(UPDATE_COPY.pane.upToDate)).toBeNull();
 
-    // No mark: no dot in the footer, no `Update` link, no marked gear.
+    // No mark: no dot in the status bar, no `Update` link, no marked gear.
     expect(document.querySelector(".upd-dot")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Update to LongClaw/ })).toBe(
       null,
@@ -7770,7 +7781,8 @@ describe("a failed update check (LC-256a, ADR 0014)", () => {
       screen.getByRole("button", { name: "Project settings" }).textContent,
     ).not.toMatch(/update/i);
 
-    // The footer says which LongClaw this is, exactly as it did before.
+    // The bar says which LongClaw this is, exactly as the footer used to
+    // (it moved there with LC-257s; the string did not change).
     expect(screen.getByText(UPDATE_COPY.footer.version("0.1.0"))).toBeTruthy();
     // And the board is untouched.
     expect(screen.getByText("The board is unchanged")).toBeTruthy();
@@ -7808,12 +7820,13 @@ describe("a failed update check (LC-256a, ADR 0014)", () => {
   });
 
   /**
-   * The footer's `Update` link is the second control that opens this panel, so
-   * the gear stopped being the answer to "what opened it" and became the
+   * The status bar's `Update` link is the second control that opens this panel,
+   * so the gear stopped being the answer to "what opened it" and became the
    * default. Rule 3 of `keyboard-focus-map.md`: closing a layer returns focus
-   * to the element that opened it.
+   * to the element that opened it. The link sat in the side panel's footer
+   * until LC-257s moved it; the contract did not move with it.
    */
-  it("hands focus back to the footer link that opened the pane", async () => {
+  it("hands focus back to the status bar link that opened the pane", async () => {
     vi.mocked(api.updateStatus).mockResolvedValue(AVAILABLE);
 
     await openBoard();
@@ -7841,5 +7854,139 @@ describe("a failed update check (LC-256a, ADR 0014)", () => {
       ).toBeNull();
       expect(document.activeElement).toBe(link);
     });
+  });
+});
+
+/**
+ * The status bar, and the star control in it (LC-257s).
+ *
+ * The control carries no visible words: a mark, and a number once there is one.
+ * So almost everything asserted here is the accessible name, which is unusual
+ * enough to be the reason these tests exist — it is the only place the offer is
+ * written down, and the only warning that a press leaves the app.
+ */
+describe("the status bar", () => {
+  const project: ProjectReference = {
+    id: "p1",
+    name: "LongClaw",
+    key: "LC",
+    rootPath: "/tmp/longclaw",
+    reachable: true,
+    starred: false,
+    theme: "indigo",
+    order: 0,
+    labels: {},
+    properties: NO_PROPERTIES,
+  };
+
+  const UP_TO_DATE: UpdateStatus = {
+    state: "upToDate",
+    currentVersion: "0.1.0",
+    available: null,
+    downloaded: false,
+  };
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  const star = () => screen.getByRole("button", { name: /^Star LongClaw/ });
+
+  it("draws the mark with no number, and says the whole offer out loud", async () => {
+    // A test host serves no `star_count`, which is the same picture as offline,
+    // rate limited, or a repository under the floor. One no-count state.
+    await openBoard();
+
+    expect(star().getAttribute("aria-label")).toBe(GITHUB_COPY.aria);
+    expect(star().getAttribute("title")).toBe(GITHUB_COPY.title);
+    expect(star().textContent).toBe("");
+    expect(star().querySelector("svg")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+  });
+
+  it("is reachable by keyboard, which a bare <button> is not on macOS", async () => {
+    // WebKit follows the macOS Keyboard navigation setting, and with it off Tab
+    // skips a button entirely. `scripts/tab-order-guard.mjs` holds this too;
+    // this asserts the value rather than its presence.
+    await openBoard();
+    expect(star().getAttribute("tabindex")).toBe("0");
+  });
+
+  it("draws the count once it is at the floor, and caches it", async () => {
+    vi.mocked(api.starCount).mockResolvedValue(1284);
+
+    await openBoard();
+
+    await waitFor(() => expect(star().textContent).toBe("1.3k"));
+    // Spoken in full rather than abbreviated: 1.3k is to read, not to hear.
+    expect(star().getAttribute("aria-label")).toContain("1,284 stars");
+    // And kept, so the next launch draws it on the frame it mounts rather than
+    // a frame after the network answers.
+    await waitFor(() => expect(readStarCount()?.count).toBe(1284));
+  });
+
+  it("draws no number under the floor, however real the number is", async () => {
+    vi.mocked(api.starCount).mockResolvedValue(STAR_FLOOR - 1);
+
+    await openBoard();
+
+    // The count arrived and was kept; it is simply not drawn. A badge reading
+    // `49` argues against the control it decorates.
+    await waitFor(() => expect(readStarCount()?.count).toBe(STAR_FLOOR - 1));
+    expect(star().textContent).toBe("");
+    expect(star().getAttribute("aria-label")).toBe(GITHUB_COPY.aria);
+  });
+
+  it("asks Rust for the repository and names no URL", async () => {
+    vi.mocked(api.openRepository).mockResolvedValue(undefined);
+
+    await openBoard();
+    fireEvent.click(star());
+
+    expect(api.openRepository).toHaveBeenCalledTimes(1);
+    expect(api.openRepository).toHaveBeenCalledWith();
+  });
+
+  it("says so when the browser would not open, and claims nothing about why", async () => {
+    vi.mocked(api.openRepository).mockRejectedValue(new Error("no handler"));
+
+    await openBoard();
+    fireEvent.click(star());
+
+    expect(await screen.findByText(GITHUB_COPY.openFailed)).toBeTruthy();
+  });
+
+  it("carries the version, which is no longer in the side panel", async () => {
+    vi.mocked(api.updateStatus).mockResolvedValue(UP_TO_DATE);
+
+    await openBoard();
+
+    const version = await screen.findByText(
+      UPDATE_COPY.footer.version("0.1.0"),
+    );
+    expect(version.closest(".app-statusbar")).toBeTruthy();
+    expect(version.closest(".side-panel-footer")).toBeNull();
+  });
+
+  it("stands on the welcome screen too, where every other placement is absent", async () => {
+    vi.mocked(api.listProjects).mockResolvedValue([]);
+
+    render(<App />);
+
+    // The highest-intent moment in the product, and the one screen the content
+    // header and the side panel footer are both missing from.
+    expect(
+      await screen.findByRole("button", { name: /^Star LongClaw/ }),
+    ).toBeTruthy();
   });
 });
