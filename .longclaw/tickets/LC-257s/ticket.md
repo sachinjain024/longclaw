@@ -395,3 +395,49 @@ Both: *within budget — every p95 ≤ 50ms, and every median within 4ms of the 
 
 So it was contention, not code. Recording it because plan 10 says the same thing about the watcher and it cost a day: suspect the environment before the code when the failure moves between runs.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e2c682a4
+kind: comment
+occurred_at: 2026-09-22T05:24:27.498Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Defect found in review by the user, on the branch, before merge: the status bar was not pinned to the foot of the window. A vertical scrollbar appeared on the page and the bar came into view only after scrolling — which is the one thing a bar that exists to be always visible cannot ask for.
+
+**Measured before the fix**, in WebKit at 1440px wide and three window heights, in three states:
+
+```
+ 900 board         overflow= 25 bar=899..925   (inner 900)
+ 900 ticket-panel  overflow= 25 bar=899..925   panel bottom=900
+ 900 settings      overflow= 26 bar=900..926   settings height=900
+ 700 board         overflow= 25 bar=699..725
+ 560 board         overflow= 25 bar=559..585
+```
+
+One pixel of the bar above the fold in every one, and `elementFromPoint` at the star control's own centre answered nothing at all, because the control was outside the viewport.
+
+**Three causes, all the same mistake** — a number or a box still sized to the whole window after the bar took 26px of it.
+
+1. `--lc-size-board-stack` is the viewport less the chrome above and below the board/list region. The bar is new chrome below that region and the reserve did not move, so the region claimed the whole window and the frame grew past the bottom edge to fit it. This is LC-165's failure a second time and in the same place. `boardGeometry.test.ts` writes the reserve as the addition rather than as the number precisely so that a changed term fails there — but a *new* term is invisible to a sum that does not name it. The status bar is a term in that sum now, and its height is `--lc-size-statusbar` rather than a literal in `styles.css`, so the two sides cannot drift. Reverting the token to `calc(100vh - 123px)` reddens the case.
+2. `.app-frame` carried `min-height: 100vh`, a floor rather than a height. Anything asking for more room than the window has pushes the frame past the bottom edge, and the bar is the frame's last child. It is `height: 100vh` now.
+3. `.settings-panel` was `height: 100vh` and `.ticket-panel` was fixed to `bottom: 0`. The first stood 26px taller than the shell it lives in. The second covered the star control whenever a ticket was open, which is most of the time someone is working — the bar's own argument was a control that is always visible, and a fixed panel over the last 26px of the window is the one thing that can take it away.
+
+**A fourth, found by measuring rather than by the report.** Bounding the frame alone moves the overflow rather than removing it: the shell's implicit grid row is max-content, so a side panel taller than the window grows the row, and the page scrolls under a bar that scrolls with it. At fourteen projects in a 700px window the panel was 770px tall and `.project-nav` never scrolled, because nothing had ever told it that it had run out of room. `grid-template-rows: minmax(0, 1fr)` hands each panel the window's height and leaves the one with more to scroll inside itself — which is what that `overflow-y` has been waiting for since LC-73, and it makes LC-239w's claim that the footer pair is in the same place at 25 projects as at 5 true at last.
+
+**Measured after:**
+
+```
+420px 14 projects  overflow=0  bar=394..420  nav scrolls=true
+560px 14 projects  overflow=0  bar=534..560  nav scrolls=true
+700px 14 projects  overflow=0  bar=674..700  nav scrolls=true
+900px  1 project   overflow=0  bar=874..900
+900 board / ticket-panel / settings  overflow=0, star hit-testable at its own centre in all three
+```
+
+**Gates**, on a quiet machine: `check` exit 0 (56 files, 1543 tests), `probe:header` 140/140, `probe:checklist` 60/60 with 8/8 sizes measured, `probe:drag` 94/94, `a11y:audit` A1–A8, `matrix` 8 axes × 12 states clean, `perf:board` and `perf:list` both within budget. Two line citations were re-pointed for the lines the stylesheet gained — `panelWidth.ts` → `styles.css:3244` and `theme-matrix.mjs` → `styles.css:4465`.
+<!-- /longclaw:event -->
