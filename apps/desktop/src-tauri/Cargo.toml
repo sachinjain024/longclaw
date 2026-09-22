@@ -1,6 +1,6 @@
 [package]
 name = "longclaw-desktop"
-version = "0.3.0"
+version = "0.3.1"
 description = "LongClaw local-first desktop application"
 authors = ["LongClaw"]
 edition = "2021"

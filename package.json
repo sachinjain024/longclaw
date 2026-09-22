@@ -1,7 +1,7 @@
 {
   "name": "longclaw",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Repository root. This is deliberately NOT an npm workspace: each app owns its own node_modules and lockfile (apps/desktop, apps/website), which is what CI installs and caches. Every script below forwards to one of them, so adding one means adding it in both files.",
   "type": "module",
   "engines": {
