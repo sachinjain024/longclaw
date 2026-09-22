@@ -67,6 +67,10 @@ export const UPDATE_COPY = {
     checkFailed: "Couldn’t check for updates.",
     verifyFailed: "The download couldn’t be verified and was discarded.",
     downloadFailed: "The download didn’t finish.",
+    /** The file arrived and verified; putting it in place did not work. Its own
+     *  sentence because it is the opposite news from `downloadFailed`, and
+     *  wearing that one sent every reader of LC-265y at the network. */
+    installFailed: "The update couldn’t be installed.",
     retry: "Try again",
     downloadPage: "Open the download page",
     unavailable:
@@ -111,12 +115,13 @@ export function updateFailureReason(
 /**
  * The sentence for one reason.
  *
- * Three of the seven share *couldn't check*, and deliberately: offline, a
+ * Three of the eight share *couldn't check*, and deliberately: offline, a
  * proxy that answered instead, and a manifest this build cannot read are one
  * thing to the person sitting there — the check did not work — and three
- * sentences would be three explanations of a network they cannot see. The two
- * that do get their own words are the two that are about a *file*: one that
- * would not verify, and one that did not arrive.
+ * sentences would be three explanations of a network they cannot see. The
+ * three that do get their own words are the three about a *file*: one that
+ * would not verify, one that did not arrive, and one that arrived whole and
+ * could not be put in place.
  */
 export function updateFailureSentence(
   reason: UpdateFailureReason | undefined,
@@ -126,6 +131,8 @@ export function updateFailureSentence(
       return UPDATE_COPY.pane.verifyFailed;
     case "corruptDownload":
       return UPDATE_COPY.pane.downloadFailed;
+    case "installFailed":
+      return UPDATE_COPY.pane.installFailed;
     case "unavailable":
       return UPDATE_COPY.pane.unavailable;
     case "writeInFlight":

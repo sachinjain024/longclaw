@@ -23,6 +23,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { Buffer } from "node:buffer";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 /**
  * The one platform v0 ships, as Tauri's updater names it.
@@ -120,6 +122,94 @@ export function manifestNamesVersion(manifest, version) {
     if (!platform.signature) {
       found.push(`the ${PLATFORM} entry carries no signature`);
     }
+  }
+  return found;
+}
+
+/* ------------------------------------------------- the archive's own shape */
+
+/**
+ * Every entry in a `.app.tar.gz`, read the way the updater reads it (LC-265y).
+ *
+ * **This walks the tar headers itself, and that is the whole point.** Apple's
+ * `bsdtar` folds AppleDouble entries — the `._name` files macOS writes to carry
+ * a file's extended attributes — back into xattrs as it reads, so `tar tzf`
+ * shows an archive full of them as clean. The Rust `tar` crate inside
+ * `tauri-plugin-updater` does not: it sees each `._name` as an ordinary file.
+ * Checking the release artifact with the same tool that made it is what let
+ * 0.3.0 ship an archive no installed copy could extract, so the check has to
+ * read the bytes rather than ask macOS.
+ *
+ * A pax or GNU metadata header (`x`, `g`) is consumed rather than listed, for
+ * the same reason a correct reader consumes it. Everything else is a name.
+ */
+export function tarEntryNames(gzipped) {
+  const tar = gunzipSync(gzipped);
+  const names = [];
+  for (let offset = 0; offset + 512 <= tar.length;) {
+    const block = tar.subarray(offset, offset + 512);
+    if (block.every((byte) => byte === 0)) break;
+    const field = (start, length) => {
+      const raw = block.subarray(start, start + length);
+      const end = raw.indexOf(0);
+      return raw.subarray(0, end === -1 ? raw.length : end).toString("utf8");
+    };
+    const size = Number.parseInt(field(124, 12).trim() || "0", 8) || 0;
+    const kind = String.fromCharCode(block[156]);
+    if (kind !== "x" && kind !== "g") {
+      const name = field(0, 100);
+      const prefix = field(345, 155);
+      names.push(prefix ? `${prefix}/${name}` : name);
+    }
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+  return names;
+}
+
+/**
+ * What is wrong with an update archive's shape, as sentences, or nothing.
+ *
+ * Two rules, both of which 0.3.0's archive broke and neither of which any
+ * command anyone would have run on it would have shown:
+ *
+ * 1. **No AppleDouble entries.** `tauri-plugin-updater` strips the leading
+ *    path component of every entry before extracting it, so `._LongClaw.app` —
+ *    one component — becomes the empty path, and the updater tries to unpack a
+ *    163-byte file onto its own extraction directory. It fails on the archive's
+ *    first entry, and the pane says *The download didn't finish.*
+ * 2. **One thing at the root, and it is the bundle.** The same stripping means
+ *    the root component is thrown away, so an archive with two of them
+ *    interleaves two trees into one directory.
+ */
+export function archiveComplaints(names, bundleName) {
+  const found = [];
+  if (names.length === 0) {
+    found.push("the archive has no entries at all");
+    return found;
+  }
+
+  const appleDouble = names.filter((name) =>
+    (name.split("/").pop() ?? "").startsWith("._"),
+  );
+  if (appleDouble.length > 0) {
+    found.push(
+      `the archive carries ${appleDouble.length} AppleDouble entr${appleDouble.length === 1 ? "y" : "ies"}, starting with \`${appleDouble[0]}\` — ` +
+        "the updater cannot extract these and will fail on the first one. " +
+        "Pack with COPYFILE_DISABLE=1 in the environment.",
+    );
+  }
+
+  const roots = [
+    ...new Set(names.map((name) => name.split("/")[0]).filter(Boolean)),
+  ];
+  const strangers = roots.filter((root) => root !== bundleName);
+  if (strangers.length > 0) {
+    found.push(
+      `the archive has more than ${bundleName} at its root: ${strangers.join(", ")}`,
+    );
+  }
+  if (!roots.includes(bundleName)) {
+    found.push(`the archive does not contain ${bundleName}`);
   }
   return found;
 }
@@ -262,6 +352,88 @@ if (process.argv.includes("--self-test")) {
       archiveUrl: "https://x/a.tar.gz",
       pubDate: "now",
     }),
+  );
+
+  /* ---------------------------------------------- the archive's own shape */
+
+  /* A tar written here, header by header, so the reader above is exercised
+     against bytes rather than against a mock of itself. */
+  const tarOf = (names) => {
+    const blocks = names.map((name) => {
+      const header = Buffer.alloc(512);
+      header.write(name, 0, 100, "utf8");
+      header.write("0000644\0", 100, 8, "utf8");
+      header.write("0000000\0", 108, 8, "utf8");
+      header.write("0000000\0", 116, 8, "utf8");
+      header.write("00000000000\0", 124, 12, "utf8");
+      header.write("00000000000\0", 136, 12, "utf8");
+      header.write(name.endsWith("/") ? "5" : "0", 156, 1, "utf8");
+      header.write("ustar\u000000", 257, 8, "utf8");
+      header.fill(" ", 148, 156);
+      let sum = 0;
+      for (const byte of header) sum += byte;
+      header.write(sum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "utf8");
+      return header;
+    });
+    return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
+  };
+
+  /* A tar built here rather than read from disk, because the point is a reader
+     that does not fold AppleDouble entries away — the exact blindness that let
+     LC-265y ship. Apple's `tar tzf` would show none of these. */
+  const archive = tarOf([
+    "._LongClaw.app",
+    "LongClaw.app/",
+    "LongClaw.app/Contents/",
+    "LongClaw.app/Contents/._Info.plist",
+    "LongClaw.app/Contents/Info.plist",
+  ]);
+  check(
+    "every entry is seen, AppleDouble included",
+    tarEntryNames(archive).length === 5,
+  );
+  check(
+    "the AppleDouble entry is named",
+    tarEntryNames(archive).includes("._LongClaw.app"),
+  );
+  check(
+    "an archive carrying AppleDouble entries is refused",
+    archiveComplaints(tarEntryNames(archive), "LongClaw.app").length > 0,
+  );
+  check(
+    "the complaint names the entry that breaks extraction first",
+    archiveComplaints(tarEntryNames(archive), "LongClaw.app")[0].includes(
+      "._LongClaw.app",
+    ),
+  );
+  check(
+    "a clean archive is accepted",
+    archiveComplaints(
+      tarEntryNames(
+        tarOf([
+          "LongClaw.app/",
+          "LongClaw.app/Contents/",
+          "LongClaw.app/Contents/Info.plist",
+        ]),
+      ),
+      "LongClaw.app",
+    ).length === 0,
+  );
+  check(
+    "a second top-level component is caught",
+    archiveComplaints(
+      ["LongClaw.app/Contents/Info.plist", "Other.app/Contents/Info.plist"],
+      "LongClaw.app",
+    ).length > 0,
+  );
+  check(
+    "an archive that does not carry the bundle at all is caught",
+    archiveComplaints(["Other.app/Contents/Info.plist"], "LongClaw.app")
+      .length > 0,
+  );
+  check(
+    "an empty archive is caught",
+    archiveComplaints([], "LongClaw.app").length > 0,
   );
 
   if (failures.length > 0) {

@@ -670,6 +670,7 @@ export const UPDATE_FAILURE_REASONS = [
   "badManifest",
   "badSignature",
   "corruptDownload",
+  "installFailed",
   "unavailable",
   "writeInFlight",
 ] as const;

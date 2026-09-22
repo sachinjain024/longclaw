@@ -36,7 +36,7 @@ use crate::core::{AppError, AppResult, ErrorCode};
 ///
 /// The site rather than the GitHub release, because the site is the download
 /// the release notes and the install instructions are written about.
-pub const DOWNLOAD_PAGE_URL: &str = "https://longclaw.io/download";
+pub const DOWNLOAD_PAGE_URL: &str = "https://longclaw.io";
 
 /// Every host the app may speak to, and the whole of the amendment ADR 0014
 /// makes to the no-network promise.
@@ -135,6 +135,11 @@ pub enum UpdateFault {
     BadSignature,
     /// The download did not finish, or finished damaged.
     CorruptDownload,
+    /// The file arrived and verified, and replacing the installed bundle with
+    /// it did not work. Separate from `CorruptDownload` because it is the
+    /// opposite diagnosis — the download was the part that went right — and
+    /// 0.3.0 was shipped and debugged under the wrong one (LC-265y).
+    InstallFailed,
     /// There is no updater in this build to ask.
     Unavailable,
     /// A restart was asked for while a ticket write was still outstanding.
@@ -143,12 +148,13 @@ pub enum UpdateFault {
 
 impl UpdateFault {
     /// Every reason, in wire order, for the contract pin.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Offline,
         Self::Blocked,
         Self::BadManifest,
         Self::BadSignature,
         Self::CorruptDownload,
+        Self::InstallFailed,
         Self::Unavailable,
         Self::WriteInFlight,
     ];
@@ -160,6 +166,7 @@ impl UpdateFault {
             Self::BadManifest => "badManifest",
             Self::BadSignature => "badSignature",
             Self::CorruptDownload => "corruptDownload",
+            Self::InstallFailed => "installFailed",
             Self::Unavailable => "unavailable",
             Self::WriteInFlight => "writeInFlight",
         }
@@ -168,7 +175,9 @@ impl UpdateFault {
     /// The kind of failure this is, in ADR 0010's vocabulary.
     fn code(self) -> ErrorCode {
         match self {
-            Self::Offline | Self::Blocked | Self::CorruptDownload => ErrorCode::Io,
+            Self::Offline | Self::Blocked | Self::CorruptDownload | Self::InstallFailed => {
+                ErrorCode::Io
+            }
             Self::BadManifest | Self::BadSignature => ErrorCode::ParseFailed,
             Self::Unavailable => ErrorCode::Internal,
             // A write outstanding is the same shape as a ticket that moved
@@ -187,6 +196,7 @@ impl UpdateFault {
             Self::BadManifest => "The update manifest could not be read.",
             Self::BadSignature => "The download could not be verified and was discarded.",
             Self::CorruptDownload => "The download did not finish.",
+            Self::InstallFailed => "The update could not be installed.",
             Self::Unavailable => "This build has no updater to check with.",
             Self::WriteInFlight => "LongClaw is still saving. The restart will wait for it.",
         }
