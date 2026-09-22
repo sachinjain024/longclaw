@@ -38,6 +38,16 @@ use crate::core::{AppError, AppResult, ErrorCode};
 /// the release notes and the install instructions are written about.
 pub const DOWNLOAD_PAGE_URL: &str = "https://longclaw.io";
 
+/// The same address, as it is written into a sentence rather than opened.
+///
+/// A constant rather than `DOWNLOAD_PAGE_URL` with its scheme trimmed off: a
+/// trim silently no-ops if the scheme ever changes, and this pair is here
+/// precisely because the URL and the prose naming it were kept separately and
+/// drifted — both named a `/download` page the site does not serve, so the one
+/// way out of a failed update was a 404 (LC-265y). Two constants next to each
+/// other are changed together; two strings in different files are not.
+pub const DOWNLOAD_PAGE_DISPLAY: &str = "longclaw.io";
+
 /// Every host the app may speak to, and the whole of the amendment ADR 0014
 /// makes to the no-network promise.
 ///

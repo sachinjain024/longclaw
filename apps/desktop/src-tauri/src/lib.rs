@@ -511,7 +511,7 @@ fn open_download_page() -> AppResult<()> {
         core::ErrorCode::Io,
         format!(
             "macOS would not open the download page. Visit {} in your browser.",
-            update::DOWNLOAD_PAGE_URL.trim_start_matches("https://")
+            update::DOWNLOAD_PAGE_DISPLAY
         ),
         true,
     ))

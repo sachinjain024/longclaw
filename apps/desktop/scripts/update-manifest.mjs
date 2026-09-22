@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * The update manifest, and the notes that go in it (LC-256a, D8).
+ * The update manifest, the notes that go in it (LC-256a, D8), and the shape
+ * the archive it points at has to have (LC-265y).
  *
  * An installed copy of LongClaw learns that a newer one exists by fetching one
  * static JSON file from the latest GitHub release
@@ -141,7 +142,10 @@ export function manifestNamesVersion(manifest, version) {
  * read the bytes rather than ask macOS.
  *
  * A pax or GNU metadata header (`x`, `g`) is consumed rather than listed, for
- * the same reason a correct reader consumes it. Everything else is a name.
+ * the same reason a correct reader consumes it. Everything else is a name. A
+ * GNU long-name entry (`L`, `././@LongLink`) is *not* handled and would be
+ * reported as a stranger at the root: `bsdtar` does not emit one for paths this
+ * short, and a release that stops and says so is the safe way to be wrong.
  */
 export function tarEntryNames(gzipped) {
   const tar = gunzipSync(gzipped);

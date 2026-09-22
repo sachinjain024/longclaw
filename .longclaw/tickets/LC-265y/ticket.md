@@ -9,7 +9,7 @@ type: bug
 due: 2026-09-22
 estimate: "2"
 created_at: 2026-09-22T10:19:17.882Z
-updated_at: 2026-09-22T11:32:17.862Z
+updated_at: 2026-09-22T11:48:52.216Z
 ---
 
 I am on Apple Macbook Air M2 8GB Machine and It shows Update available properly but when I click on Download, It downloads the app and then CTA becomes Restart after that clicking on Restart button doesn’t work.
@@ -23,7 +23,7 @@ As part of this fix, let’s create one more release and we will push to Github 
 
 ## Checklist
 
-- [ ] Point the pane's download link at https://longclaw.io, not https://longclaw.io/download, which 404s. Two places: DOWNLOAD_PAGE_URL (update.rs:39) and the refusal sentence that names the address in prose (lib.rs:508). The site has no /download route — index.astro is the download page. <!-- longclaw:item=ck_92f6fe87 -->
+- [x] Point the pane's download link at https://longclaw.io, not https://longclaw.io/download, which 404s. Two places: DOWNLOAD_PAGE_URL (update.rs:39) and the refusal sentence that names the address in prose (lib.rs:508). The site has no /download route — index.astro is the download page. <!-- longclaw:item=ck_92f6fe87 -->
 ## Activity
 
 <!-- longclaw:event
@@ -169,4 +169,44 @@ changes:
     to: urgent
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_370e66e8
+kind: update
+occurred_at: 2026-09-22T11:48:52.216Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_92f6fe87.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+## Fixed on `lc-265y-updater-install`
+
+`npm run verify` passes. Six changes, four of them the diagnosis above and two from the review of it.
+
+**The archive.** `release-macos.mjs` now packs with `COPYFILE_DISABLE=1`, and then reads the archive back with a tar reader that folds nothing away, refusing any AppleDouble entry or any root but `LongClaw.app`. `tarEntryNames` and `archiveComplaints` are pure functions in `update-manifest.mjs`, so `release:manifest-check --self-test` runs them in `npm run verify` — a release must not be the first time a check runs. Run over the published 0.3.0 archive the guard reports 22 entries and two complaints; over the repacked one, 11 and none.
+
+**`Try again` is a retry.** `install_keeping_bytes` takes the verified bytes, installs, and puts them back when the install fails. It is a free function because `PluginUpdater` needs a real `AppHandle` and the suite has none — four tests cover it, including that a second press installs the file the first press downloaded.
+
+**A failed install says so.** New `UpdateFault::InstallFailed`, carried through `UpdateFault::ALL`, `ipc-contract.json`, `types.ts` and `updates.ts`, with its own sentence: *The update couldn't be installed.* `install_fault_of` maps every plugin error to it with no exception carved out — by install time `attach` has confirmed a bundle, a check has succeeded and a file is on disk, so `Unavailable` would be the same kind of lie one arm further along.
+
+**One definition of "the same release."** `check` now compares `Release` values through `release_of`, which is the value and the `PartialEq` that `update.rs` decides with. The first attempt compared the plugin's own `Update`, whose `date` is a full `OffsetDateTime` where a `Release`'s is the ISO day — a re-publish at a different hour would have cleared the bytes here and left the flag true there, which is the state this is meant to make impossible.
+
+**The download link.** `DOWNLOAD_PAGE_URL` is `https://longclaw.io`, with `DOWNLOAD_PAGE_DISPLAY` beside it for the sentence that names it in prose. Two constants next to each other get changed together; two strings in different files are what produced a 404 on the one way out of a failed update.
+
+**The runbook.** `docs/release-signing-runbook.md` gains a sixth entry under *things that will waste an afternoon*: `tar tzf` folds AppleDouble entries away as it reads, so inspect one of these archives with `python3 -m tarfile -l`.
+
+## Not fixed, and filed instead
+
+**LC-267r — a failed update can delete the installed app.** The backup-and-restore in `install_inner` is the upstream crate's code with no seam to reach it: the backup `TempDir` never escapes the function, and `Update::install` is the only entry point the plugin has. It needs a decision between upstreaming the restore, pinning a patched build, and taking our own backup before the install, so it is its own ticket rather than a silent omission here.
+
+## Still to do
+
+Cutting 0.3.1 is not done. `release:macos` needs the signing identity, the notary keychain profile and the updater key password, and the DMG step needs a person, so it is yours to drive. The fix is verified against extraction and against the real published archive; it is not yet verified end to end against a release built by the changed script, and that is what the new release is for.
 <!-- /longclaw:event -->

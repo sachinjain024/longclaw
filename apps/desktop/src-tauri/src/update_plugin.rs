@@ -95,6 +95,8 @@ impl Updater for PluginUpdater {
             updater.check().await.map_err(|error| fault_of(&error))
         })?;
 
+        let release = found.as_ref().map(release_of);
+
         // A new answer retires the old download: what was verified was the file
         // the previous answer named. A check that comes back with *the same*
         // release retires nothing, and the distinction matters — this cleared
@@ -103,25 +105,21 @@ impl Updater for PluginUpdater {
         // landing between the two presses left the flag true and the bytes
         // gone. The guard passed, the plugin found `None`, and the restart
         // failed as a download that had in fact succeeded (LC-265y).
+        //
+        // The comparison is over `Release`, which is the same value and the
+        // same `PartialEq` that `update.rs` decides with. Comparing the
+        // plugin's own `Update` instead would be a second predicate over
+        // richer data — its `date` is a whole `OffsetDateTime` where a
+        // `Release`'s is the ISO day — so a re-publish at a different hour
+        // would clear the bytes here and leave the flag true there. That is
+        // the state this is meant to make impossible.
         {
             let pending = self.pending.lock().expect("update pending lock");
-            let same = match (pending.as_ref(), found.as_ref()) {
-                (Some(old), Some(new)) => {
-                    old.version == new.version && old.date == new.date && old.body == new.body
-                }
-                _ => false,
-            };
-            if !same {
+            if pending.as_ref().map(|update| release_of(update)) != release {
                 *self.downloaded.lock().expect("update download lock") = None;
             }
         }
-        let release = found.as_ref().map(|update| Release {
-            version: update.version.clone(),
-            // `Date`'s own spelling is the ISO one, which is what the pane
-            // formats from and what the manifest carries.
-            date: update.date.map(|when| when.date().to_string()),
-            notes: update.body.clone(),
-        });
+
         *self.pending.lock().expect("update pending lock") = found.map(Arc::new);
         Ok(release)
     }
@@ -208,6 +206,23 @@ where
     }
 }
 
+/// What one of the plugin's releases is, in the port's own vocabulary.
+///
+/// One function rather than a mapping at each call site, because `check` both
+/// returns this value and decides against it whether the cached download still
+/// belongs to the release on offer — and `update.rs` decides the same question
+/// over the same type with the same `PartialEq`. Two spellings of "the same
+/// release" is the shape of the defect this file is fixing.
+fn release_of(update: &Update) -> Release {
+    Release {
+        version: update.version.clone(),
+        // `Date`'s own spelling is the ISO one, which is what the pane formats
+        // from and what the manifest carries.
+        date: update.date.map(|when| when.date().to_string()),
+        notes: update.body.clone(),
+    }
+}
+
 /// Hands the verified bytes to an install, and keeps them when it fails.
 ///
 /// **The bytes are the retry.** Taking them out of the cache and installing in
@@ -255,13 +270,15 @@ where
 /// didn't finish*, pointing every diagnosis at the network. 0.3.0's real fault
 /// was an archive the updater could not extract, and the sentence describing it
 /// named the one step that had worked (LC-265y).
-fn install_fault_of(error: &PluginError) -> UpdateFault {
-    match error {
-        // Nothing to replace, which is a build that cannot update rather than
-        // an install that went wrong.
-        PluginError::FailedToDetermineExtractPath => UpdateFault::Unavailable,
-        _ => UpdateFault::InstallFailed,
-    }
+///
+/// **Every one of them, with no exception carved out.** Sorting an install
+/// failure into `Unavailable` would say *this build has no updater to check
+/// with* to someone whose build had just checked, downloaded and verified —
+/// the same kind of lie, told one arm further along. By the time this runs,
+/// `attach` has confirmed a bundle, a check has succeeded and a file is on
+/// disk: whatever went wrong, it went wrong while installing.
+fn install_fault_of(_error: &PluginError) -> UpdateFault {
+    UpdateFault::InstallFailed
 }
 
 /// What one of the plugin's failures is, in the closed set the pane switches on.
@@ -387,8 +404,8 @@ mod tests {
 
         assert_eq!(
             install_fault_of(&PluginError::FailedToDetermineExtractPath),
-            UpdateFault::Unavailable,
-            "no bundle to replace is a build that cannot update, not a broken install"
+            UpdateFault::InstallFailed,
+            "by install time a bundle has been confirmed, so this is not `no updater here`"
         );
     }
 }

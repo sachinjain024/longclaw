@@ -216,7 +216,7 @@ the internet. Are you sure you want to open it?"_, saying Apple found no malware
 with a highlighted **Open**. That is the pass. _"Apple could not verify…"_,
 _"damaged"_, **Move to Bin**, or any trip through System Settings is a failure.
 
-## Five things that will waste an afternoon
+## Six things that will waste an afternoon
 
 **Apple's notary service takes minutes, and killing the wait cancels nothing.**
 The first submission from a new Team ID took about twenty-five. `notarytool
@@ -239,6 +239,19 @@ opaque way. `release-macos.mjs` refuses to start with one mounted and names it;
 **`xcrun stapler validate` asks Apple**, so it reports a missing ticket on a
 perfectly stapled artefact when the network is down. Offline, read the ticket
 locally instead: `codesign -dvvv <artefact>` prints `Notarization Ticket=stapled`.
+
+**`tar tzf` lies about the update archive, and 0.3.0 shipped on that.** macOS
+`tar` writes a bundle's extended attributes as sibling AppleDouble files —
+`._LongClaw.app` beside `LongClaw.app` — and Apple's `bsdtar` folds them back
+into xattrs as it *reads*, so the broken archive listed as eleven clean entries.
+The Rust `tar` crate inside the updater does not fold: it saw twenty-two, strips
+the leading path component of each one, and so tried to unpack a one-component
+`._LongClaw.app` onto its own extraction directory. Every install failed on the
+archive's first entry, and said *The download didn't finish* (LC-265y).
+`release-macos.mjs` now packs with `COPYFILE_DISABLE=1` and reads the result
+back with its own tar reader, refusing any AppleDouble entry or any root but the
+bundle. If you ever inspect one of these archives by hand, use
+`python3 -m tarfile -l <archive>` — not `tar tzf`.
 
 ## Why the certificate is short, and what that costs
 
