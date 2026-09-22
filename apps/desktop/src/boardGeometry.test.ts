@@ -238,12 +238,21 @@ describe("the card heights the stylesheet pins", () => {
   // total did not — 360px was still paying for the two-row header LC-67 had
   // collapsed. Written as the addition, the same edit fails here rather than
   // shipping columns that end short of the window.
+  //
+  // It went stale a second way at LC-257s, which is why the status bar is a term
+  // here and a token rather than a literal in `styles.css`. The bar arrived
+  // *under* the region — a new term, not a changed one — and a sum that named
+  // only the terms it already had could not notice: the board reserved the whole
+  // window, the bar was pushed past the bottom of it, and the window scrolled.
   it("reserves the chrome above and below the region, and nothing else", () => {
     // The header band owns the top edge (LC-223): no main-panel inset above.
     const mainPanelInset = 0 + 24; // `.main-panel` padding-block
     const contentHeader = 62 + 1; // the prototype's band and its hairline
     const boardGridPadding = tokens.space["4"] + tokens.space["5"];
-    const reserve = mainPanelInset + contentHeader + boardGridPadding;
+    // `.app-statusbar`'s own height, read from the token it is drawn from.
+    const statusBar = tokens.size.statusbar;
+    const reserve =
+      mainPanelInset + contentHeader + boardGridPadding + statusBar;
     expect(tokens.size["board-stack"]).toBe(`calc(100vh - ${reserve}px)`);
   });
 

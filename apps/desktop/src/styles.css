@@ -53,21 +53,42 @@ textarea:focus-visible,
    three columns of panels and its children are auto-placed, so a bar added as a
    fourth child would take a cell beside them rather than a row under them — and
    every overlay that is a child of the shell would start competing for cells
-   too. Here the bar is outside that grid and the shell simply flexes. */
+   too. Here the bar is outside that grid and the shell simply flexes.
+
+   `height`, not `min-height`. A floor lets the frame grow past the window when
+   anything inside it asks for more room than the window has, and the bar is the
+   last child: it goes down with the frame, off the bottom edge, reachable only
+   by scrolling the page. Pinned to the window instead, the bar is always the
+   last 26px of it and the shell gets exactly what is left — which is the height
+   `--lc-size-board-stack` subtracts this bar from. Both halves are needed: with
+   the reserve stale the region under-runs this height and scrolls the window
+   from inside, and with the frame free the reserve cannot hold it anyway. */
 .app-frame {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   flex-direction: column;
 }
 
 /* 240px side panel and a flexible main region (`screen-specs.md:20-29`).
    `min-height: 0` so the shell may shrink under its content rather than
-   pushing the bar off the bottom of the window. */
+   pushing the bar off the bottom of the window.
+
+   The row is bounded as well as the shell — `minmax(0, 1fr)` rather than the
+   implicit `auto`, which is max-content and is what a single row of panels
+   comes to. Bounding the shell alone moves the overflow rather than removing
+   it: the row grows to the tallest panel, the panels grow with it, and the
+   page scrolls under a bar that scrolls with it. Bounded, each panel is handed
+   the window's height and the one with more than that scrolls inside itself —
+   which is what `.project-nav`'s `overflow-y` has been waiting for. Before
+   this, a side panel of fourteen projects was 770px tall in a 700px window and
+   the nav never scrolled, because nothing ever told it that it had run out of
+   room (LC-73, LC-239w). */
 .app-shell {
   display: grid;
   min-height: 0;
   flex: 1;
   grid-template-columns: 240px minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 /* The panel is the app background, not a tinted surface of its own: the main
@@ -1473,13 +1494,22 @@ button:disabled {
    has no number to go stale.
 
    --lc-size-board-stack is the viewport less the product chrome above and below
-   the board/list region, and nothing region-specific: 28 + 28 for `.main-panel`'s
-   insets, 58 for the one-row `.content-header` (16 + a 30px control row + 12),
-   and 8 + 20 for `.board-grid`'s own padding — 142 in all, which is why the list
-   spends the same token unmodified. It replaced a 360 sized to the two-row
-   `project-toolbar` + `board-heading` LC-67 collapsed, plus the dev-only
-   `.trace-strip`. LC-207 removed that strip, so the ~54px a dev board used to
-   hang past the window is gone with it and both builds now measure the same.
+   the board/list region, and nothing region-specific: 24 for `.main-panel`'s
+   bottom inset — the header band owns the top edge and there is none above it
+   (LC-223) — 62 + 1 for the one-row `.content-header` and its hairline, 16 + 20
+   for `.board-grid`'s own padding, and 26 for the status bar across the foot of
+   the window (LC-257s): 149 in all, which is why the list spends the same token
+   unmodified. It replaced a 360 sized to the two-row `project-toolbar` +
+   `board-heading` LC-67 collapsed, plus the dev-only `.trace-strip`. LC-207
+   removed that strip, so the ~54px a dev board used to hang past the window is
+   gone with it and both builds now measure the same.
+
+   The status-bar term is the one this number has already gone stale over twice.
+   LC-165 found 360 still paying for a header row that had been collapsed; the
+   bar arrived under the region and the total did not move, so the board ran 26px
+   past the window and took the bar below the fold with it. `boardGeometry.test.ts`
+   writes the reserve as the addition rather than as the number for exactly this
+   — a term that appears or disappears has to fail there rather than ship.
 
    Under a short board the cap never binds and nothing moves; over a tall one the
    stack scrolls inside it instead of stretching the page. */
@@ -2703,12 +2733,17 @@ button:disabled {
 /* Over the workspace it is read on top of. Saying nothing was not enough: a
    layer of `auto` loses to the list's sticky group headers, which carry one of
    their own, and they painted opaque bands across the open panel (LC-96). */
+/* `bottom` clears the status bar rather than reaching the foot of the window.
+   The bar's whole argument was a control that is always visible (LC-257s), and
+   a fixed panel over the last 26px of the window is the one thing that can take
+   it away — the star would be there until a ticket was open, which is most of
+   the time someone is working. */
 .ticket-panel {
   position: fixed;
   z-index: var(--lc-z-panel);
   top: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--lc-size-statusbar);
   display: flex;
   flex-direction: column;
   gap: var(--lc-space-4);
@@ -2749,7 +2784,8 @@ button:disabled {
   z-index: var(--lc-z-panel);
   top: 0;
   right: calc(var(--ticket-panel-width-drawn) - 4px);
-  bottom: 0;
+  /* The panel's own edge, so it ends where the panel ends. */
+  bottom: var(--lc-size-statusbar);
   width: 9px;
   cursor: col-resize;
 }
@@ -5950,12 +5986,18 @@ html.theme-transition *::after {
    stays live — a preset can be tried against the surface it changes. The
    right edge holds one record at a time (opening settings closes the ticket
    panel in `App.tsx`), which is what the scrim existed to fake. */
+/* No height of its own: it is a grid item, and a grid item stretches to its
+   row. `100vh` was the window, which stopped being this panel's height when the
+   status bar took the last 26px of it — the panel then stood 26px taller than
+   the shell it lives in and pushed the page into a scroll (LC-257s). Stretching
+   asks the shell instead, which is the box this panel is actually inside, and
+   there is no number here to go stale the next time the frame gains a row. */
 .settings-panel {
   grid-area: 1 / 3;
   display: flex;
+  min-height: 0;
   flex-direction: column;
   width: min(620px, 48vw);
-  height: 100vh;
   overflow: hidden;
   border-left: 1px solid var(--lc-line);
   background: var(--lc-surface);
@@ -6957,7 +6999,7 @@ html.theme-transition *::after {
    bottom. */
 .app-statusbar {
   display: flex;
-  height: 26px;
+  height: var(--lc-size-statusbar);
   align-items: center;
   gap: var(--lc-space-3);
   border-top: var(--lc-border-hairline) solid var(--lc-line);
