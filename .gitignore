@@ -23,6 +23,7 @@
 *.p12
 *.cer
 *.certSigningRequest
+.keys
 
 # JavaScript and frontend build output
 node_modules/

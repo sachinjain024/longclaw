@@ -44,7 +44,7 @@ export const SITE = {
   download: '/downloads/LongClaw_0.3.0_aarch64.dmg',
   downloadFile: 'LongClaw_0.3.0_aarch64.dmg',
   /** `shasum -a 256` of the file above, so a reader can check what they got. */
-  downloadSha256: '24bcd926965b86b3a11d437890358da7901d983413fce6c8e90df6bfa85302e9',
+  downloadSha256: '5e80e0f1f848784459a9924241471cc02dc7b075bf5c04056b5713813402351a',
   /** The canonical release record — notes, checksum, source tarballs. No CTA
       points here; it is for people who want the tag rather than the app. */
   releases: 'https://github.com/sachinjain024/longclaw/releases/tag/v0.3.0',
