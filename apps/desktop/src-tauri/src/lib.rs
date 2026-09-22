@@ -522,7 +522,14 @@ fn open_repository() -> AppResult<()> {
     }
     Err(core::AppError::new(
         core::ErrorCode::Io,
-        "macOS would not open GitHub. Visit github.com/sachinjain024/longclaw in your browser.",
+        // Built from the constant rather than retyped: the address is spelled
+        // once in this process, which is the whole point of `github.rs`.
+        format!(
+            "macOS would not open GitHub. Visit {} in your browser.",
+            github::REPOSITORY_URL
+                .strip_prefix("https://")
+                .unwrap_or(github::REPOSITORY_URL)
+        ),
         true,
     ))
 }

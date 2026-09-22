@@ -38,8 +38,15 @@ export function StatusBar({
   update?: UpdateStatus;
   /** The repository's star count, or `undefined` while there is no number. */
   stars?: number;
-  /** Opens Settings › Updates, carrying the opener so `Esc` comes back here. */
-  onUpdate: (opener: HTMLElement) => void;
+  /**
+   * Opens Settings › Updates, carrying the opener so `Esc` comes back here.
+   *
+   * Absent on the welcome screen, which has no settings panel to open — there
+   * is no project to have settings for. `update` is `undefined` there too, so
+   * the link this answers cannot render; the prop is optional rather than
+   * answered with a callback that does nothing.
+   */
+  onUpdate?: (opener: HTMLElement) => void;
 }) {
   const counted = showsCount(stars);
   return (
@@ -52,7 +59,7 @@ export function StatusBar({
           {UPDATE_COPY.footer.version(update.currentVersion)}
         </span>
       )}
-      {update?.state === "available" && update.available && (
+      {update?.state === "available" && update.available && onUpdate && (
         <>
           {/* Decorative: colour is never the only channel, and the link beside
               it carries the message. */}

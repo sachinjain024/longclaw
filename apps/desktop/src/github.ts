@@ -74,12 +74,6 @@ export const GITHUB_COPY = {
    */
   openFailed: "Couldn’t open GitHub.",
   /**
-   * The command palette's row. *Open*, not *Star*: the palette already carries
-   * `Star project`, and the two would sort together under the same three
-   * keystrokes.
-   */
-  palette: "Open LongClaw on GitHub",
-  /**
    * Settings › Updates, under the automatic-check note. ADR 0014 moved the
    * promise from *no connection* to *no information*; the price of a second
    * caller on that road is that it is stated in the same place as the first.
@@ -92,8 +86,8 @@ export const GITHUB_COPY = {
 /**
  * The count as the control draws it.
  *
- * Exported for its test and for the palette; callers should reach it through
- * `GITHUB_COPY.count`, which is the row the deck names.
+ * Exported for its test; callers should reach it through `GITHUB_COPY.count`,
+ * which is the row the deck names and the one a review reply can cite.
  */
 export function countText(stars: number): string {
   if (stars < 1000) return String(stars);

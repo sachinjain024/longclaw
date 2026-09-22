@@ -2176,7 +2176,7 @@ export function App() {
             There is no settings panel to open without a project, so the update
             link is not drawn here; `update` is `undefined` on this screen for
             the same reason the gear is not. */}
-        <StatusBar stars={stars} onUpdate={() => {}} />
+        <StatusBar stars={stars} />
       </main>
     );
   }

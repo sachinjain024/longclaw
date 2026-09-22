@@ -41,6 +41,7 @@ import {
   rememberAutomaticUpdateCheck,
   rememberUpdateCheck,
 } from "./devicePreferences";
+import { GITHUB_COPY } from "./github";
 import { MarkdownView } from "./MarkdownView";
 import { useMutationStore } from "./mutations";
 import {
@@ -402,6 +403,14 @@ export function UpdatesSection(props: {
             <label htmlFor={toggleId}>{UPDATE_COPY.pane.automaticLabel}</label>
           </div>
           <p className="upd-auto-note">{UPDATE_COPY.pane.automaticNote}</p>
+          {/* The second caller on the same road, said in the same place
+              (LC-257s, ADR 0015). ADR 0014 moved the promise from *no
+              connection* to *no information*; the price of a second request is
+              that it is stated where the first one is, so a reader deciding
+              about the network decides about all of it here. Two sentences
+              about one mechanism, not two mechanisms — which is why this is
+              that paragraph's sibling and not a section of its own. */}
+          <p className="upd-auto-note">{GITHUB_COPY.settingsNote}</p>
         </div>
       )}
     </>

@@ -85,9 +85,14 @@ describe("what the control reads out", () => {
     expect(GITHUB_COPY.openFailed).toBe("Couldn’t open GitHub.");
   });
 
-  it("says Open rather than Star in the palette", () => {
-    // `Star project` is already a palette row. Two rows starting `Star` would
-    // sort together under the same three keystrokes.
-    expect(GITHUB_COPY.palette).toBe("Open LongClaw on GitHub");
+  it("explains the request where the update check is explained", () => {
+    // ADR 0015: the price of a second caller on ADR 0014's road is that it is
+    // stated in the same place as the first. `UpdatesPane` renders this under
+    // `automaticNote`, and this asserts the sentence makes the two promises it
+    // has to — how often, and that nothing about the reader goes with it.
+    expect(GITHUB_COPY.settingsNote).toContain("at most once a day");
+    expect(GITHUB_COPY.settingsNote).toContain(
+      "sends nothing about you or your projects",
+    );
   });
 });
