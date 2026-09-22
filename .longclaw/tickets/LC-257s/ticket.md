@@ -354,3 +354,44 @@ npm run a11y:audit --self-test  every row went red against its injected break
 
 `github.palette.label` — the keyboard twin — is not built. It was never decided, and it is one palette row whenever it is.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d99f653f
+kind: comment
+occurred_at: 2026-09-22T03:31:01.021Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Reviewed, both axes. Three findings, all real, all fixed in `2a2dae8`.
+
+**`github.settings.note` was written and never rendered.** The worst of the three, and the easiest to miss: the string was in `github.ts`, the deck gives it a home — *Settings › Updates, under the automatic-check note* — and nothing drew it. ADR 0015 makes that placement a promise rather than a preference: the price of a second caller on ADR 0014's road is that it is stated in the same place as the first. Shipped as it stood, the app would have made a second network request that no surface in the product mentions, with an ADR claiming otherwise. It is now that paragraph's sibling in `UpdatesPane.tsx`.
+
+**The repository URL was spelled twice.** `open_repository`'s failure message retyped `github.com/sachinjain024/longclaw` as a literal three lines under the constant that exists to hold it once.
+
+**`GITHUB_COPY.palette` was dead copy.** Never decided, never rendered. AGENTS.md puts settled-but-unbuilt copy in the ticket, which still carries it.
+
+One smell left on purpose: `GITHUB_COPY.count` only delegates to `countText`. That is a Middle Man, and *every row is addressable* is a documented rule here — the repo overrides the baseline.
+
+Nothing else: all ten shipping deck rows match this ticket's table character for character, the three rows marked *not to ship with this choice* are absent, and no scope creep was found.
+
+## The interaction budgets
+
+The shell went from `min-height: 100vh` to `flex: 1`, so the board and the list are 26px shorter and their windowing sees a different viewport. Not a lane or a comparator, but close enough to the rule to be worth the numbers (5,000 tickets, WebKit, p50/p95 against ≤50ms p95):
+
+```
+board  keyboard 14/15   scroll 18/19   filter 15/29   write 16/17   rendered_rows 31
+list   keyboard 14/15   scroll 17/18   filter 16/21   write 16/16   rendered_rows 27
+```
+
+Both: *within budget — every p95 ≤ 50ms, and every median within 4ms of the 600-ticket floor.*
+
+## One thing about the gate, for whoever runs it next
+
+`npm run verify` went red twice on this machine, on a **different** test each time, both `Test timed out in 5000ms`, in an `App.test.tsx` that took 965s instead of its usual 20. `npm run test:frontend` alone: 56 files, 1543 tests, 17s, green — taken while the machine's load average was 124 from unrelated desktop work. A third verify on a quieter machine: exit 0.
+
+So it was contention, not code. Recording it because plan 10 says the same thing about the watcher and it cost a day: suspect the environment before the code when the failure moves between runs.
+<!-- /longclaw:event -->
