@@ -81,7 +81,12 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { releaseNotesFor, updateManifest } from "./update-manifest.mjs";
+import {
+  archiveComplaints,
+  releaseNotesFor,
+  tarEntryNames,
+  updateManifest,
+} from "./update-manifest.mjs";
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUNDLE_DIR = join(appRoot, "src-tauri/target/release/bundle");
@@ -318,13 +323,42 @@ if (makeUpdate) {
         "  § The updater key, or pass --no-update to say that was deliberate.",
     );
   } else {
-    step("Archiving the stapled app for the updater", "tar", [
-      "czf",
-      archive,
-      "-C",
-      join(BUNDLE_DIR, "macos"),
+    /* `COPYFILE_DISABLE=1` is load-bearing, and 0.3.0 shipped without it
+       (LC-265y). macOS `tar` writes a bundle's extended attributes as sibling
+       AppleDouble files — `._LongClaw.app` beside `LongClaw.app` — and the
+       updater strips the leading path component of every entry before
+       extracting it, so a one-component `._LongClaw.app` becomes the empty
+       path and it tries to unpack a file onto its own extraction directory.
+       Every install failed on the archive's first entry. Nothing on this
+       machine would have shown it: Apple's `tar tzf` folds those entries back
+       into xattrs as it reads, so the broken archive listed clean. The
+       notarization ticket is stapled inside the bundle, not carried in an
+       xattr, so dropping them costs the release nothing — `codesign`,
+       `spctl` and `stapler validate` all still pass on what comes out. */
+    step(
+      "Archiving the stapled app for the updater",
+      "tar",
+      ["czf", archive, "-C", join(BUNDLE_DIR, "macos"), "LongClaw.app"],
+      { env: { ...process.env, COPYFILE_DISABLE: "1" } },
+    );
+
+    /* And then read back what was actually written, with a reader that does
+       not fold anything away. The rule the release gate was missing is that an
+       artifact is checked by opening it, not by trusting the command that made
+       it — every other check here asks whether the upload happened or whether
+       the manifest names the right version, and none of them would have caught
+       an archive that cannot be extracted. */
+    const complaints = archiveComplaints(
+      tarEntryNames(readFileSync(archive)),
       "LongClaw.app",
-    ]);
+    );
+    if (complaints.length > 0) {
+      die(
+        `the update archive will not install:\n  ${complaints.join("\n  ")}\n` +
+          `  ${archive}`,
+      );
+    }
+
     /* The password reaches the signer through the environment it already
        inherits, and never on argv. `--password` is the same option — Tauri
        reads `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` for it — but `step` prints

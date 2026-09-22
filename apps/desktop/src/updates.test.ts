@@ -28,10 +28,11 @@ describe("which failure gets which sentence", () => {
   /**
    * Three of the seven share *couldn't check*, deliberately: offline, a proxy
    * that answered instead, and a manifest this build cannot read are one thing
-   * to the person sitting there. The two that get their own words are the two
-   * about a *file* — one that would not verify, and one that did not arrive.
+   * to the person sitting there. The three that get their own words are the
+   * three about a *file* — one that would not verify, one that did not arrive,
+   * and one that arrived whole and could not be put in place.
    */
-  it("says one thing about the network and two about the file", () => {
+  it("says one thing about the network and three about the file", () => {
     for (const reason of ["offline", "blocked", "badManifest"] as const) {
       expect(updateFailureSentence(reason)).toBe(UPDATE_COPY.pane.checkFailed);
     }
@@ -40,6 +41,21 @@ describe("which failure gets which sentence", () => {
     );
     expect(updateFailureSentence("corruptDownload")).toBe(
       UPDATE_COPY.pane.downloadFailed,
+    );
+    expect(updateFailureSentence("installFailed")).toBe(
+      UPDATE_COPY.pane.installFailed,
+    );
+  });
+
+  /**
+   * The pair LC-265y turned on. A failed install wore the failed download's
+   * sentence, so the pane blamed the one step that had worked and the bug was
+   * looked for at the network for a day. They are different news and they must
+   * not read alike.
+   */
+  it("does not tell someone their download failed when the install did", () => {
+    expect(updateFailureSentence("installFailed")).not.toBe(
+      updateFailureSentence("corruptDownload"),
     );
   });
 

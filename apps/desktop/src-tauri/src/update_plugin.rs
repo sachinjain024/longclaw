@@ -95,16 +95,31 @@ impl Updater for PluginUpdater {
             updater.check().await.map_err(|error| fault_of(&error))
         })?;
 
+        let release = found.as_ref().map(release_of);
+
         // A new answer retires the old download: what was verified was the file
-        // the previous answer named.
-        *self.downloaded.lock().expect("update download lock") = None;
-        let release = found.as_ref().map(|update| Release {
-            version: update.version.clone(),
-            // `Date`'s own spelling is the ISO one, which is what the pane
-            // formats from and what the manifest carries.
-            date: update.date.map(|when| when.date().to_string()),
-            notes: update.body.clone(),
-        });
+        // the previous answer named. A check that comes back with *the same*
+        // release retires nothing, and the distinction matters — this cleared
+        // the cache unconditionally while `update.rs` cleared its own
+        // `downloaded` flag only when the release changed, so a scheduled check
+        // landing between the two presses left the flag true and the bytes
+        // gone. The guard passed, the plugin found `None`, and the restart
+        // failed as a download that had in fact succeeded (LC-265y).
+        //
+        // The comparison is over `Release`, which is the same value and the
+        // same `PartialEq` that `update.rs` decides with. Comparing the
+        // plugin's own `Update` instead would be a second predicate over
+        // richer data — its `date` is a whole `OffsetDateTime` where a
+        // `Release`'s is the ISO day — so a re-publish at a different hour
+        // would clear the bytes here and leave the flag true there. That is
+        // the state this is meant to make impossible.
+        {
+            let pending = self.pending.lock().expect("update pending lock");
+            if pending.as_ref().map(|update| release_of(update)) != release {
+                *self.downloaded.lock().expect("update download lock") = None;
+            }
+        }
+
         *self.pending.lock().expect("update pending lock") = found.map(Arc::new);
         Ok(release)
     }
@@ -157,14 +172,13 @@ impl Updater for PluginUpdater {
             .expect("update pending lock")
             .clone()
             .ok_or(UpdateFault::CorruptDownload)?;
-        let bytes = self
-            .downloaded
-            .lock()
-            .expect("update download lock")
-            .take()
-            .ok_or(UpdateFault::CorruptDownload)?;
 
-        pending.install(bytes).map_err(|error| fault_of(&error))?;
+        install_keeping_bytes(&self.downloaded, |bytes| {
+            pending
+                .install(bytes)
+                .map_err(|error| install_fault_of(&error))
+        })?;
+
         // macOS has the bundle replaced in place and the process still running
         // the old one, so the relaunch is ours to do. `restart` never returns.
         self.app.restart();
@@ -190,6 +204,81 @@ where
         Ok(result) => result,
         Err(_) => Err(UpdateFault::Offline),
     }
+}
+
+/// What one of the plugin's releases is, in the port's own vocabulary.
+///
+/// One function rather than a mapping at each call site, because `check` both
+/// returns this value and decides against it whether the cached download still
+/// belongs to the release on offer — and `update.rs` decides the same question
+/// over the same type with the same `PartialEq`. Two spellings of "the same
+/// release" is the shape of the defect this file is fixing.
+fn release_of(update: &Update) -> Release {
+    Release {
+        version: update.version.clone(),
+        // `Date`'s own spelling is the ISO one, which is what the pane formats
+        // from and what the manifest carries.
+        date: update.date.map(|when| when.date().to_string()),
+        notes: update.body.clone(),
+    }
+}
+
+/// Hands the verified bytes to an install, and keeps them when it fails.
+///
+/// **The bytes are the retry.** Taking them out of the cache and installing in
+/// one movement is what made `Try again` a button that could not work: the
+/// press consumed the only copy of a 6MB file that had already been downloaded
+/// and cryptographically verified, and every press after the first found an
+/// empty cache and returned `CorruptDownload` before touching a disk. The pane
+/// showed the same sentence instantly, which is indistinguishable from nothing
+/// happening — and is how LC-265y was reported.
+///
+/// The lock is not held across the install, deliberately: on macOS that call
+/// can put an AppleScript prompt on the main thread and wait for a person, and
+/// a mutex held for the length of that would be a mutex held for minutes.
+/// Taking the bytes out and putting them back is the version of this that
+/// blocks nothing.
+///
+/// This is a free function so the behaviour has a seam: `PluginUpdater` needs a
+/// real `AppHandle` and a real release, and neither exists in the suite.
+fn install_keeping_bytes<F>(cache: &Mutex<Option<Vec<u8>>>, install: F) -> Result<(), UpdateFault>
+where
+    F: FnOnce(&[u8]) -> Result<(), UpdateFault>,
+{
+    let bytes = cache
+        .lock()
+        .expect("update download lock")
+        .take()
+        .ok_or(UpdateFault::CorruptDownload)?;
+
+    match install(&bytes) {
+        Ok(()) => Ok(()),
+        Err(fault) => {
+            *cache.lock().expect("update download lock") = Some(bytes);
+            Err(fault)
+        }
+    }
+}
+
+/// What a failed *install* is. Never a download that did not arrive.
+///
+/// `fault_of` ends in a `_` arm that reads an unnamed error as a damaged
+/// download, which is the right default while a file is being fetched and the
+/// wrong one once it is on disk and verified. Every filesystem failure while
+/// replacing the bundle — permission denied, a rename across mount points, a
+/// full disk — came through that arm and reached the pane as *The download
+/// didn't finish*, pointing every diagnosis at the network. 0.3.0's real fault
+/// was an archive the updater could not extract, and the sentence describing it
+/// named the one step that had worked (LC-265y).
+///
+/// **Every one of them, with no exception carved out.** Sorting an install
+/// failure into `Unavailable` would say *this build has no updater to check
+/// with* to someone whose build had just checked, downloaded and verified —
+/// the same kind of lie, told one arm further along. By the time this runs,
+/// `attach` has confirmed a bundle, a check has succeeded and a file is on
+/// disk: whatever went wrong, it went wrong while installing.
+fn install_fault_of(_error: &PluginError) -> UpdateFault {
+    UpdateFault::InstallFailed
 }
 
 /// What one of the plugin's failures is, in the closed set the pane switches on.
@@ -234,4 +323,89 @@ fn fault_of(error: &PluginError) -> UpdateFault {
 /// `install_command_line` already take.
 pub fn open_download_page() -> bool {
     platform::macos::open_web_url(crate::update::DOWNLOAD_PAGE_URL)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The defect LC-265y was reported as: `Try again` does nothing.
+    ///
+    /// Nothing about the *cause* of the install failure matters here — what
+    /// matters is that the second press is a real second attempt rather than a
+    /// refusal issued against a cache the first press emptied.
+    #[test]
+    fn a_failed_install_leaves_the_bytes_for_the_next_press() {
+        let cache = Mutex::new(Some(b"the verified archive".to_vec()));
+
+        let first = install_keeping_bytes(&cache, |_| Err(UpdateFault::InstallFailed));
+        assert_eq!(first, Err(UpdateFault::InstallFailed));
+
+        let mut seen: Option<Vec<u8>> = None;
+        let second = install_keeping_bytes(&cache, |bytes| {
+            seen = Some(bytes.to_vec());
+            Ok(())
+        });
+        assert_eq!(second, Ok(()));
+        assert_eq!(
+            seen.as_deref(),
+            Some(&b"the verified archive"[..]),
+            "the retry must install the file the first press downloaded, not refuse"
+        );
+    }
+
+    /// The other half: a success consumes them, so a restart that did not
+    /// happen cannot install a second time from a stale copy.
+    #[test]
+    fn a_successful_install_consumes_the_bytes() {
+        let cache = Mutex::new(Some(b"the verified archive".to_vec()));
+
+        assert_eq!(install_keeping_bytes(&cache, |_| Ok(())), Ok(()));
+        assert!(cache.lock().expect("lock").is_none());
+
+        assert_eq!(
+            install_keeping_bytes(&cache, |_| Ok(())),
+            Err(UpdateFault::CorruptDownload),
+            "with nothing downloaded there is nothing to install"
+        );
+    }
+
+    /// With no download at all the install is never attempted — the refusal
+    /// comes from the cache being empty, not from a failed replacement.
+    #[test]
+    fn nothing_downloaded_is_refused_without_attempting_an_install() {
+        let cache: Mutex<Option<Vec<u8>>> = Mutex::new(None);
+        let mut attempted = false;
+
+        let result = install_keeping_bytes(&cache, |_| {
+            attempted = true;
+            Ok(())
+        });
+
+        assert_eq!(result, Err(UpdateFault::CorruptDownload));
+        assert!(!attempted);
+    }
+
+    /// An install that fails on the filesystem is an install failure, and says
+    /// so. Reporting it as a download that did not finish is what sent
+    /// LC-265y's diagnosis at the network for a day.
+    #[test]
+    fn a_filesystem_failure_while_installing_is_not_a_failed_download() {
+        let io = PluginError::Io(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "failed to unpack `._LongClaw.app`",
+        ));
+        assert_eq!(install_fault_of(&io), UpdateFault::InstallFailed);
+        assert_eq!(
+            fault_of(&io),
+            UpdateFault::CorruptDownload,
+            "the download path keeps its default: mid-fetch, an unnamed error is a damaged file"
+        );
+
+        assert_eq!(
+            install_fault_of(&PluginError::FailedToDetermineExtractPath),
+            UpdateFault::InstallFailed,
+            "by install time a bundle has been confirmed, so this is not `no updater here`"
+        );
+    }
 }

@@ -503,9 +503,16 @@ fn open_download_page() -> AppResult<()> {
     if update_plugin::open_download_page() {
         return Ok(());
     }
+    // Spelled from the constant rather than beside it. The two were written out
+    // separately and then drifted from the site: both named a `/download` page
+    // that does not exist, so the one way out of a failed update was a 404
+    // (LC-265y). A sentence that quotes the URL cannot disagree with it.
     Err(core::AppError::new(
         core::ErrorCode::Io,
-        "macOS would not open the download page. Visit longclaw.io/download in your browser.",
+        format!(
+            "macOS would not open the download page. Visit {} in your browser.",
+            update::DOWNLOAD_PAGE_DISPLAY
+        ),
         true,
     ))
 }

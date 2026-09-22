@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * The update manifest, and the notes that go in it (LC-256a, D8).
+ * The update manifest, the notes that go in it (LC-256a, D8), and the shape
+ * the archive it points at has to have (LC-265y).
  *
  * An installed copy of LongClaw learns that a newer one exists by fetching one
  * static JSON file from the latest GitHub release
@@ -23,6 +24,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { Buffer } from "node:buffer";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 /**
  * The one platform v0 ships, as Tauri's updater names it.
@@ -120,6 +123,147 @@ export function manifestNamesVersion(manifest, version) {
     if (!platform.signature) {
       found.push(`the ${PLATFORM} entry carries no signature`);
     }
+  }
+  return found;
+}
+
+/* ------------------------------------------------- the archive's own shape */
+
+/**
+ * One record's value out of a pax extended header's body, or null.
+ *
+ * The body is a run of `<length> <key>=<value>\n` records, where `<length>` is
+ * a decimal count of the whole record — its own digits and the newline
+ * included. The first record with the key wins, which is the one the `tar`
+ * crate takes. Anything the format does not allow ends the walk rather than
+ * throwing: this runs on a release artifact, and a name the reader cannot
+ * account for leaves the header's own name standing.
+ */
+function paxRecord(body, key) {
+  for (let at = 0; at < body.length;) {
+    const space = body.indexOf(0x20, at);
+    if (space === -1) break;
+    const length = Number.parseInt(
+      body.subarray(at, space).toString("utf8"),
+      10,
+    );
+    if (!Number.isInteger(length) || at + length > body.length) break;
+    if (length <= space - at) break;
+    const record = body.subarray(space + 1, at + length).toString("utf8");
+    const equals = record.indexOf("=");
+    if (equals !== -1 && record.slice(0, equals) === key) {
+      return record.slice(equals + 1).replace(/\n$/, "");
+    }
+    at += length;
+  }
+  return null;
+}
+
+/**
+ * Every entry in a `.app.tar.gz`, read the way the updater reads it (LC-265y).
+ *
+ * **This walks the tar headers itself, and that is the whole point.** Apple's
+ * `bsdtar` folds AppleDouble entries — the `._name` files macOS writes to carry
+ * a file's extended attributes — back into xattrs as it reads, so `tar tzf`
+ * shows an archive full of them as clean. The Rust `tar` crate inside
+ * `tauri-plugin-updater` does not: it sees each `._name` as an ordinary file.
+ * Checking the release artifact with the same tool that made it is what let
+ * 0.3.0 ship an archive no installed copy could extract, so the check has to
+ * read the bytes rather than ask macOS.
+ *
+ * **The name an entry is unpacked under is not always the name in its header
+ * block.** `tar::Entry::path` prefers a GNU long-name entry (`L`), then a pax
+ * `path` record (`x`), and only then the header's own `prefix` and `name`
+ * fields, so a reader that took the header alone would vouch for one file and
+ * the updater would write another. This resolves the name in that order, and
+ * consumes the metadata entries rather than listing them — as the crate does,
+ * which unpacks each of them to nothing. A pax *global* header (`g`) is
+ * consumed too, and its records are deliberately not applied: the crate does
+ * not apply them either.
+ */
+export function tarEntryNames(gzipped) {
+  const tar = gunzipSync(gzipped);
+  const names = [];
+  let longName = null;
+  let paxPath = null;
+  for (let offset = 0; offset + 512 <= tar.length;) {
+    const block = tar.subarray(offset, offset + 512);
+    if (block.every((byte) => byte === 0)) break;
+    const field = (start, length) => {
+      const raw = block.subarray(start, start + length);
+      const end = raw.indexOf(0);
+      return raw.subarray(0, end === -1 ? raw.length : end).toString("utf8");
+    };
+    const size = Number.parseInt(field(124, 12).trim() || "0", 8) || 0;
+    const kind = String.fromCharCode(block[156]);
+    const body = tar.subarray(offset + 512, offset + 512 + size);
+    offset += 512 + Math.ceil(size / 512) * 512;
+
+    /* The three entries that name the entry after them rather than themselves,
+       and the one — `K`, a long link target — that names neither. */
+    if (kind === "L") {
+      longName = body.toString("utf8").replace(/\0+$/, "");
+      continue;
+    }
+    if (kind === "x") {
+      paxPath = paxRecord(body, "path");
+      continue;
+    }
+    if (kind === "g" || kind === "K") continue;
+
+    const name = field(0, 100);
+    const prefix = field(345, 155);
+    names.push(longName ?? paxPath ?? (prefix ? `${prefix}/${name}` : name));
+    longName = null;
+    paxPath = null;
+  }
+  return names;
+}
+
+/**
+ * What is wrong with an update archive's shape, as sentences, or nothing.
+ *
+ * Two rules, both of which 0.3.0's archive broke and neither of which any
+ * command anyone would have run on it would have shown:
+ *
+ * 1. **No AppleDouble entries.** `tauri-plugin-updater` strips the leading
+ *    path component of every entry before extracting it, so `._LongClaw.app` —
+ *    one component — becomes the empty path, and the updater tries to unpack a
+ *    163-byte file onto its own extraction directory. It fails on the archive's
+ *    first entry, and the pane says *The download didn't finish.*
+ * 2. **One thing at the root, and it is the bundle.** The same stripping means
+ *    the root component is thrown away, so an archive with two of them
+ *    interleaves two trees into one directory.
+ */
+export function archiveComplaints(names, bundleName) {
+  const found = [];
+  if (names.length === 0) {
+    found.push("the archive has no entries at all");
+    return found;
+  }
+
+  const appleDouble = names.filter((name) =>
+    (name.split("/").pop() ?? "").startsWith("._"),
+  );
+  if (appleDouble.length > 0) {
+    found.push(
+      `the archive carries ${appleDouble.length} AppleDouble entr${appleDouble.length === 1 ? "y" : "ies"}, starting with \`${appleDouble[0]}\` — ` +
+        "the updater cannot extract these and will fail on the first one. " +
+        "Pack with COPYFILE_DISABLE=1 in the environment.",
+    );
+  }
+
+  const roots = [
+    ...new Set(names.map((name) => name.split("/")[0]).filter(Boolean)),
+  ];
+  const strangers = roots.filter((root) => root !== bundleName);
+  if (strangers.length > 0) {
+    found.push(
+      `the archive has more than ${bundleName} at its root: ${strangers.join(", ")}`,
+    );
+  }
+  if (!roots.includes(bundleName)) {
+    found.push(`the archive does not contain ${bundleName}`);
   }
   return found;
 }
@@ -262,6 +406,173 @@ if (process.argv.includes("--self-test")) {
       archiveUrl: "https://x/a.tar.gz",
       pubDate: "now",
     }),
+  );
+
+  /* ---------------------------------------------- the archive's own shape */
+
+  /* A tar written here, header by header, so the reader above is exercised
+     against bytes rather than against a mock of itself. */
+  const tarOf = (entries) => {
+    const blocks = entries.flatMap((entry) => {
+      const name = typeof entry === "string" ? entry : entry.name;
+      const kind =
+        typeof entry === "string"
+          ? name.endsWith("/")
+            ? "5"
+            : "0"
+          : entry.kind;
+      const body = Buffer.from(
+        typeof entry === "string" ? "" : (entry.body ?? ""),
+        "utf8",
+      );
+      const header = Buffer.alloc(512);
+      header.write(name, 0, 100, "utf8");
+      header.write("0000644\0", 100, 8, "utf8");
+      header.write("0000000\0", 108, 8, "utf8");
+      header.write("0000000\0", 116, 8, "utf8");
+      header.write(
+        body.length.toString(8).padStart(11, "0") + "\0",
+        124,
+        12,
+        "utf8",
+      );
+      header.write("00000000000\0", 136, 12, "utf8");
+      header.write(kind, 156, 1, "utf8");
+      header.write("ustar\u000000", 257, 8, "utf8");
+      header.fill(" ", 148, 156);
+      let sum = 0;
+      for (const byte of header) sum += byte;
+      header.write(sum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "utf8");
+      const padded = Buffer.alloc(Math.ceil(body.length / 512) * 512);
+      body.copy(padded);
+      return [header, padded];
+    });
+    return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
+  };
+
+  /* One pax record, length field and all, so the self-test writes the format
+     rather than a guess at it: `<length> <key>=<value>\n`, where the length
+     counts its own digits. */
+  const paxRecordOf = (key, value) => {
+    const tail = ` ${key}=${value}\n`;
+    let length = tail.length + 1;
+    while (String(length).length + tail.length > length) length += 1;
+    return `${length}${tail}`;
+  };
+
+  /* A tar built here rather than read from disk, because the point is a reader
+     that does not fold AppleDouble entries away — the exact blindness that let
+     LC-265y ship. Apple's `tar tzf` would show none of these. */
+  const archive = tarOf([
+    "._LongClaw.app",
+    "LongClaw.app/",
+    "LongClaw.app/Contents/",
+    "LongClaw.app/Contents/._Info.plist",
+    "LongClaw.app/Contents/Info.plist",
+  ]);
+  check(
+    "every entry is seen, AppleDouble included",
+    tarEntryNames(archive).length === 5,
+  );
+  check(
+    "the AppleDouble entry is named",
+    tarEntryNames(archive).includes("._LongClaw.app"),
+  );
+  check(
+    "an archive carrying AppleDouble entries is refused",
+    archiveComplaints(tarEntryNames(archive), "LongClaw.app").length > 0,
+  );
+  check(
+    "the complaint names the entry that breaks extraction first",
+    archiveComplaints(tarEntryNames(archive), "LongClaw.app")[0].includes(
+      "._LongClaw.app",
+    ),
+  );
+  check(
+    "a clean archive is accepted",
+    archiveComplaints(
+      tarEntryNames(
+        tarOf([
+          "LongClaw.app/",
+          "LongClaw.app/Contents/",
+          "LongClaw.app/Contents/Info.plist",
+        ]),
+      ),
+      "LongClaw.app",
+    ).length === 0,
+  );
+  check(
+    "a second top-level component is caught",
+    archiveComplaints(
+      ["LongClaw.app/Contents/Info.plist", "Other.app/Contents/Info.plist"],
+      "LongClaw.app",
+    ).length > 0,
+  );
+  check(
+    "an archive that does not carry the bundle at all is caught",
+    archiveComplaints(["Other.app/Contents/Info.plist"], "LongClaw.app")
+      .length > 0,
+  );
+  check(
+    "an empty archive is caught",
+    archiveComplaints([], "LongClaw.app").length > 0,
+  );
+
+  /* The three ways an entry can be called one thing in its header block and
+     unpacked under another. Reading the header alone vouches for the innocent
+     name and ships the archive that carries the other one. */
+  const renamedByPax = tarOf([
+    {
+      name: "LongClaw.app/Contents/Info.plist",
+      kind: "x",
+      body: paxRecordOf("path", "._LongClaw.app"),
+    },
+    "LongClaw.app/Contents/Info.plist",
+  ]);
+  check(
+    "a pax path record is the name, not the header block's",
+    tarEntryNames(renamedByPax).join() === "._LongClaw.app",
+  );
+  check(
+    "an AppleDouble entry hidden behind a pax path record is caught",
+    archiveComplaints(tarEntryNames(renamedByPax), "LongClaw.app").length > 0,
+  );
+  check(
+    "a pax header that renames nothing leaves the header block's name alone",
+    tarEntryNames(
+      tarOf([
+        { name: "pax_header", kind: "x", body: paxRecordOf("mtime", "1") },
+        "LongClaw.app/Contents/Info.plist",
+      ]),
+    ).join() === "LongClaw.app/Contents/Info.plist",
+  );
+  check(
+    "a GNU long name is the name, and outranks a pax record",
+    tarEntryNames(
+      tarOf([
+        {
+          name: "LongClaw.app/Contents/Info.plist",
+          kind: "x",
+          body: paxRecordOf("path", "LongClaw.app/Contents/Other.plist"),
+        },
+        { name: "././@LongLink", kind: "L", body: "._LongClaw.app\0" },
+        "LongClaw.app/Contents/Info.plist",
+      ]),
+    ).join() === "._LongClaw.app",
+  );
+  check(
+    "a pax global header is neither an entry nor a rename",
+    tarEntryNames(
+      tarOf([
+        {
+          name: "pax_global_header",
+          kind: "g",
+          body: paxRecordOf("path", "._LongClaw.app"),
+        },
+        "LongClaw.app/",
+        "LongClaw.app/Contents/Info.plist",
+      ]),
+    ).join() === "LongClaw.app/,LongClaw.app/Contents/Info.plist",
   );
 
   if (failures.length > 0) {
