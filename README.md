@@ -119,6 +119,26 @@ file before anything is overwritten.
 - **Updates from inside the app.** It checks for a new version and downloads
   nothing until you press **Update**.
 
+## How it compares
+
+- **GitHub Issues, Linear.** Hosted trackers, with accounts, sync and teams.
+  LongClaw has none of those. Its tickets are files in your repository, so an
+  agent reads them the same way it reads your code.
+- **Backlog.md.** The closest neighbour: Markdown tasks in the repo, a CLI and
+  MCP for agents, and a board in the browser, on macOS, Linux and Windows.
+  LongClaw is a native Mac app instead, and each ticket records which human or
+  agent changed what.
+- **A `TODO.md`.** Nothing to install, and fine until you want statuses,
+  priorities, a board, or a record of what the agent changed. LongClaw is that
+  file with those added, one directory per ticket.
+
+**Think of LongClaw as a local-first alternative to Linear.** Because the
+tracker is files, an agent reads a ticket straight from disk. That is faster
+than a round trip to an API, and it costs fewer tokens than the JSON an API
+wraps around the same text. Each ticket becomes the context layer for its task:
+the full description, the checklist, and the feedback humans recorded along the
+way, in one file the agent already knows how to read.
+
 ## The `longclaw` CLI
 
 The same crate the window uses also ships as a command-line binary, so key
