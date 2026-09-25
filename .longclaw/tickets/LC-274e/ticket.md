@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T11:49:40.095Z
+updated_at: 2026-09-25T12:13:00.706Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -57,6 +57,7 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (File format) Replace the tree diagram with a trimmed real ticket.md sample (frontmatter, checklist, one activity event) <!-- longclaw:item=ck_89ee93bd -->
 - [x] (Comparison) Add a short "How it compares" section (GitHub Issues/Linear, Backlog.md, plain TODO.md; no git-bug), followed by the local-first-alternative-to-Linear positioning <!-- longclaw:item=ck_5412a4be -->
 - [ ] (Comparison) Decide whether to turn the How it compares section into a Markdown table <!-- longclaw:item=ck_77ee5d67 -->
+- [ ] (CLI) Review the existing CLI section: its opening (crate, write seams, ADR link), the example commands, and the rules paragraph, for a user reading it for the first time <!-- longclaw:item=ck_2f89c14b -->
 - [x] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
 - [x] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
 - [x] (Acknowledgements) Credit every skill source in skills-lock.json, Matt Pocock (mattpocock/skills) first, then JuliusBrussee/caveman; build the list from the lockfile so no source is missed <!-- longclaw:item=ck_132c5bd3 -->
@@ -1382,6 +1383,37 @@ changes:
   - field: checklist.ck_132c5bd3.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a7a63d6d
+kind: update
+occurred_at: 2026-09-25T12:13:00.665Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_2f89c14b.added
+    to: "(CLI) Review the existing CLI section: its opening (crate, write seams, ADR link), the example commands, and the rules paragraph, for a user reading it for the first time"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6d4eeaee
+kind: update
+occurred_at: 2026-09-25T12:13:00.706Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_2f89c14b.moved
+    from: "29"
+    to: "16"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
