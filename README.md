@@ -163,14 +163,6 @@ the star count require a connection.
 Have an idea for LongClaw? [Suggest a feature](https://github.com/sachinjain024/longclaw/issues/new?template=feature_request.yml).
 For a problem with existing behavior, [report a bug](https://github.com/sachinjain024/longclaw/issues/new?template=bug_report.yml).
 
-## Product principles
-
-- Files on disk are the source of truth.
-- The on-disk format is designed for reliable agent reads and writes.
-- Humans and agents collaborate on the same tickets, while assignees remain human.
-- The desktop experience targets Linear-grade speed and polish.
-- Local use requires no account or telemetry.
-
 ## Contributing
 
 Everything below is for working on LongClaw itself.
