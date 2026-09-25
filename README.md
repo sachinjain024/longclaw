@@ -63,29 +63,11 @@ should never see, and building from source.
 
 ## How it works
 
-**Humans plan, agents execute, and both write to the same file.** An agent
-reads a ticket, does the work, and records what it did in that ticket's
-`ticket.md`, through the CLI or a plain edit. Here is one, trimmed, from the
-ticket that tracks this README:
-
-```markdown
-- [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
-
-<!-- longclaw:event
-kind: update
-occurred_at: 2026-09-25T10:30:01.427Z
-actor:
-  type: agent
-  id: claude-code
-  name: Claude Code
-changes:
-  - field: checklist.ck_d5047e2e.checked
-    from: "false"
-    to: "true"
--->
-### Claude Code updated this ticket
-<!-- /longclaw:event -->
-```
+1. **Create a ticket** on the Mac board with a description and checklist.
+2. **Delegate it to your agent.** The agent reads the ticket from your repository,
+   does the work, and uses the CLI to update progress and record what changed.
+3. **Review the result in LongClaw.** The board reflects the agent's updates,
+   and the ticket keeps its checklist, comments, and activity together.
 
 **LongClaw notices the write without a refresh.** The card rings, names who
 changed it (`AGENT claude-code`), and fades when you open it. If an
@@ -147,42 +129,20 @@ See the [CLI reference](https://longclaw.io/docs/cli/) for all commands and
 
 A project is any folder you choose. The `.longclaw/` directory inside it is what
 makes it a LongClaw project, and each ticket is one directory holding one
-`ticket.md`. This is the ticket that tracks this README, trimmed:
+`ticket.md`. A short excerpt from the completed README ticket (other metadata
+and activity entries omitted):
 
 ```markdown
 ---
-format: longclaw.ticket/v1
-id: c5710220-c278-4a24-9467-477cda87698b
 key: LC-274e
-title: "Refine the GitHub README: current status, install path, and a user-first order"
-status: in_progress
-priority: none
-labels:
-  - product
-created_at: 2026-09-25T08:46:18.691Z
+status: done
 ---
 
-The repository README is the first page a visitor to the GitHub repo reads, and
-it has drifted from what the project is now. …
+The repository README is the first page a visitor to the GitHub repo reads…
 
 ## Checklist
 
 - [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
-- [ ] (Comparison) Add a short "How it compares" section … <!-- longclaw:item=ck_5412a4be -->
-
-## Activity
-
-<!-- longclaw:event
-id: evt_39afbd02
-kind: create
-occurred_at: 2026-09-25T08:46:18.691Z
-actor:
-  type: agent
-  id: claude-code
-  name: Claude Code
--->
-### Claude Code created this ticket
-<!-- /longclaw:event -->
 ```
 
 That one file is the whole record: metadata in the frontmatter, the description
