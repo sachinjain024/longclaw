@@ -125,3 +125,17 @@ changes:
 
 Completed the first checklist item: split the README quickstart after ticket creation and explain copying the returned key, including its random trailing letter, into the edit command. Verified with the installed CLI in a fresh temporary project: create returned MP-1b, edit set it to in_progress, and list and help succeeded. The remaining README improvements stay open.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_11efdbc7
+kind: comment
+occurred_at: 2026-09-25T13:48:15.446Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex commented
+
+Simplified the CLI section following maintainer feedback: a short explanation of the bundled CLI and agent workflow, two create/edit examples, and links to the full reference and agent setup. Kept the returned-key instruction as one inline comment.
+<!-- /longclaw:event -->
