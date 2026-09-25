@@ -229,3 +229,17 @@ changes:
 
 Completed the workflow checklist item. How it works now leads with create, delegate, and review in the app. Removed its event-metadata block and reduced A project on disk to one explicitly abridged ticket excerpt, reflecting LC-274e as done. The existing file-format link supplies the full event contract.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9eda1b99
+kind: comment
+occurred_at: 2026-09-25T14:34:39.804Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex commented
+
+Replaced the numbered workflow with a compact vertical text diagram at the maintainer request. It shows creating a ticket on the Mac board, agent work and CLI updates, then review in LongClaw. The accompanying sentence explains the shared Markdown ticket.
+<!-- /longclaw:event -->

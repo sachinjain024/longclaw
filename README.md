@@ -63,11 +63,18 @@ should never see, and building from source.
 
 ## How it works
 
-1. **Create a ticket** on the Mac board with a description and checklist.
-2. **Delegate it to your agent.** The agent reads the ticket from your repository,
-   does the work, and uses the CLI to update progress and record what changed.
-3. **Review the result in LongClaw.** The board reflects the agent's updates,
-   and the ticket keeps its checklist, comments, and activity together.
+```text
+You create a ticket on the Mac board
+  |
+  v
+Agent reads it, works, updates via CLI
+  |
+  v
+You review the updates in LongClaw
+```
+
+Both work from the same Markdown ticket in your repository: description,
+checklist, comments, and activity together.
 
 **LongClaw notices the write without a refresh.** The card rings, names who
 changed it (`AGENT claude-code`), and fades when you open it. If an
