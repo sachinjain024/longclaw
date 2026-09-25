@@ -61,16 +61,6 @@ often. The [changelog](https://longclaw.io/changelog/) and the
 The [install guide](https://longclaw.io/docs/) covers checksums, the dialogs you
 should never see, and building from source.
 
-## Completely Secure Local-first app
-
-**No account. No telemetry. LongClaw sends nothing about you, your projects or
-your tickets.**
-
-It makes two requests, both to its own GitHub repository and neither carrying
-an identifier: a check for a newer version, and the public star count. One
-switch in *Settings → Updates* turns both off. With no connection at all, every
-feature works the same.
-
 ## How it works
 
 **Humans plan, agents execute, and both write to the same file.** An agent
@@ -228,6 +218,16 @@ project so an agent that has never seen LongClaw can edit tickets correctly.
 See [the file format](docs/file_format.md) for the contract and
 [the user guide](docs/user-guide.md) for project folders, backups, agent setup
 and recovery.
+
+## Completely Secure Local-first app
+
+**No account. No telemetry. LongClaw sends nothing about you, your projects or
+your tickets.**
+
+It makes two requests, both to its own GitHub repository and neither carrying
+an identifier: a check for a newer version, and the public star count. One
+switch in *Settings → Updates* turns both off. With no connection at all, every
+feature works the same.
 
 ## Product principles
 
