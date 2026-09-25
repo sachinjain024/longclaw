@@ -71,35 +71,53 @@ an identifier: a check for a newer version, and the public star count. One
 switch in *Settings → Updates* turns both off. With no connection at all, every
 feature works the same.
 
+## How it works
+
+**Humans plan, agents execute, and both write to the same file.** An agent
+reads a ticket, does the work, and records what it did in that ticket's
+`ticket.md`, through the CLI or a plain edit. Here is one, trimmed, from the
+ticket that tracks this README:
+
+```markdown
+- [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
+
+<!-- longclaw:event
+kind: update
+occurred_at: 2026-09-25T10:30:01.427Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d5047e2e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+```
+
+**LongClaw notices the write without a refresh.** The card rings, names who
+changed it (`AGENT claude-code`), and fades when you open it. If an
+agent's write collides with one you haven't seen, a conflict banner shows the
+file before anything is overwritten.
+
 ## What it does
 
-**Two views over the same tickets.** A board grouped by status, and a dense list
-that stays readable at a few thousand rows. Both take filtering, grouping and
-ordering; ordering is by priority by default, with a Manual mode backed by a
-per-ticket rank ([ADR 0003](docs/adr/0003-priority-default-ordering-manual-option.md)).
-
-**A ticket panel that edits in place.** Title, status, priority and labels are
-edited on the ticket itself. Descriptions are Markdown with a formatting toolbar
-and table support. Checklists reorder by drag, and items can be edited, checked
-and removed. Archive takes a ticket off the board without deleting anything
-([ADR 0004](docs/adr/0004-archive-in-v0.md)).
-
-**Keyboard-first.** `⌘K` opens a command palette over every action; create is
-`⌘↵` from a quick-create field that can stay open and file several tickets in a
-row; `⌘Z` undoes the last mutation from a toast. The whole ticket lifecycle —
-create, find, open, edit, move, search, archive, undo, retry — completes without
-a pointer.
-
-**It notices when an agent edits a file.** A native watcher reads external
-writes and the board updates without a refresh. A ticket changed outside the app
-wears a decaying acknowledgement — a ring and pulse on its card, the actor and
-age, and agent-checked rows in its panel — that fades when you open the ticket
-or two minutes after the change. If a write collides with one you did not see,
-a conflict banner shows the file before anything is overwritten.
-
-**Human and agent are visually distinct** everywhere it matters, in five theme
-presets (Indigo, Clay, Slate, Plum, Graphite) across light, dark and system
-appearance.
+- **Board and list over the same tickets.** Filter, group and order either one;
+  the list stays readable at a few thousand rows.
+- **A ticket panel that edits in place.** Markdown descriptions with tables,
+  checklists you reorder by drag, and an archive that deletes nothing.
+- **Ticket properties when you want them.** Type, due date, start date and
+  estimate, each off until a project turns it on.
+- **Every project in one sidebar.** Star the ones you live in, drag them into
+  order, and jump to any of the first nine with `⌘1`–`⌘9`.
+- **Keyboard-first.** `⌘K` reaches every action, `⌘Z` undoes the last one, and
+  the whole ticket lifecycle works without a pointer.
+- **Human and agent, told apart.** Wherever it matters, you can see who did
+  what, in five theme presets across light and dark.
+- **Updates from inside the app.** It checks for a new version and downloads
+  nothing until you press **Update**.
 
 ## The `longclaw` CLI
 
