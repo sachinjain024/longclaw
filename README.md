@@ -44,7 +44,7 @@ it describes. Nothing requires an account.
 often. The [changelog](https://longclaw.io/changelog/) and the
 [release notes](docs/release-notes/) say what each release changed.
 
-## What leaves your machine
+## Completely Secure Local-first app
 
 **No account. No telemetry. LongClaw sends nothing about you, your projects or
 your tickets.**
