@@ -53,7 +53,7 @@ often. The [changelog](https://longclaw.io/changelog/) and the
    about an app downloaded from the internet. Click **Open**, and it won't ask
    again.
 3. **Choose a folder**, usually the repository you already work in. LongClaw
-   creates `.longclaw/` inside it and writes nowhere else.
+   stores your project's tickets in `.longclaw/` inside that folder.
 4. **Put `longclaw` on your `PATH`** so agents can file and update tickets. The
    app offers this on first launch, and again any time in *Settings › Command
    line*. Nothing is installed until you press **Install**.

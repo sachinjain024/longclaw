@@ -9,7 +9,7 @@ labels:
   - product
 type: docs
 created_at: 2026-09-25T13:32:47.752Z
-updated_at: 2026-09-25T13:37:02.039Z
+updated_at: 2026-09-25T13:55:17.306Z
 ---
 
 Follow-up to LC-274e and merged PR #62. The objective is to make the README credible, impressive, and easy to act on for a first-time Hacker News or Reddit visitor. The previous ticket substantially improved structure, installation, imagery, comparisons, and repository housekeeping. This follow-up focuses on accurate claims and the first successful human/agent workflow.
@@ -66,7 +66,7 @@ Sources checked during the audit:
 ## Checklist
 
 - [x] (CLI) Fix the quickstart to use the allocated ticket key, including its random trailing letter. <!-- longclaw:item=ck_3d4aa94b -->
-- [ ] (Accuracy) Replace the claim that LongClaw writes nowhere outside .longclaw with precise project-storage copy. <!-- longclaw:item=ck_b9b2d906 -->
+- [x] (Accuracy) Replace the claim that LongClaw writes nowhere outside .longclaw with precise project-storage copy. <!-- longclaw:item=ck_b9b2d906 -->
 - [ ] (Privacy) Settle a factual privacy heading and distinguish background checks, manual update downloads, and offline ticket management. <!-- longclaw:item=ck_9059e999 -->
 - [ ] (Claims) Remove unsupported speed/token comparisons and the absolute app/CLI format guarantee. <!-- longclaw:item=ck_a31e97ed -->
 - [ ] (Opening) Rewrite the pitch around developers, the Mac board, coding agents, and repository-owned Markdown records. <!-- longclaw:item=ck_7df9b9b3 -->
@@ -138,4 +138,22 @@ actor:
 ### Codex commented
 
 Simplified the CLI section following maintainer feedback: a short explanation of the bundled CLI and agent workflow, two create/edit examples, and links to the full reference and agent setup. Kept the returned-key instruction as one inline comment.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_285e545b
+kind: update
+occurred_at: 2026-09-25T13:55:17.306Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_b9b2d906.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the storage-copy checklist item. Install step 3 now says LongClaw stores project tickets in .longclaw/ inside the chosen folder. Removed the writes-nowhere-else claim; registry and device preferences also live in Application Support, as documented in apps/desktop/README.md and implemented in registry.rs.
 <!-- /longclaw:event -->
