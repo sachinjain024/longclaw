@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T10:22:08.652Z
+updated_at: 2026-09-25T10:30:01.427Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -43,10 +43,10 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 ## Checklist
 
 - [x] (Structure) Put user content first and contributor content second; move the a11y audit, visual matrix, gate detail, website token rules and the four skills to CONTRIBUTING.md / apps/website/README.md <!-- longclaw:item=ck_2bfc37bb -->
-- [ ] (Header) Add a header: mark, name, one-line pitch, platform line (macOS 13+, Apple Silicon only), and an Install CTA <!-- longclaw:item=ck_e4b0c4df -->
-- [ ] (Header) Add a one-line who-it-is-for statement, within the no-oversell rules <!-- longclaw:item=ck_cfa8fdd1 -->
-- [ ] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
-- [ ] (Header) Update the status line and release-notes links to the current release (0.3.1) <!-- longclaw:item=ck_9479afb8 -->
+- [x] (Header) Add a header: mark, name, one-line pitch, platform line (macOS 13+, Apple Silicon only), and an Install CTA <!-- longclaw:item=ck_e4b0c4df -->
+- [x] (Header) Add a one-line who-it-is-for statement, within the no-oversell rules <!-- longclaw:item=ck_cfa8fdd1 -->
+- [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
+- [x] (Header) Update the status line and release-notes links to the current release (0.3.1) <!-- longclaw:item=ck_9479afb8 -->
 - [ ] (Screenshot) Generate the hero image from the site's HeroTour/AppWindow component (light + dark, 2×, scripted), shown with <picture> <!-- longclaw:item=ck_1ad785b0 -->
 - [ ] (Screenshot) Record the hero image as a deliberate exception to the no-raster rule <!-- longclaw:item=ck_9ded55a1 -->
 - [ ] (Privacy) Replace "nothing is sent anywhere" with the exact network statement (update check + star count); draft the copy with the maintainer <!-- longclaw:item=ck_146acc0f -->
@@ -938,6 +938,31 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_2bfc37bb.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c35ac393
+kind: update
+occurred_at: 2026-09-25T10:30:01.427Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e4b0c4df.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_cfa8fdd1.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d5047e2e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_9479afb8.checked
     from: "false"
     to: "true"
 -->

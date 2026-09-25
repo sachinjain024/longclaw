@@ -1,21 +1,44 @@
-<img src="assets/brand/app-icon/in-app/app-tile-rounded-512.png" alt="LongClaw" width="76" align="left" hspace="14" vspace="4">
+<p align="center">
+  <img src="assets/brand/app-icon/in-app/app-tile-rounded-512.png" alt="" width="96">
+</p>
 
-# LongClaw
+<h1 align="center">LongClaw</h1>
 
-**A local-first project manager for humans and AI agents.** Humans plan and stay
-accountable for tickets; agents execute and contribute their context back to the
-same ticket record, stored beside the code as Markdown files you own.
+<p align="center">
+  <strong>Local-first issue tracker for AI coding agents.</strong><br>
+  Humans plan and stay accountable for tickets. Agents execute and write their
+  context back to the same record: Markdown files beside your code.
+</p>
 
-<br clear="left">
+<p align="center">
+  <a href="https://longclaw.io/#download"><img src="https://img.shields.io/badge/Download_for_Mac-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Mac"></a>
+</p>
+
+<p align="center">
+  <sub>macOS 13+ · Apple Silicon only · no account required</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/sachinjain024/longclaw/releases/latest"><img src="https://img.shields.io/github/v/release/sachinjain024/longclaw?label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-blue" alt="License: MPL-2.0"></a>
+</p>
+
+<p align="center">
+  <a href="https://longclaw.io">Website</a> ·
+  <a href="https://longclaw.io/docs/">Install guide</a> ·
+  <a href="https://longclaw.io/changelog/">Changelog</a>
+</p>
+
+Built for developers who hand work to coding agents such as Claude Code and
+Cursor, and want the plan to live in the repository those agents already read.
 
 The record outlives the app. A ticket is a directory of plain text inside your
 project — readable in an editor, diffable in review, and committed with the work
 it describes. Nothing requires an account, and nothing is sent anywhere.
 
-**Status: v0, release candidate.** The desktop app lives in `apps/desktop` and
-targets Tauri v2 on macOS. See [the 0.1.0 release notes](docs/release-notes/v0.1.0.md)
-for what ships and [the acceptance records](docs/acceptance/README.md) for where
-the release actually stands.
+**Status: early, in v0.** LongClaw tracks its own development, and it ships
+often. The [changelog](https://longclaw.io/changelog/) and the
+[release notes](docs/release-notes/) say what each release changed.
 
 ## What it does
 
@@ -122,7 +145,7 @@ and recovery.
 ## Documentation
 
 - [User guide](docs/user-guide.md) — project folders, file format, backups, agent setup, recovery
-- [0.1.0 release notes](docs/release-notes/v0.1.0.md)
+- [Release notes](docs/release-notes/) — what each version changed
 - [Example agent context files](examples/agent-context/)
 - [longclaw.io](https://longclaw.io) — product documentation, CLI reference, blog and changelog
 
