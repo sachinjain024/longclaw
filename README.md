@@ -5,9 +5,9 @@
 <h1 align="center">LongClaw</h1>
 
 <p align="center">
-  <strong>Local-first issue tracker for AI coding agents.</strong><br>
-  Humans plan and stay accountable for tickets. Agents execute and write their
-  context back to the same record: Markdown files beside your code.
+  <strong>A local-first issue tracker for developers working with coding agents.</strong><br>
+  Plan work on a Mac board. Let your agent update the same tickets.<br>
+  Descriptions, checklists, and activity stay in Markdown files beside your code.
 </p>
 
 <p align="center">
@@ -44,48 +44,20 @@ it describes. Nothing requires an account.
 often. The [changelog](https://longclaw.io/changelog/) and the
 [release notes](docs/release-notes/) say what each release changed.
 
-## Install
-
-1. **Download** LongClaw for Mac from [longclaw.io](https://longclaw.io/#download),
-   or take the `.dmg` from the [latest release](https://github.com/sachinjain024/longclaw/releases/latest).
-   Open it and drag LongClaw into Applications.
-2. **Open it once.** The app is signed and notarized, so macOS asks one question
-   about an app downloaded from the internet. Click **Open**, and it won't ask
-   again.
-3. **Choose a folder**, usually the repository you already work in. LongClaw
-   creates `.longclaw/` inside it and writes nowhere else.
-4. **Put `longclaw` on your `PATH`** so agents can file and update tickets. The
-   app offers this on first launch, and again any time in *Settings › Command
-   line*. Nothing is installed until you press **Install**.
-
-The [install guide](https://longclaw.io/docs/) covers checksums, the dialogs you
-should never see, and building from source.
-
 ## How it works
 
-**Humans plan, agents execute, and both write to the same file.** An agent
-reads a ticket, does the work, and records what it did in that ticket's
-`ticket.md`, through the CLI or a plain edit. Here is one, trimmed, from the
-ticket that tracks this README:
-
-```markdown
-- [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
-
-<!-- longclaw:event
-kind: update
-occurred_at: 2026-09-25T10:30:01.427Z
-actor:
-  type: agent
-  id: claude-code
-  name: Claude Code
-changes:
-  - field: checklist.ck_d5047e2e.checked
-    from: "false"
-    to: "true"
--->
-### Claude Code updated this ticket
-<!-- /longclaw:event -->
+```text
+You create a ticket on the Board
+  |
+  v
+Agent reads it, works, updates via CLI
+  |
+  v
+You review the updates in LongClaw
 ```
+
+Both work from the same Markdown ticket in your repository: description,
+checklist, comments, and activity together.
 
 **LongClaw notices the write without a refresh.** The card rings, names who
 changed it (`AGENT claude-code`), and fades when you open it. If an
@@ -111,100 +83,56 @@ file before anything is overwritten.
 
 ## How it compares
 
-| | Where tickets live | How an agent works with it | Runs on | Accounts and sync |
-|---|---|---|---|---|
-| **LongClaw** | Markdown files in your repo | Reads the files; writes through the CLI or a plain edit, and each change names the agent | macOS app, Apple Silicon | None |
-| **GitHub Issues, Linear** | A hosted service | Through an API or an integration | Web and apps | Accounts, sync and teams |
-| **Backlog.md** | Markdown files in your repo | CLI and MCP | macOS, Linux and Windows, with a board in the browser | None |
-| **A `TODO.md`** | One file in your repo | Reads and edits it | Anywhere | None |
+| Tool | Where tickets live | Agent access | Interface |
+|---|---|---|---|
+| **LongClaw** | Markdown files in your repo | File reads and CLI updates | Mac desktop app, Apple Silicon |
+| **[Backlog.md](https://github.com/MrLesk/Backlog.md)** | Markdown files in your repo | CLI and MCP | Terminal and local browser board |
+| **[GitHub Issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues)** | GitHub service | [CLI](https://cli.github.com/manual/gh_issue), API, [MCP](https://github.com/github/github-mcp-server) | Web and mobile |
+| **[Linear](https://linear.app)** | Linear service | API, [MCP and integrations](https://linear.app/docs/mcp) | [Web, desktop and mobile](https://linear.app/download) |
+| **A `TODO.md`** | One file in your repo | File reads and edits | Your editor |
 
-Backlog.md is the closest neighbour, and it runs on more platforms. LongClaw is
-a native Mac app, and every ticket records which human or agent changed what.
-A `TODO.md` needs nothing installed, and is fine until you want statuses,
-priorities, a board, or a record of what the agent changed.
+LongClaw fits developers who want a Mac desktop app, repository-owned tickets,
+and visible human and agent activity. Backlog.md shares the Markdown-and-agent
+workflow and offers terminal and browser interfaces across more platforms.
+A plain `TODO.md` works well when a text list is enough.
 
-**Think of LongClaw as a local-first alternative to Linear.** Because the
-tracker is files, an agent reads a ticket straight from disk. That is faster
-than a round trip to an API, and it costs fewer tokens than the JSON an API
-wraps around the same text. Each ticket becomes the context layer for its task:
-the full description, the checklist, and the feedback humans recorded along the
-way, in one file the agent already knows how to read.
+**Think of LongClaw as a local-first alternative to Linear.** Agents read ticket
+context directly from your repository, without an API integration. Each ticket
+keeps its description, checklist, and human feedback in one file.
 
 ## The `longclaw` CLI
 
-Agents file and update tickets with `longclaw`, a command-line tool built from
-the same code as the app. A ticket an agent writes is exactly the ticket the app
-would have written, so the two never disagree about the format
-([why](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)).
-
-**Installing the app installs the command.** The binary ships inside the app,
-and step 4 of [Install](#install) puts it on your `PATH`.
+**The app ships with `longclaw`, a CLI for agents.** Agents use it to create
+tickets, update progress, and record their work. Those changes appear in the
+app. Enable it in *Settings › Command line*, then run it in your project folder:
 
 ```sh
-longclaw project init --name "My Project" --key MP
-longclaw label add --slug storage --name Storage
-longclaw ticket create --title "Fix the retry policy" --label storage \
-  --checklist "Reproduce it" --agent-id claude-code --agent-name "Claude Code"
-longclaw ticket edit MP-1 --status in_progress --agent-id claude-code
-longclaw ticket list
-longclaw                       # prints every command
+longclaw ticket create --title "Fix the retry policy" --agent-id claude-code
+
+# Replace MP-1a with the returned ticket key, including its trailing letter.
+longclaw ticket edit MP-1a --status in_progress --agent-id claude-code
 ```
 
-- **Output is JSON**, and a failure exits non-zero with a typed error.
-- **A label must exist before a ticket can use it.** The CLI refuses a label the
-  project hasn't defined, rather than creating it.
-- **An agent must pass `--agent-id`.** Without it, the activity log records the
-  change as a human's.
-
-This repository tracks its own work this way. People file tickets in the app,
-agents file and update them through this CLI, and both land in the same files
-under [`.longclaw/tickets/`](.longclaw/tickets/).
-
-The [CLI reference](https://longclaw.io/docs/cli/) covers the commands and
-their flags. Some agents won't look inside `.longclaw/` on their own;
-[examples/agent-context](examples/agent-context/) has the lines to add to your
-`AGENTS.md` or `CLAUDE.md` so they do.
+See the [CLI reference](https://longclaw.io/docs/cli/) for all commands.
 
 ## A project on disk
 
 A project is any folder you choose. The `.longclaw/` directory inside it is what
 makes it a LongClaw project, and each ticket is one directory holding one
-`ticket.md`. This is the ticket that tracks this README, trimmed:
+`ticket.md`. A short excerpt from the completed README ticket (other metadata
+and activity entries omitted):
 
 ```markdown
 ---
-format: longclaw.ticket/v1
-id: c5710220-c278-4a24-9467-477cda87698b
 key: LC-274e
-title: "Refine the GitHub README: current status, install path, and a user-first order"
-status: in_progress
-priority: none
-labels:
-  - product
-created_at: 2026-09-25T08:46:18.691Z
+status: done
 ---
 
-The repository README is the first page a visitor to the GitHub repo reads, and
-it has drifted from what the project is now. …
+The repository README is the first page a visitor to the GitHub repo reads…
 
 ## Checklist
 
 - [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
-- [ ] (Comparison) Add a short "How it compares" section … <!-- longclaw:item=ck_5412a4be -->
-
-## Activity
-
-<!-- longclaw:event
-id: evt_39afbd02
-kind: create
-occurred_at: 2026-09-25T08:46:18.691Z
-actor:
-  type: agent
-  id: claude-code
-  name: Claude Code
--->
-### Claude Code created this ticket
-<!-- /longclaw:event -->
 ```
 
 That one file is the whole record: metadata in the frontmatter, the description
@@ -218,23 +146,22 @@ See [the file format](docs/file_format.md) for the contract and
 [the user guide](docs/user-guide.md) for project folders, backups, agent setup
 and recovery.
 
-## Completely Secure Local-first app
+## Privacy and network access
 
-**No account. No telemetry. LongClaw sends nothing about you, your projects or
-your tickets.**
+**No account. No telemetry. Your project and ticket data stay on your machine.**
 
-It makes two requests, both to its own GitHub repository and neither carrying
-an identifier: a check for a newer version, and the public star count. One
-switch in *Settings → Updates* turns both off. With no connection at all, every
-feature works the same.
+LongClaw checks GitHub for updates and its public star count in the background.
+Turn off **Check for updates automatically** in *Settings → Updates* to disable
+both. You can still check for updates manually; downloads start only when you
+choose **Update**.
 
-## Product principles
+Ticket management works offline. Update checks, update downloads, and fetching
+the star count require a connection.
 
-- Files on disk are the source of truth.
-- The on-disk format is designed for reliable agent reads and writes.
-- Humans and agents collaborate on the same tickets, while assignees remain human.
-- The desktop experience targets Linear-grade speed and polish.
-- Local use requires no account or telemetry.
+## Feedback
+
+Have an idea for LongClaw? [Suggest a feature](https://github.com/sachinjain024/longclaw/issues/new?template=feature_request.yml).
+For a problem with existing behavior, [report a bug](https://github.com/sachinjain024/longclaw/issues/new?template=bug_report.yml).
 
 ## Contributing
 

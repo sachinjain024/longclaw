@@ -1,0 +1,343 @@
+---
+format: longclaw.ticket/v1
+id: 51ecd5db-9da4-4a32-8175-ee0afef03c7b
+key: LC-275n
+title: "Polish the README for HN and Reddit: credible claims and a working first-agent workflow"
+status: in_progress
+priority: none
+labels:
+  - product
+type: docs
+created_at: 2026-09-25T13:32:47.752Z
+updated_at: 2026-09-25T15:04:18.721Z
+---
+
+Follow-up to LC-274e and merged PR #62. The objective is to make the README credible, impressive, and easy to act on for a first-time Hacker News or Reddit visitor. The previous ticket substantially improved structure, installation, imagery, comparisons, and repository housekeeping. This follow-up focuses on accurate claims and the first successful human/agent workflow.
+
+## Audit feedback
+
+### Fix factual claims and runnable examples
+
+- The CLI quickstart creates a ticket and then edits `MP-1`. New keys include a random trailing letter, so that sequence fails when followed literally. Use the key returned by `ticket create`, and verify the whole sequence in a fresh project against the downloaded release.
+- Install step 3 says LongClaw creates `.longclaw/` and "writes nowhere else". The app also stores its registry and device preferences in Application Support. Suggested copy: "LongClaw stores your project's tickets in `.longclaw/` inside that folder."
+- Replace "Completely Secure Local-first app" with "Privacy and network access". Local storage does not establish complete security. LC-274e records that the maintainer deliberately chose the original heading; this audit recommends revisiting that choice for launch credibility.
+- Make the network description precise: distinguish optional background update checks and public GitHub star-count requests from user-triggered update downloads. Avoid implying two requests total. Suggested offline copy: "Ticket management works offline. Update checks, update downloads, and the GitHub star count require a connection." Verify what the Settings toggle disables and avoid implying that turning off automatic checks disables manual checks.
+- Remove the unmeasured claim that direct file access is faster and costs fewer tokens than an API. Token use depends on payloads and history; ticket files themselves contain structured activity metadata. Suggested copy: "Agents read ticket context directly from your repository, without an API integration."
+- Replace the absolute app/CLI claim "never disagree about the format" with "The app and CLI share the same ticket-writing code." Different installed and checkout versions can differ.
+
+### Explain the benefit before the internals
+
+Suggested opening:
+
+> **A local-first issue tracker for developers working with coding agents.**
+> Plan work on a Mac board. Let your agent update the same tickets through the CLI. Descriptions, checklists, and activity stay in Markdown files beside your code.
+
+The current "stay accountable" and "write their context back" are abstract. The opening should name what the user does and what stays in their repository.
+
+"How it works" currently starts with a lengthy event-metadata excerpt, and another file example follows later. Lead with a short three-step workflow: create a ticket, ask an agent to work on it, see the board reflect its updates. Keep one compact ticket example; move detailed event syntax into a collapsible example or the file-format docs.
+
+Bring the existing AGENTS.md/CLAUDE.md setup snippets into onboarding rather than leaving them below the CLI examples. Explain how to merge the instructions into an existing context file and give a first-task prompt using the actual ticket key. Installing the app should lead clearly to experiencing the main benefit.
+
+### Improve presentation and positioning
+
+- The hero shows "Signing and notarization" in TODO while installation says the app is signed and notarized. Refresh illustrative tasks to avoid contradicting shipped features and demonstrate human/agent activity. Keep the existing scripted website-component export and approved README raster exception.
+- Keep the honest comparison, but state when LongClaw is a good fit: a Mac desktop interface, repository-owned records, and visible agent activity. A board and shared Markdown workflow are not unique; Backlog.md documents both. Verify external claims against primary sources and link the alternatives.
+- Add an obvious feedback destination. The current issue configuration offers bug reports, security reports, and documentation, but no clear feature-feedback route. Decide an appropriate existing or new route without requiring a broad community-platform change.
+- Avoid growing the feature list into a release inventory. LC-274e explicitly mentioned the new status bar, which the README does not describe; prioritize major user benefits rather than adding a bullet solely for completeness.
+
+## Acceptance and scope
+
+Validate the onboarding against the current downloaded app in a fresh project, not only a development build. Complete one human-to-agent-to-board workflow using only the README and its linked setup instructions. Inspect GitHub's actual rendered README at phone width and in light and dark themes; inspect links, image legibility, tables, and code blocks.
+
+The README should remain consistent with shipped behavior and the website's claims. Do not introduce unsupported platform, sync, team, or security promises. Recheck the claims in this audit against the implementation at the time of the change.
+
+PR #62's description was stale at audit time: it described only the structure changes and called completed work out of scope. It is now merged; describe the full final scope accurately in the new follow-up PR rather than treating the old PR as pending work.
+
+## Launch context (advice, not publishing authorization)
+
+Show HN favors something people can try, low barriers, and an explanation of why the maker built it. LongClaw's downloadable, account-free app fits that. The maintainer should write the launch story personally: current HN guidelines prohibit generated or AI-edited posts and comments. Do not solicit votes. On Reddit, read each target community's rules, disclose authorship, and ask for specific feedback relevant to that community. No launch posts or outbound messages are authorized by this ticket.
+
+Sources checked during the audit:
+- https://news.ycombinator.com/showhn.html
+- https://news.ycombinator.com/newsguidelines.html
+- https://support.reddithelp.com/hc/en-us/articles/205926439-Reddiquette
+- https://github.com/MrLesk/Backlog.md
+
+## Checklist
+
+- [x] (CLI) Fix the quickstart to use the allocated ticket key, including its random trailing letter. <!-- longclaw:item=ck_3d4aa94b -->
+- [x] (Accuracy) Replace the claim that LongClaw writes nowhere outside .longclaw with precise project-storage copy. <!-- longclaw:item=ck_b9b2d906 -->
+- [x] (Privacy) Settle a factual privacy heading and distinguish background checks, manual update downloads, and offline ticket management. <!-- longclaw:item=ck_9059e999 -->
+- [x] (Claims) Remove unsupported speed/token comparisons and the absolute app/CLI format guarantee. <!-- longclaw:item=ck_a31e97ed -->
+- [x] (Opening) Rewrite the pitch around developers, the Mac board, coding agents, and repository-owned Markdown records. <!-- longclaw:item=ck_7df9b9b3 -->
+- [x] (Workflow) Lead How it works with create, delegate, and observe; consolidate the two long file/event examples. <!-- longclaw:item=ck_dacb6a19 -->
+- [x] (Hero) Refresh illustrative tasks so they match shipped capabilities and demonstrate agent activity; regenerate with the existing script. <!-- longclaw:item=ck_0cf08e91 -->
+- [x] (Comparison) Verify and link competitor claims; explain LongClaw's fit without implying shared features are unique. <!-- longclaw:item=ck_51cf2263 -->
+- [x] (Feedback) Add a clear route for feature feedback alongside bug reporting. <!-- longclaw:item=ck_e8b97e30 -->
+- [ ] (Validation) Follow the README against the downloaded release in a fresh project and complete one human-to-agent-to-board workflow. <!-- longclaw:item=ck_b17f5508 -->
+- [ ] (Validation) Inspect GitHub rendering on mobile and both themes; check links, image legibility, tables, and code blocks. <!-- longclaw:item=ck_3a7209fe -->
+- [ ] (Final pass) Check copy against shipped behavior and website claims, prioritize major user benefits, and describe the final scope accurately in the follow-up PR. <!-- longclaw:item=ck_be9a72ab -->
+
+## Activity
+
+<!-- longclaw:event
+id: evt_ce553041
+kind: create
+occurred_at: 2026-09-25T13:32:47.752Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2b30634f
+kind: update
+occurred_at: 2026-09-25T13:34:39.066Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9ceeb3af
+kind: update
+occurred_at: 2026-09-25T13:37:02.039Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_3d4aa94b.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the first checklist item: split the README quickstart after ticket creation and explain copying the returned key, including its random trailing letter, into the edit command. Verified with the installed CLI in a fresh temporary project: create returned MP-1b, edit set it to in_progress, and list and help succeeded. The remaining README improvements stay open.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_11efdbc7
+kind: comment
+occurred_at: 2026-09-25T13:48:15.446Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex commented
+
+Simplified the CLI section following maintainer feedback: a short explanation of the bundled CLI and agent workflow, two create/edit examples, and links to the full reference and agent setup. Kept the returned-key instruction as one inline comment.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_285e545b
+kind: update
+occurred_at: 2026-09-25T13:55:17.306Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_b9b2d906.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the storage-copy checklist item. Install step 3 now says LongClaw stores project tickets in .longclaw/ inside the chosen folder. Removed the writes-nowhere-else claim; registry and device preferences also live in Application Support, as documented in apps/desktop/README.md and implemented in registry.rs.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_57d869c8
+kind: update
+occurred_at: 2026-09-25T14:00:12.373Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_9059e999.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the privacy checklist item. Renamed the section Privacy and network access, removed the absolute security and all-features-offline claims, and explained that disabling automatic checks disables background update and star-count requests while manual checks remain available. Downloads require pressing Update; ticket management works offline. Checked the copy against updates.ts, UpdatesPane.tsx, starCount.ts, github.rs, and update.rs.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_82983077
+kind: update
+occurred_at: 2026-09-25T14:15:44.873Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_a31e97ed.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the claims checklist item. Replaced the unsupported faster/fewer-tokens comparison with direct repository access without an API integration, and shortened the explanation of ticket context. The absolute app/CLI format guarantee was already removed when simplifying the CLI section.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_42c515f0
+kind: update
+occurred_at: 2026-09-25T14:24:14.982Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_7df9b9b3.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the opening checklist item. The headline now names developers working with coding agents. The supporting copy describes planning on a Mac board, agents updating the same tickets, and descriptions, checklists, and activity stored in Markdown beside the code. Replaced the abstract accountability/context wording while keeping the opening compact.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_58734940
+kind: update
+occurred_at: 2026-09-25T14:27:43.160Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_dacb6a19.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the workflow checklist item. How it works now leads with create, delegate, and review in the app. Removed its event-metadata block and reduced A project on disk to one explicitly abridged ticket excerpt, reflecting LC-274e as done. The existing file-format link supplies the full event contract.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9eda1b99
+kind: comment
+occurred_at: 2026-09-25T14:34:39.804Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex commented
+
+Replaced the numbered workflow with a compact vertical text diagram at the maintainer request. It shows creating a ticket on the Mac board, agent work and CLI updates, then review in LongClaw. The accompanying sentence explains the shared Markdown ticket.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ce1062a1
+kind: update
+occurred_at: 2026-09-25T14:38:30.711Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_51cf2263.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the comparison checklist item. Split GitHub Issues and Linear into separate rows, linked official product and agent-access documentation, and replaced the ambiguous accounts/sync column with a compact interface comparison. Verified Backlog.md Markdown storage, CLI/MCP, local browser and terminal boards, and cross-platform support against https://github.com/MrLesk/Backlog.md; GitHub access against https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues, https://cli.github.com/manual/gh_issue, and https://github.com/github/github-mcp-server; Linear against https://linear.app/docs/mcp and https://linear.app/download. Positioning now explicitly acknowledges the shared Markdown/agent workflow and states LongClaw’s fit without claiming uniqueness. Also changed the workflow diagram wording from Mac board to Board as requested.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e54e4c13
+kind: update
+occurred_at: 2026-09-25T14:46:26.280Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_0cf08e91.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the hero checklist item. Refreshed the shared website illustration with current work: signing/notarization, bundled CLI, and in-app updates are Done; README work shows checklist progress and agent attribution. Board/list now share sample data and the panel shows the same active ticket. Fixed list key wrapping for letter-suffixed keys. Regenerated assets/readme/hero.png with the existing script and inspected board/list/panel in WebKit at 1440px and 390px in both themes; no page overflow, with the existing horizontal product-window scroll on phones. npm run site:verify passed. Website changes will deploy when the PR is merged; live deployment validation remains for then.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_de2185b8
+kind: update
+occurred_at: 2026-09-25T14:50:08.117Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_596009f2.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed onboarding copy: installation now includes a short root AGENTS.md/CLAUDE.md snippet, instructions to append without replacing existing context, and a first-task prompt with explicit substitution of the actual board ticket key. The flow ends by reviewing agent updates in LongClaw. Moved the detailed setup link out of the CLI section and corrected the linked example to preserve letter-suffixed keys. Full downloaded-release workflow validation remains a separate unchecked item.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_71e1b298
+kind: comment
+occurred_at: 2026-09-25T14:54:07.200Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Removed the Install section from the README at the maintainer's request. The README now links to the install guide (longclaw.io/docs) from its header and to the Download for Mac button, and no longer carries the numbered install steps, the AGENTS.md/CLAUDE.md snippet, the first-task prompt, or the link to examples/agent-context/. The CLI section pointed to #install; it now says to enable the command in Settings › Command line.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fc822979
+kind: comment
+occurred_at: 2026-09-25T15:02:06.088Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex commented
+
+Added a GitHub feature-request issue form and linked it in a new README Feedback section beside the bug-report route. The README now has no Install section, following the maintainer decision; feedback links stand on their own. The downloaded-release workflow and GitHub-render checks remain open.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_44176de4
+kind: update
+occurred_at: 2026-09-25T15:04:18.721Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_596009f2.removed
+    from: (Onboarding) Bring AGENTS.md/CLAUDE.md setup into installation and include a first-task prompt using the actual ticket key.
+-->
+### Claude Code updated this ticket
+
+Decision: the README will not carry onboarding. The maintainer removed the Install section, so the AGENTS.md/CLAUDE.md setup snippet and the first-task prompt are no longer in the README. The Onboarding checklist item (ck_596009f2) is deleted rather than left ticked for work that is gone. Installation and agent setup are left to the install guide on longclaw.io, which the README header links.
+<!-- /longclaw:event -->
