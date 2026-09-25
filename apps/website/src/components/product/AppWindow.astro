@@ -28,6 +28,16 @@ const projects = {
   local: ['marketing-site', 'ios-app', 'checkout-service', 'LongClaw', 'infra-tooling'],
 };
 
+// A curated illustration of current work, not a live view of the backlog.
+const agentTicket = {
+  key: 'LC-275n',
+  title: 'Polish the README for launch',
+  priority: 'P2',
+  progress: { done: 7, total: 13 },
+  label: { name: 'Product', tone: 'neutral' },
+  agentAck: 'claude-code · via file edit',
+} as const;
+
 const board = [
   {
     status: 'Todo',
@@ -35,22 +45,20 @@ const board = [
     dot: '',
     cards: [
       {
-        key: 'LC-47',
-        title: 'Signing and notarization',
-        priority: 'P1',
-        progress: { done: 0, total: 1 },
-        label: { name: 'Release Blocker', tone: 'danger' },
+        key: 'LC-162',
+        title: 'Open a folder from the command palette',
+        priority: 'P2',
+        label: { name: 'Product', tone: 'neutral' },
       },
       {
-        key: 'LC-48',
-        title: 'An in-app route to the documentation',
-        priority: 'P1',
-        progress: { done: 0, total: 1 },
-        label: { name: 'Design', tone: 'accent' },
+        key: 'LC-258c',
+        title: 'Zoom the app with keyboard shortcuts',
+        priority: 'P2',
+        label: { name: 'Frontend', tone: 'agent' },
       },
       {
-        key: 'LC-50',
-        title: 'Shortcut reference overlay',
+        key: 'LC-271h',
+        title: 'Improve in-app release notes',
         priority: 'P2',
         label: { name: 'Product', tone: 'neutral' },
       },
@@ -58,105 +66,45 @@ const board = [
   },
   {
     status: 'In Progress',
-    count: 2,
+    count: 1,
     dot: 'progress',
-    cards: [
-      {
-        key: 'LC-42',
-        title: 'Watcher: debounce rapid file events',
-        priority: 'urgent',
-        progress: { done: 1, total: 3 },
-        label: { name: 'Platform', tone: 'neutral' },
-        agentAck: 'claude-code · via file edit',
-      },
-      {
-        key: 'LC-45',
-        title: 'Filter chips overflow on a narrow panel',
-        priority: 'P1',
-        label: { name: 'Frontend', tone: 'agent' },
-      },
-    ],
+    cards: [agentTicket],
   },
   {
     status: 'Done',
-    count: 175,
+    count: 3,
     dot: 'done',
     cards: [
       {
-        key: 'LC-1',
-        title: 'Close the atomic-replace race',
-        priority: 'urgent',
+        key: 'LC-47',
+        title: 'Signing and notarization',
+        priority: 'P1',
         progress: { done: 1, total: 1 },
-        label: { name: 'Storage', tone: 'neutral' },
+        label: { name: 'Release Blocker', tone: 'danger' },
       },
       {
-        key: 'LC-7',
-        title: 'Attribute a change from newly appended event IDs only',
+        key: 'LC-233',
+        title: 'Ship the CLI with the app',
         priority: 'P2',
         progress: { done: 1, total: 1 },
-        label: { name: 'Domain', tone: 'neutral' },
+        label: { name: 'Platform', tone: 'neutral' },
       },
       {
-        key: 'LC-4',
-        title: 'Watcher recovery on wake',
+        key: 'LC-256a',
+        title: 'Check for updates from the app',
         priority: 'P2',
-        label: { name: 'Frontend', tone: 'agent' },
+        progress: { done: 1, total: 1 },
+        label: { name: 'Product', tone: 'neutral' },
       },
     ],
   },
 ] as const;
 
-const listGroups = [
-  {
-    status: 'Backlog',
-    count: 17,
-    rows: [
-      {
-        key: 'LC-44',
-        priority: 'P1',
-        title: 'Part B of the accessibility audit, VoiceOver semantics',
-        label: { name: 'Design', tone: 'accent' },
-        age: '16d',
-      },
-      {
-        key: 'LC-45',
-        priority: 'P1',
-        title: 'A medium real project against the budgets',
-        label: { name: 'Frontend', tone: 'agent' },
-        age: '16d',
-      },
-      {
-        key: 'LC-47',
-        priority: 'P1',
-        title: 'Signing and notarization',
-        label: { name: 'Release Blocker', tone: 'danger' },
-        age: '16d',
-      },
-      {
-        key: 'LC-25',
-        priority: 'P2',
-        title: 'Shortcut reference',
-        label: { name: 'Design', tone: 'accent' },
-        age: '16d',
-      },
-    ],
-  },
-  {
-    status: 'Todo',
-    count: 28,
-    rows: [
-      { key: 'LC-204', priority: 'urgent', title: 'Transfer repo to the.infin8y account', age: '9d' },
-      {
-        key: 'LC-213',
-        priority: 'urgent',
-        title: 'Define ADHD skill and update agents instructions',
-        label: { name: 'Release Blocker', tone: 'danger' },
-        age: '10d',
-      },
-      { key: 'LC-218', priority: 'urgent', title: 'Create the AI harness pipeline', age: '17h' },
-    ],
-  },
-] as const;
+const listGroups = board.map((group) => ({
+  status: group.status,
+  count: group.count,
+  rows: group.cards.map((card) => ({ ...card, age: '2d' })),
+}));
 
 const paletteRows: { glyph: string; label: string; key?: string; active?: boolean }[] = [
   { glyph: '+', label: 'Create ticket', key: 'C', active: true },
@@ -253,11 +201,7 @@ const toneClass = (tone: string) =>
                     <div class="tcard">
                       <div class="tcard__top">
                         <span class="tcard__id">{card.key}</span>
-                        {card.priority === 'urgent' ? (
-                          <span class="prio prio--urgent">!</span>
-                        ) : (
-                          <span class="prio">{card.priority}</span>
-                        )}
+                        <span class="prio">{card.priority}</span>
                       </div>
                       <div class="tcard__title">{card.title}</div>
                       <div class="tcard__meta">
@@ -306,11 +250,7 @@ const toneClass = (tone: string) =>
                     {group.rows.map((row) => (
                       <div class="list-row">
                         <span class="list-row__id">{row.key}</span>
-                        {row.priority === 'urgent' ? (
-                          <span class="prio prio--urgent">!</span>
-                        ) : (
-                          <span class="prio">{row.priority}</span>
-                        )}
+                        <span class="prio">{row.priority}</span>
                         <span class="list-row__title">{row.title}</span>
                         {'label' in row && row.label && (
                           <span class="chip">
@@ -330,13 +270,13 @@ const toneClass = (tone: string) =>
           {/* Ticket panel. */}
           <div class="stage-layer stage-layer--panel panel">
             <div class="panel__head">
-              <span class="panel__key">LC-42</span>
-              <span class="panel__path">tickets/LC-42/ticket.md</span>
+              <span class="panel__key">{agentTicket.key}</span>
+              <span class="panel__path">tickets/{agentTicket.key}/ticket.md</span>
               <span class="panel__spacer"></span>
               <span class="panel__action">Archive</span>
               <span class="panel__close">✕</span>
             </div>
-            <div class="panel__title">Watcher: debounce rapid file events</div>
+            <div class="panel__title">{agentTicket.title}</div>
             <div class="fieldgrid">
               <span>Status</span>
               <span
@@ -349,22 +289,22 @@ const toneClass = (tone: string) =>
               <span>Priority</span>
               <span
                 ><span class="field-pill"
-                  ><span class="field-pill__flag">!</span>Urgent <span class="field-pill__caret"
+                  >{agentTicket.priority} <span class="field-pill__caret"
                     >›</span
                   ></span
                 ></span
               >
               <span>Labels</span>
               <span style="display:flex;gap:6px;">
-                <span class="chip"><span class="chip__dot"></span>Platform</span>
+                <span class="chip"><span class="chip__dot"></span>{agentTicket.label.name}</span>
                 <span class="chip chip--add">+ add</span>
               </span>
             </div>
             <div class="panel__block">
               <div class="panel__block-label">Description</div>
               <div class="panel__desc">
-                Coalesce watcher events within 300ms before rebuilding board state, so bulk agent
-                edits land as one update.
+                Explain the first workflow, verify product claims, and refresh the examples before
+                sharing LongClaw with developer communities.
               </div>
             </div>
             <div class="panel__block" style="margin-bottom:0;">
