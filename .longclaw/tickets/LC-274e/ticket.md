@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T11:48:10.840Z
+updated_at: 2026-09-25T11:49:40.095Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -59,7 +59,7 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [ ] (Comparison) Decide whether to turn the How it compares section into a Markdown table <!-- longclaw:item=ck_77ee5d67 -->
 - [x] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
 - [x] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
-- [ ] (Acknowledgements) Credit every skill source in skills-lock.json, Matt Pocock (mattpocock/skills) first, then JuliusBrussee/caveman; build the list from the lockfile so no source is missed <!-- longclaw:item=ck_132c5bd3 -->
+- [x] (Acknowledgements) Credit every skill source in skills-lock.json, Matt Pocock (mattpocock/skills) first, then JuliusBrussee/caveman; build the list from the lockfile so no source is missed <!-- longclaw:item=ck_132c5bd3 -->
 - [ ] (Repo settings) Set the About description to match the site's tagline and description (needs the owner account) <!-- longclaw:item=ck_e7f59695 -->
 - [ ] (Repo settings) Set the About website to https://longclaw.io (needs the owner account) <!-- longclaw:item=ck_b477835c -->
 - [ ] (Repo settings) Add topics: issue-tracker, project-management, local-first, ai-agents, coding-agents, claude-code, markdown, tauri, rust, macos, desktop-app, developer-tools (needs the owner account) <!-- longclaw:item=ck_9c1e3cd2 -->
@@ -1364,6 +1364,22 @@ changes:
     from: "false"
     to: "true"
   - field: checklist.ck_c07eb526.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9541fe88
+kind: update
+occurred_at: 2026-09-25T11:49:40.095Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_132c5bd3.checked
     from: "false"
     to: "true"
 -->

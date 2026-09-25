@@ -263,6 +263,23 @@ The architecture decisions, domain language, design docs, agent instructions,
 and the planning and evidence behind the project are indexed in
 [docs/README.md](docs/README.md).
 
+## Acknowledgements
+
+LongClaw is built with coding agents, and much of how they work in this
+repository comes from skills other people wrote and shared.
+
+- **[Matt Pocock](https://github.com/mattpocock)**, for
+  [mattpocock/skills](https://github.com/mattpocock/skills). Nearly every skill
+  in [`.agents/skills/`](.agents/skills/) comes from it, among them `tdd`,
+  `diagnosing-bugs`, `domain-modeling`, `code-review` and `grilling`. They
+  shaped how this codebase is designed, tested, reviewed and tracked, and much
+  of its quality is owed to them.
+- **[Julius Brussee](https://github.com/JuliusBrussee)**, for
+  [caveman](https://github.com/JuliusBrussee/caveman).
+
+Every vendored skill and its source is listed in
+[`skills-lock.json`](skills-lock.json).
+
 ## License
 
 LongClaw source code is licensed under the [Mozilla Public License 2.0](LICENSE).
