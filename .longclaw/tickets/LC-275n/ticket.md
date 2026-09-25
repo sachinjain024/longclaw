@@ -9,7 +9,7 @@ labels:
   - product
 type: docs
 created_at: 2026-09-25T13:32:47.752Z
-updated_at: 2026-09-25T14:15:44.873Z
+updated_at: 2026-09-25T14:24:14.982Z
 ---
 
 Follow-up to LC-274e and merged PR #62. The objective is to make the README credible, impressive, and easy to act on for a first-time Hacker News or Reddit visitor. The previous ticket substantially improved structure, installation, imagery, comparisons, and repository housekeeping. This follow-up focuses on accurate claims and the first successful human/agent workflow.
@@ -69,7 +69,7 @@ Sources checked during the audit:
 - [x] (Accuracy) Replace the claim that LongClaw writes nowhere outside .longclaw with precise project-storage copy. <!-- longclaw:item=ck_b9b2d906 -->
 - [x] (Privacy) Settle a factual privacy heading and distinguish background checks, manual update downloads, and offline ticket management. <!-- longclaw:item=ck_9059e999 -->
 - [x] (Claims) Remove unsupported speed/token comparisons and the absolute app/CLI format guarantee. <!-- longclaw:item=ck_a31e97ed -->
-- [ ] (Opening) Rewrite the pitch around developers, the Mac board, coding agents, and repository-owned Markdown records. <!-- longclaw:item=ck_7df9b9b3 -->
+- [x] (Opening) Rewrite the pitch around developers, the Mac board, coding agents, and repository-owned Markdown records. <!-- longclaw:item=ck_7df9b9b3 -->
 - [ ] (Workflow) Lead How it works with create, delegate, and observe; consolidate the two long file/event examples. <!-- longclaw:item=ck_dacb6a19 -->
 - [ ] (Onboarding) Bring AGENTS.md/CLAUDE.md setup into installation and include a first-task prompt using the actual ticket key. <!-- longclaw:item=ck_596009f2 -->
 - [ ] (Hero) Refresh illustrative tasks so they match shipped capabilities and demonstrate agent activity; regenerate with the existing script. <!-- longclaw:item=ck_0cf08e91 -->
@@ -192,4 +192,22 @@ changes:
 ### Codex updated this ticket
 
 Completed the claims checklist item. Replaced the unsupported faster/fewer-tokens comparison with direct repository access without an API integration, and shortened the explanation of ticket context. The absolute app/CLI format guarantee was already removed when simplifying the CLI section.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_42c515f0
+kind: update
+occurred_at: 2026-09-25T14:24:14.982Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_7df9b9b3.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the opening checklist item. The headline now names developers working with coding agents. The supporting copy describes planning on a Mac board, agents updating the same tickets, and descriptions, checklists, and activity stored in Markdown beside the code. Replaced the abstract accountability/context wording while keeping the opening compact.
 <!-- /longclaw:event -->

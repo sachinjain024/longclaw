@@ -5,9 +5,9 @@
 <h1 align="center">LongClaw</h1>
 
 <p align="center">
-  <strong>Local-first issue tracker for AI coding agents.</strong><br>
-  Humans plan and stay accountable for tickets. Agents execute and write their
-  context back to the same record: Markdown files beside your code.
+  <strong>A local-first issue tracker for developers working with coding agents.</strong><br>
+  Plan work on a Mac board. Let your agent update the same tickets.<br>
+  Descriptions, checklists, and activity stay in Markdown files beside your code.
 </p>
 
 <p align="center">
