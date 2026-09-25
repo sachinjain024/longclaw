@@ -199,15 +199,17 @@ See [the file format](docs/file_format.md) for the contract and
 [the user guide](docs/user-guide.md) for project folders, backups, agent setup
 and recovery.
 
-## Completely Secure Local-first app
+## Privacy and network access
 
-**No account. No telemetry. LongClaw sends nothing about you, your projects or
-your tickets.**
+**No account. No telemetry. Your project and ticket data stay on your machine.**
 
-It makes two requests, both to its own GitHub repository and neither carrying
-an identifier: a check for a newer version, and the public star count. One
-switch in *Settings → Updates* turns both off. With no connection at all, every
-feature works the same.
+LongClaw checks GitHub for updates and its public star count in the background.
+Turn off **Check for updates automatically** in *Settings → Updates* to disable
+both. You can still check for updates manually; downloads start only when you
+choose **Update**.
+
+Ticket management works offline. Update checks, update downloads, and fetching
+the star count require a connection.
 
 ## Product principles
 
