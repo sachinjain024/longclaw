@@ -57,9 +57,31 @@ often. The [changelog](https://longclaw.io/changelog/) and the
 4. **Put `longclaw` on your `PATH`** so agents can file and update tickets. The
    app offers this on first launch, and again any time in *Settings › Command
    line*. Nothing is installed until you press **Install**.
+5. **Tell your agent where tickets live.** Add this to your repository's root
+   `AGENTS.md` (or `CLAUDE.md` for Claude Code). Append it to existing instructions;
+   do not replace them.
+
+   ```markdown
+   ## Issue tracker
+   Use LongClaw for this project's tickets. Read `.longclaw/AGENTS.md` first.
+   Run `longclaw help` for commands, and use the CLI with `--agent-id` on every
+   write. Record progress, completed checklist items, and results in the ticket.
+   ```
+
+6. **Try one task.** Create a small ticket on the Board, with a description and
+   checklist. Open your coding agent in the same project folder and give it this
+   prompt, replacing `MP-1a` with the ticket's actual key, including any trailing
+   letter:
+
+   > Work on MP-1a. Read .longclaw/AGENTS.md and the ticket first. Mark it in
+   > progress, complete the task, and use the CLI to update its checklist and
+   > record what changed and how you verified it.
+
+   Watch the ticket update in LongClaw, then open it to review the agent's work.
 
 The [install guide](https://longclaw.io/docs/) covers checksums, the dialogs you
-should never see, and building from source.
+should never see, and building from source. See [agent setup examples](examples/agent-context/)
+for more detailed repository instructions.
 
 ## How it works
 
@@ -130,8 +152,7 @@ longclaw ticket create --title "Fix the retry policy" --agent-id claude-code
 longclaw ticket edit MP-1a --status in_progress --agent-id claude-code
 ```
 
-See the [CLI reference](https://longclaw.io/docs/cli/) for all commands and
-[agent setup examples](examples/agent-context/) for `AGENTS.md` and `CLAUDE.md`.
+See the [CLI reference](https://longclaw.io/docs/cli/) for all commands.
 
 ## A project on disk
 

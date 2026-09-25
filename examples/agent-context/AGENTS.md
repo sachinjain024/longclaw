@@ -17,7 +17,8 @@ This repository's tickets are LongClaw files under `.longclaw/`.
 - Drive tickets with the `longclaw` command, which ships with the app. Run
   `longclaw help` for the whole surface, and pass `--agent-id` on every write —
   without it the history says a human did the work.
-- Ticket keys look like `LC-1`, `LC-2`. Never invent a key or create a ticket
+- Ticket keys look like `LC-1` or `LC-234x`, using your project's prefix. Keep
+  any trailing letter. Never invent a key or create a ticket
   directory yourself: `longclaw ticket create` allocates them, and it is the
   only thing that may.
 - When you finish work on a ticket, record it in that ticket: update the status,
