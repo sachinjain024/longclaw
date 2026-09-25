@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T12:53:54.316Z
+updated_at: 2026-09-25T12:56:36.414Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -71,6 +71,7 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Final pass) Remove internal ticket keys (e.g. LC-233) from README prose <!-- longclaw:item=ck_c55841a0 -->
 - [x] (Final pass) Check every claim against website-content-brief.md §6 <!-- longclaw:item=ck_adb7f5bb -->
 - [x] (Final pass) Check that every relative link resolves <!-- longclaw:item=ck_4984fd14 -->
+- [ ] (Public docs) Review what the public repo says about future plans (monetization, paid sync, teams, phases) and decide what to keep, rewrite, or move to a private place <!-- longclaw:item=ck_b00d26d7 -->
 
 ## Activity
 
@@ -1576,4 +1577,28 @@ changes:
 ### Claude Code updated this ticket
 
 Repo settings applied by the owner on 2026-09-25 and checked through the API: description, website, Wiki and Projects off, Issues on, private vulnerability reporting on. The owner chose the topics: ai-agents, claude-code, coding-agents, developer-tools, issue-tracker, jira-alternative, linear-alternative, local-first, markdown, open-source, project-management. The owner reports Packages and Deployments hidden (not checkable by API). The social preview is uploaded.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9d5296a4
+kind: update
+occurred_at: 2026-09-25T12:56:36.414Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b00d26d7.added
+    to: (Public docs) Review what the public repo says about future plans (monetization, paid sync, teams, phases) and decide what to keep, rewrite, or move to a private place
+-->
+### Claude Code updated this ticket
+
+Scope for the (Public docs) item, found 2026-09-25:
+- docs/vision.md: a Business model section (free for one, paid for teams; cloud sync as the paid layer; a closed-source hosted sync backend) and a Cloud sync section.
+- docs/design_brief.md: the sync-waitlist modal ("early access to cloud sync & teams"), and teams, sync settings and billing as Phase 3.
+- docs/mvp_plan_order.md: Step 15, the parked sync-waitlist, whose goal is to measure interest in the paid collaboration layer; cloud sync, accounts, teams and billing as out of scope.
+- docs/backlog/*, docs/design/website-content-brief.md (audience, phases), docs/design/website-prompts.md.
+Already public by design: every release note's What is not here names Phase 2 (terminals) and Phase 3 (sync and teams), and so does the launch blog post. Decide whether those stay.
+Constraint: these files have been public since the initial commit (962722e). Editing or deleting them hides them from casual readers, but git history keeps every earlier version. Truly private plans need a private home from now on.
+This PR's new docs/README.md links vision.md, design_brief.md, mvp_plan_order.md and the backlogs; reconsider those links as part of the decision.
 <!-- /longclaw:event -->
