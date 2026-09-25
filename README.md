@@ -44,45 +44,6 @@ it describes. Nothing requires an account.
 often. The [changelog](https://longclaw.io/changelog/) and the
 [release notes](docs/release-notes/) say what each release changed.
 
-## Install
-
-1. **Download** LongClaw for Mac from [longclaw.io](https://longclaw.io/#download),
-   or take the `.dmg` from the [latest release](https://github.com/sachinjain024/longclaw/releases/latest).
-   Open it and drag LongClaw into Applications.
-2. **Open it once.** The app is signed and notarized, so macOS asks one question
-   about an app downloaded from the internet. Click **Open**, and it won't ask
-   again.
-3. **Choose a folder**, usually the repository you already work in. LongClaw
-   stores your project's tickets in `.longclaw/` inside that folder.
-4. **Put `longclaw` on your `PATH`** so agents can file and update tickets. The
-   app offers this on first launch, and again any time in *Settings › Command
-   line*. Nothing is installed until you press **Install**.
-5. **Tell your agent where tickets live.** Add this to your repository's root
-   `AGENTS.md` (or `CLAUDE.md` for Claude Code). Append it to existing instructions;
-   do not replace them.
-
-   ```markdown
-   ## Issue tracker
-   Use LongClaw for this project's tickets. Read `.longclaw/AGENTS.md` first.
-   Run `longclaw help` for commands, and use the CLI with `--agent-id` on every
-   write. Record progress, completed checklist items, and results in the ticket.
-   ```
-
-6. **Try one task.** Create a small ticket on the Board, with a description and
-   checklist. Open your coding agent in the same project folder and give it this
-   prompt, replacing `MP-1a` with the ticket's actual key, including any trailing
-   letter:
-
-   > Work on MP-1a. Read .longclaw/AGENTS.md and the ticket first. Mark it in
-   > progress, complete the task, and use the CLI to update its checklist and
-   > record what changed and how you verified it.
-
-   Watch the ticket update in LongClaw, then open it to review the agent's work.
-
-The [install guide](https://longclaw.io/docs/) covers checksums, the dialogs you
-should never see, and building from source. See [agent setup examples](examples/agent-context/)
-for more detailed repository instructions.
-
 ## How it works
 
 ```text
@@ -143,7 +104,7 @@ keeps its description, checklist, and human feedback in one file.
 
 **The app ships with `longclaw`, a CLI for agents.** Agents use it to create
 tickets, update progress, and record their work. Those changes appear in the
-app. Enable the command in [Install](#install), then run it in your project folder:
+app. Enable it in *Settings › Command line*, then run it in your project folder:
 
 ```sh
 longclaw ticket create --title "Fix the retry policy" --agent-id claude-code

@@ -297,3 +297,17 @@ changes:
 
 Completed onboarding copy: installation now includes a short root AGENTS.md/CLAUDE.md snippet, instructions to append without replacing existing context, and a first-task prompt with explicit substitution of the actual board ticket key. The flow ends by reviewing agent updates in LongClaw. Moved the detailed setup link out of the CLI section and corrected the linked example to preserve letter-suffixed keys. Full downloaded-release workflow validation remains a separate unchecked item.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_71e1b298
+kind: comment
+occurred_at: 2026-09-25T14:54:07.200Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Removed the Install section from the README at the maintainer's request. The README now links to the install guide (longclaw.io/docs) from its header and to the Download for Mac button, and no longer carries the numbered install steps, the AGENTS.md/CLAUDE.md snippet, the first-task prompt, or the link to examples/agent-context/. The CLI section pointed to #install; it now says to enable the command in Settings › Command line.
+<!-- /longclaw:event -->
