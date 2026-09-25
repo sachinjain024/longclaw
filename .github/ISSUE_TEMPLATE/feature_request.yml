@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest a change to LongClaw.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        LongClaw tracks its own work as tickets in `.longclaw/`; a maintainer
+        may turn this discussion into a ticket. Do not include private project data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the problem or task you cannot handle today.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What would a good solution look like?
+      description: Explain what you expect LongClaw to do.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Add context, examples, or alternatives you have considered.
+    validations:
+      required: false

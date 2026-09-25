@@ -74,7 +74,7 @@ Sources checked during the audit:
 - [x] (Onboarding) Bring AGENTS.md/CLAUDE.md setup into installation and include a first-task prompt using the actual ticket key. <!-- longclaw:item=ck_596009f2 -->
 - [x] (Hero) Refresh illustrative tasks so they match shipped capabilities and demonstrate agent activity; regenerate with the existing script. <!-- longclaw:item=ck_0cf08e91 -->
 - [x] (Comparison) Verify and link competitor claims; explain LongClaw's fit without implying shared features are unique. <!-- longclaw:item=ck_51cf2263 -->
-- [ ] (Feedback) Add a clear route for feature feedback alongside bug reporting. <!-- longclaw:item=ck_e8b97e30 -->
+- [x] (Feedback) Add a clear route for feature feedback alongside bug reporting. <!-- longclaw:item=ck_e8b97e30 -->
 - [ ] (Validation) Follow the README against the downloaded release in a fresh project and complete one human-to-agent-to-board workflow. <!-- longclaw:item=ck_b17f5508 -->
 - [ ] (Validation) Inspect GitHub rendering on mobile and both themes; check links, image legibility, tables, and code blocks. <!-- longclaw:item=ck_3a7209fe -->
 - [ ] (Final pass) Check copy against shipped behavior and website claims, prioritize major user benefits, and describe the final scope accurately in the follow-up PR. <!-- longclaw:item=ck_be9a72ab -->
@@ -310,4 +310,18 @@ actor:
 ### Claude Code commented
 
 Removed the Install section from the README at the maintainer's request. The README now links to the install guide (longclaw.io/docs) from its header and to the Download for Mac button, and no longer carries the numbered install steps, the AGENTS.md/CLAUDE.md snippet, the first-task prompt, or the link to examples/agent-context/. The CLI section pointed to #install; it now says to enable the command in Settings › Command line.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fc822979
+kind: comment
+occurred_at: 2026-09-25T15:02:06.088Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex commented
+
+Added a GitHub feature-request issue form and linked it in a new README Feedback section beside the bug-report route. The README now has no Install section, following the maintainer decision; feedback links stand on their own. The downloaded-release workflow and GitHub-render checks remain open.
 <!-- /longclaw:event -->

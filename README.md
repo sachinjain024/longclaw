@@ -158,6 +158,11 @@ choose **Update**.
 Ticket management works offline. Update checks, update downloads, and fetching
 the star count require a connection.
 
+## Feedback
+
+Have an idea for LongClaw? [Suggest a feature](https://github.com/sachinjain024/longclaw/issues/new?template=feature_request.yml).
+For a problem with existing behavior, [report a bug](https://github.com/sachinjain024/longclaw/issues/new?template=bug_report.yml).
+
 ## Product principles
 
 - Files on disk are the source of truth.
