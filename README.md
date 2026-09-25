@@ -153,24 +153,52 @@ contract yours will.
 
 ## A project on disk
 
-A project is any folder you choose; the `.longclaw/` directory inside it is what
-makes it a LongClaw project.
+A project is any folder you choose. The `.longclaw/` directory inside it is what
+makes it a LongClaw project, and each ticket is one directory holding one
+`ticket.md`. This is the ticket that tracks this README, trimmed:
 
-```text
-your-project/
-└── .longclaw/
-    ├── longclaw.yaml          project identity, people, label definitions
-    ├── AGENTS.md              the editing contract, written for agents
-    └── tickets/
-        └── LC-42/
-            ├── ticket.md      the complete record for one ticket
-            └── attachments/
+```markdown
+---
+format: longclaw.ticket/v1
+id: c5710220-c278-4a24-9467-477cda87698b
+key: LC-274e
+title: "Refine the GitHub README: current status, install path, and a user-first order"
+status: in_progress
+priority: none
+labels:
+  - product
+created_at: 2026-09-25T08:46:18.691Z
+---
+
+The repository README is the first page a visitor to the GitHub repo reads, and
+it has drifted from what the project is now. …
+
+## Checklist
+
+- [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
+- [ ] (Comparison) Add a short "How it compares" section … <!-- longclaw:item=ck_5412a4be -->
+
+## Activity
+
+<!-- longclaw:event
+id: evt_39afbd02
+kind: create
+occurred_at: 2026-09-25T08:46:18.691Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code created this ticket
+<!-- /longclaw:event -->
 ```
 
-`ticket.md` holds the ticket's metadata, description, checklist, attachment
-registry, comments and activity — everything, in one file. `.longclaw/AGENTS.md`
-is generated into every project so an agent that has never seen LongClaw can
-read and edit tickets correctly without being told how.
+That one file is the whole record: metadata in the frontmatter, the description
+in Markdown, a checklist whose items keep their ids, comments, and an activity
+log in which every entry names a human or an agent. Attachments sit beside it in
+`attachments/`. The rest of `.longclaw/` is `longclaw.yaml`, holding the
+project, its people and its labels, and `AGENTS.md`, generated into every
+project so an agent that has never seen LongClaw can edit tickets correctly.
 
 See [the file format](docs/file_format.md) for the contract and
 [the user guide](docs/user-guide.md) for project folders, backups, agent setup

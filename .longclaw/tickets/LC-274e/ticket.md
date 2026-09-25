@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T11:29:05.772Z
+updated_at: 2026-09-25T11:33:29.626Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -54,7 +54,7 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Features) Lead with the human + agent loop: a short agent-written ticket.md excerpt and how the board reflects it <!-- longclaw:item=ck_75ed72cc -->
 - [x] (Features) Cover user-visible features shipped in 0.2.0–0.3.1 <!-- longclaw:item=ck_b9a360ef -->
 - [x] (Features) Tighten each feature to one bold headline plus one sentence <!-- longclaw:item=ck_efc22bdc -->
-- [ ] (File format) Replace the tree diagram with a trimmed real ticket.md sample (frontmatter, checklist, one activity event) <!-- longclaw:item=ck_89ee93bd -->
+- [x] (File format) Replace the tree diagram with a trimmed real ticket.md sample (frontmatter, checklist, one activity event) <!-- longclaw:item=ck_89ee93bd -->
 - [ ] (Comparison) Add a short "How it compares" section (GitHub Issues/Linear, Backlog.md/git-bug, plain TODO.md) <!-- longclaw:item=ck_5412a4be -->
 - [ ] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
 - [ ] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
@@ -1278,6 +1278,22 @@ changes:
     from: "false"
     to: "true"
   - field: checklist.ck_efc22bdc.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_abfc23a6
+kind: update
+occurred_at: 2026-09-25T11:33:29.626Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_89ee93bd.checked
     from: "false"
     to: "true"
 -->
