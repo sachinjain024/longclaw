@@ -70,6 +70,15 @@ geometry (`components/Mark.astro`), not the brand PNG. The only rasters the
 site emits are the social card and the Apple touch icon, and both are generated
 at build time from the same geometry.
 
+**One exception lives outside the site: the repository README's hero image.**
+GitHub strips the CSS this window is built from, so `assets/readme/hero.png`
+carries it there instead: the home page's `AppWindow` on its Board stage, in
+the light appearance at 2×, captured by `scripts/readme-hero.mjs`. There is no
+dark variant: at README size the dark render's secondary text is too faint to
+read. It is generated from this package and never hand-taken, so it cannot show
+a UI the site does not. Run `npm run readme:hero` when `components/product/` or
+the tokens change, and commit the image with the change.
+
 **Fonts are self-hosted.** The design system's token file imports IBM Plex from
 Google Fonts; this site does not. A page whose whole claim is that nothing
 leaves your machine should not open a third-party connection to draw its own
@@ -94,6 +103,19 @@ strong one. These come from
 **`/roadmap` is designed but unpublished.** It is absent from both navigations,
 excluded from the sitemap, disallowed in `robots.txt`, and carries a `noindex`.
 Linking to it from anywhere is the decision to publish it.
+
+## Agent skills
+
+Four first-party skills in [`.agents/skills/`](../../.agents/skills/) cover the
+routine work here. They carry the rules this site is built to, and the defects
+a green build does not catch. Use them rather than working from memory.
+
+| Skill | For |
+|---|---|
+| `website-change` | Layout, components, styles, copy, SEO, navigation |
+| `product-docs` | A page under `/docs` |
+| `changelog-entry` | A release entry on `/changelog` |
+| `roadmap-update` | The roadmap, and the decision to publish it |
 
 ## Adding content
 

@@ -1,115 +1,232 @@
-<img src="assets/brand/app-icon/in-app/app-tile-rounded-512.png" alt="LongClaw" width="76" align="left" hspace="14" vspace="4">
+<p align="center">
+  <img src="assets/brand/app-icon/in-app/app-tile-rounded-512.png" alt="" width="96">
+</p>
 
-# LongClaw
+<h1 align="center">LongClaw</h1>
 
-**A local-first project manager for humans and AI agents.** Humans plan and stay
-accountable for tickets; agents execute and contribute their context back to the
-same ticket record, stored beside the code as Markdown files you own.
+<p align="center">
+  <strong>Local-first issue tracker for AI coding agents.</strong><br>
+  Humans plan and stay accountable for tickets. Agents execute and write their
+  context back to the same record: Markdown files beside your code.
+</p>
 
-<br clear="left">
+<p align="center">
+  <a href="https://longclaw.io/#download"><img src="https://img.shields.io/badge/Download_for_Mac-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Mac"></a>
+</p>
+
+<p align="center">
+  <sub>macOS 13+ · Apple Silicon only · no account required</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/sachinjain024/longclaw/releases/latest"><img src="https://img.shields.io/github/v/release/sachinjain024/longclaw?label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-blue" alt="License: MPL-2.0"></a>
+</p>
+
+<p align="center">
+  <a href="https://longclaw.io">Website</a> ·
+  <a href="https://longclaw.io/docs/">Install guide</a> ·
+  <a href="https://longclaw.io/changelog/">Changelog</a>
+</p>
+
+<p align="center">
+  <img src="assets/readme/hero.png" alt="The LongClaw board: projects in a sidebar, tickets in To do, In progress and Done columns, and a card an agent edited, marked claude-code via file edit." width="1160">
+</p>
+
+Built for developers who hand work to coding agents such as Claude Code and
+Cursor, and want the plan to live in the repository those agents already read.
 
 The record outlives the app. A ticket is a directory of plain text inside your
 project — readable in an editor, diffable in review, and committed with the work
-it describes. Nothing requires an account, and nothing is sent anywhere.
+it describes. Nothing requires an account.
 
-**Status: v0, release candidate.** The desktop app lives in `apps/desktop` and
-targets Tauri v2 on macOS. See [the 0.1.0 release notes](docs/release-notes/v0.1.0.md)
-for what ships and [the acceptance records](docs/acceptance/README.md) for where
-the release actually stands.
+**Status: early, in v0.** LongClaw tracks its own development, and it ships
+often. The [changelog](https://longclaw.io/changelog/) and the
+[release notes](docs/release-notes/) say what each release changed.
+
+## Install
+
+1. **Download** LongClaw for Mac from [longclaw.io](https://longclaw.io/#download),
+   or take the `.dmg` from the [latest release](https://github.com/sachinjain024/longclaw/releases/latest).
+   Open it and drag LongClaw into Applications.
+2. **Open it once.** The app is signed and notarized, so macOS asks one question
+   about an app downloaded from the internet. Click **Open**, and it won't ask
+   again.
+3. **Choose a folder**, usually the repository you already work in. LongClaw
+   creates `.longclaw/` inside it and writes nowhere else.
+4. **Put `longclaw` on your `PATH`** so agents can file and update tickets. The
+   app offers this on first launch, and again any time in *Settings › Command
+   line*. Nothing is installed until you press **Install**.
+
+The [install guide](https://longclaw.io/docs/) covers checksums, the dialogs you
+should never see, and building from source.
+
+## How it works
+
+**Humans plan, agents execute, and both write to the same file.** An agent
+reads a ticket, does the work, and records what it did in that ticket's
+`ticket.md`, through the CLI or a plain edit. Here is one, trimmed, from the
+ticket that tracks this README:
+
+```markdown
+- [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
+
+<!-- longclaw:event
+kind: update
+occurred_at: 2026-09-25T10:30:01.427Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d5047e2e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+```
+
+**LongClaw notices the write without a refresh.** The card rings, names who
+changed it (`AGENT claude-code`), and fades when you open it. If an
+agent's write collides with one you haven't seen, a conflict banner shows the
+file before anything is overwritten.
 
 ## What it does
 
-**Two views over the same tickets.** A board grouped by status, and a dense list
-that stays readable at a few thousand rows. Both take filtering, grouping and
-ordering; ordering is by priority by default, with a Manual mode backed by a
-per-ticket rank ([ADR 0003](docs/adr/0003-priority-default-ordering-manual-option.md)).
+- **Board and list over the same tickets.** Filter, group and order either one;
+  the list stays readable at a few thousand rows.
+- **A ticket panel that edits in place.** Markdown descriptions with tables,
+  checklists you reorder by drag, and an archive that deletes nothing.
+- **Ticket properties when you want them.** Type, due date, start date and
+  estimate, each off until a project turns it on.
+- **Every project in one sidebar.** Star the ones you live in, drag them into
+  order, and jump to any of the first nine with `⌘1`–`⌘9`.
+- **Keyboard-first.** `⌘K` reaches every action, `⌘Z` undoes the last one, and
+  the whole ticket lifecycle works without a pointer.
+- **Human and agent, told apart.** Wherever it matters, you can see who did
+  what, in five theme presets across light and dark.
+- **Updates from inside the app.** It checks for a new version and downloads
+  nothing until you press **Update**.
 
-**A ticket panel that edits in place.** Title, status, priority and labels are
-edited on the ticket itself. Descriptions are Markdown with a formatting toolbar
-and table support. Checklists reorder by drag, and items can be edited, checked
-and removed. Archive takes a ticket off the board without deleting anything
-([ADR 0004](docs/adr/0004-archive-in-v0.md)).
+## How it compares
 
-**Keyboard-first.** `⌘K` opens a command palette over every action; create is
-`⌘↵` from a quick-create field that can stay open and file several tickets in a
-row; `⌘Z` undoes the last mutation from a toast. The whole ticket lifecycle —
-create, find, open, edit, move, search, archive, undo, retry — completes without
-a pointer, and `npm run a11y:audit` proves it in WebKit on every run.
+| | Where tickets live | How an agent works with it | Runs on | Accounts and sync |
+|---|---|---|---|---|
+| **LongClaw** | Markdown files in your repo | Reads the files; writes through the CLI or a plain edit, and each change names the agent | macOS app, Apple Silicon | None |
+| **GitHub Issues, Linear** | A hosted service | Through an API or an integration | Web and apps | Accounts, sync and teams |
+| **Backlog.md** | Markdown files in your repo | CLI and MCP | macOS, Linux and Windows, with a board in the browser | None |
+| **A `TODO.md`** | One file in your repo | Reads and edits it | Anywhere | None |
 
-**It notices when an agent edits a file.** A native watcher reads external
-writes and the board updates without a refresh. A ticket changed outside the app
-wears a decaying acknowledgement — a ring and pulse on its card, the actor and
-age, and agent-checked rows in its panel — that fades when you open the ticket
-or two minutes after the change. If a write collides with one you did not see,
-a conflict banner shows the file before anything is overwritten.
+Backlog.md is the closest neighbour, and it runs on more platforms. LongClaw is
+a native Mac app, and every ticket records which human or agent changed what.
+A `TODO.md` needs nothing installed, and is fine until you want statuses,
+priorities, a board, or a record of what the agent changed.
 
-**Human and agent are visually distinct** everywhere it matters, in five theme
-presets (Indigo, Clay, Slate, Plum, Graphite) across light, dark and system
-appearance. A visual matrix regression runs over the combinations.
+**Think of LongClaw as a local-first alternative to Linear.** Because the
+tracker is files, an agent reads a ticket straight from disk. That is faster
+than a round trip to an API, and it costs fewer tokens than the JSON an API
+wraps around the same text. Each ticket becomes the context layer for its task:
+the full description, the checklist, and the feedback humans recorded along the
+way, in one file the agent already knows how to read.
 
 ## The `longclaw` CLI
 
-The same crate the window uses also ships as a command-line binary, so key
-allocation, the write seams and the file format have exactly one implementation
-([ADR 0011](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)). This is
-how an agent files and updates work:
+Agents file and update tickets with `longclaw`, a command-line tool built from
+the same code as the app. A ticket an agent writes is exactly the ticket the app
+would have written, so the two never disagree about the format
+([why](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)).
 
-**Installing the app installs the command.** The binary rides inside the signed
-bundle, and one press in *Settings → Command line* links it into
-`/usr/local/bin` (LC-233). Build it from a checkout only when there is no
-installed app, or when the checkout has moved ahead of one — an installed
-`longclaw` is the app's own build, and this tree's format is spoken only by
-this tree's binary.
+**Installing the app installs the command.** The binary ships inside the app,
+and step 4 of [Install](#install) puts it on your `PATH`.
 
 ```sh
-# from a checkout, when there is no installed app:
-cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
-
 longclaw project init --name "My Project" --key MP
 longclaw label add --slug storage --name Storage
 longclaw ticket create --title "Fix the retry policy" --label storage \
   --checklist "Reproduce it" --agent-id claude-code --agent-name "Claude Code"
 longclaw ticket edit MP-1 --status in_progress --agent-id claude-code
 longclaw ticket list
-longclaw                       # the full surface
+longclaw                       # prints every command
 ```
 
-Every command prints JSON on stdout and exits non-zero with a typed error on
-failure. A label must be defined before a ticket can carry it — the CLI refuses
-a slug the project does not define, so a label cannot be created by using it.
-**An agent must pass `--agent-id`**: the file format declares an actor
-and never infers one, so without it the activity entry claims a human did the
-work.
+- **Output is JSON**, and a failure exits non-zero with a typed error.
+- **A label must exist before a ticket can use it.** The CLI refuses a label the
+  project hasn't defined, rather than creating it.
+- **An agent must pass `--agent-id`.** Without it, the activity log records the
+  change as a human's.
 
-This repository tracks its own work this way. Every `LC-*` item under
-[`.longclaw/tickets/`](.longclaw/tickets/) was filed through this CLI, and the
-agent-authored entries in those files were written by agents reading the same
-contract yours will.
+This repository tracks its own work this way. People file tickets in the app,
+agents file and update them through this CLI, and both land in the same files
+under [`.longclaw/tickets/`](.longclaw/tickets/).
+
+The [CLI reference](https://longclaw.io/docs/cli/) covers the commands and
+their flags. Some agents won't look inside `.longclaw/` on their own;
+[examples/agent-context](examples/agent-context/) has the lines to add to your
+`AGENTS.md` or `CLAUDE.md` so they do.
 
 ## A project on disk
 
-A project is any folder you choose; the `.longclaw/` directory inside it is what
-makes it a LongClaw project.
+A project is any folder you choose. The `.longclaw/` directory inside it is what
+makes it a LongClaw project, and each ticket is one directory holding one
+`ticket.md`. This is the ticket that tracks this README, trimmed:
 
-```text
-your-project/
-└── .longclaw/
-    ├── longclaw.yaml          project identity, people, label definitions
-    ├── AGENTS.md              the editing contract, written for agents
-    └── tickets/
-        └── LC-42/
-            ├── ticket.md      the complete record for one ticket
-            └── attachments/
+```markdown
+---
+format: longclaw.ticket/v1
+id: c5710220-c278-4a24-9467-477cda87698b
+key: LC-274e
+title: "Refine the GitHub README: current status, install path, and a user-first order"
+status: in_progress
+priority: none
+labels:
+  - product
+created_at: 2026-09-25T08:46:18.691Z
+---
+
+The repository README is the first page a visitor to the GitHub repo reads, and
+it has drifted from what the project is now. …
+
+## Checklist
+
+- [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
+- [ ] (Comparison) Add a short "How it compares" section … <!-- longclaw:item=ck_5412a4be -->
+
+## Activity
+
+<!-- longclaw:event
+id: evt_39afbd02
+kind: create
+occurred_at: 2026-09-25T08:46:18.691Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code created this ticket
+<!-- /longclaw:event -->
 ```
 
-`ticket.md` holds the ticket's metadata, description, checklist, attachment
-registry, comments and activity — everything, in one file. `.longclaw/AGENTS.md`
-is generated into every project so an agent that has never seen LongClaw can
-read and edit tickets correctly without being told how.
+That one file is the whole record: metadata in the frontmatter, the description
+in Markdown, a checklist whose items keep their ids, comments, and an activity
+log in which every entry names a human or an agent. Attachments sit beside it in
+`attachments/`. The rest of `.longclaw/` is `longclaw.yaml`, holding the
+project, its people and its labels, and `AGENTS.md`, generated into every
+project so an agent that has never seen LongClaw can edit tickets correctly.
 
 See [the file format](docs/file_format.md) for the contract and
 [the user guide](docs/user-guide.md) for project folders, backups, agent setup
 and recovery.
+
+## Completely Secure Local-first app
+
+**No account. No telemetry. LongClaw sends nothing about you, your projects or
+your tickets.**
+
+It makes two requests, both to its own GitHub repository and neither carrying
+an identifier: a check for a newer version, and the public star count. One
+switch in *Settings → Updates* turns both off. With no connection at all, every
+feature works the same.
 
 ## Product principles
 
@@ -119,99 +236,44 @@ and recovery.
 - The desktop experience targets Linear-grade speed and polish.
 - Local use requires no account or telemetry.
 
-## The website
+## Contributing
 
-[longclaw.io](https://longclaw.io) — the marketing home, product documentation,
-CLI reference, blog and changelog — lives in [`apps/website`](apps/website) as a
-static Astro site, and deploys to GitHub Pages on every push to `main` that
-touches it.
-
-```sh
-npm --prefix apps/website ci
-npm run site:dev       # localhost:4321
-npm run site:verify    # type-check and build, what CI runs
-```
-
-Its product visuals — the board, the ticket panel, file trees, terminal blocks
-and the owl mark — are HTML and CSS built from design tokens rather than
-screenshots, so they re-render in light and dark and stay crisp at any size.
-Docs pages, blog posts and release notes are each one Markdown file. See
-[the website README](apps/website/README.md) for the layout and the rules it is
-built to.
-
-Four agent skills cover the routine work on it — `website-change`,
-`product-docs`, `changelog-entry` and `roadmap-update`, in
-[`.agents/skills/`](.agents/skills/). They carry the rules the site is built to
-and the defects a green build does not catch.
-
-## Development
-
-Prerequisites:
-
-- macOS 13 or newer on Apple Silicon — the only target the app is built for.
-- Node.js 22 or newer.
-- Rust with Cargo, Rustfmt, and Clippy.
-- Tauri v2 platform prerequisites for macOS.
-
-Install and verify from a clean checkout:
+Everything below is for working on LongClaw itself.
+[CONTRIBUTING](CONTRIBUTING.md) is the full guide: prerequisites, filing work,
+branching, and the quality gate every change must pass.
 
 ```sh
 npm --prefix apps/desktop ci
-npm run verify
-```
-
-Run it:
-
-```sh
+npm run verify         # the gate — see CONTRIBUTING for what it runs
 npm run dev            # launch the app
 npm run dev:fixture    # launch with the development fixture registered
-npm run build          # web assets
 npm run build:app      # the production desktop app
 ```
 
-`npm run verify` is the gate every change must pass: design-token and structural
-guards, the release audit, formatting, lint, types, the frontend and Rust
-suites, the Vite production build, and the watcher integration round trip. It is
-described in full — including which guard rejects what — in
-[CONTRIBUTING](CONTRIBUTING.md#quality-gates), which is the one place that list
-lives.
+The website, longclaw.io, is a separate static Astro package in
+[`apps/website`](apps/website) with its own README, which covers its layout,
+rules, agent skills and deployment.
 
-Local diagnostics are stdout-only and prefixed with `LONGCLAW_LOCAL_DIAGNOSTIC`;
-no telemetry or analytics are sent.
+The architecture decisions, domain language, design docs, agent instructions
+and release evidence are indexed in
+[docs/README.md](docs/README.md).
 
-## Documentation
+## Acknowledgements
 
-**Using it**
+LongClaw is built with coding agents, and much of how they work in this
+repository comes from skills other people wrote and shared.
 
-- [User guide](docs/user-guide.md) — project folders, file format, backups, agent setup, recovery
-- [0.1.0 release notes](docs/release-notes/v0.1.0.md)
-- [Example agent context files](examples/agent-context/)
+- **[Matt Pocock](https://github.com/mattpocock)**, for
+  [mattpocock/skills](https://github.com/mattpocock/skills). Nearly every skill
+  in [`.agents/skills/`](.agents/skills/) comes from it, among them `tdd`,
+  `diagnosing-bugs`, `domain-modeling`, `code-review` and `grilling`. They
+  shaped how this codebase is designed, tested, reviewed and tracked, and much
+  of its quality is owed to them.
+- **[Julius Brussee](https://github.com/JuliusBrussee)**, for
+  [caveman](https://github.com/JuliusBrussee/caveman).
 
-**How it is built**
-
-- [On-disk file format and data model](docs/file_format.md)
-- [Architecture decisions](docs/adr/) — twelve ADRs, 0001–0012
-- [Domain language](CONTEXT.md) — the vocabulary every surface and document uses
-- [Design docs](docs/design/) — the prototype bundle the app was built from
-- [Contributor setup and the quality gate](CONTRIBUTING.md)
-- [App-specific notes](apps/desktop/README.md) — registry recovery, device preferences
-- [The website](apps/website/README.md) — longclaw.io: structure, content model, deployment
-- [Website skills](.agents/skills/) — `website-change`, `product-docs`, `changelog-entry`, `roadmap-update`
-
-**Working with agents**
-
-- [Instructions for agents](AGENTS.md) — the contract an agent in this repository follows
-- [Issue tracker surface](docs/agents/issue-tracker.md), [triage labels](docs/agents/triage-labels.md), [domain docs](docs/agents/domain.md)
-
-**Planning and evidence**
-
-- [Vision and scope](docs/vision.md)
-- [Design brief](docs/design_brief.md)
-- [MVP execution plan](docs/mvp_plan_order.md)
-- [v0 backlog](docs/backlog/v0-backlog.md) · [post-MVP backlog](docs/backlog/post-mvp-backlog.md)
-- [Acceptance scenarios and records](docs/acceptance/README.md)
-- [Mid-v0 pilot protocol](docs/pilot/README.md) · [response memo](docs/pilot/response-memo.md)
-- [v0 release risks](docs/release-risks.md)
+Every vendored skill and its source is listed in
+[`skills-lock.json`](skills-lock.json).
 
 ## License
 

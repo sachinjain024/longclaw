@@ -41,6 +41,7 @@
     "site:dev": "npm --prefix apps/website run dev",
     "site:build": "npm --prefix apps/website run build",
     "site:preview": "npm --prefix apps/website run preview",
-    "site:verify": "npm --prefix apps/website run verify"
+    "site:verify": "npm --prefix apps/website run verify",
+    "readme:hero": "npm run site:build && node apps/website/scripts/readme-hero.mjs"
   }
 }

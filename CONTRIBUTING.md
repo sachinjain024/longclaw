@@ -7,7 +7,7 @@ not require an account, analytics, telemetry, or a network service.
 
 - macOS 13 or newer on Apple Silicon — the only target the app is built for.
 - Node.js 22 or newer.
-- Rust with Cargo and Clippy.
+- Rust with Cargo, Rustfmt, and Clippy.
 - Tauri v2 platform prerequisites for macOS.
 
 ## Setup
@@ -69,6 +69,13 @@ npm run dev:fixture
 `LONGCLAW_DEV_PROJECT` environment variable. This is development-only fixture
 loading; production behavior is driven by the user-selected project registry
 and never depends on bundled mock data.
+
+To build rather than run:
+
+```sh
+npm run build          # web assets
+npm run build:app      # the production desktop app
+```
 
 ## Quality gates
 
