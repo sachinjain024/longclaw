@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T10:39:54.302Z
+updated_at: 2026-09-25T10:53:56.820Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -47,9 +47,9 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Header) Add a one-line who-it-is-for statement, within the no-oversell rules <!-- longclaw:item=ck_cfa8fdd1 -->
 - [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
 - [x] (Header) Update the status line and release-notes links to the current release (0.3.1) <!-- longclaw:item=ck_9479afb8 -->
-- [x] (Screenshot) Generate the hero image from the site's HeroTour/AppWindow component (light + dark, 2×, scripted), shown with <picture> <!-- longclaw:item=ck_1ad785b0 -->
+- [x] (Screenshot) Generate the hero image from the site's HeroTour/AppWindow component (light theme only, 2×, scripted as npm run readme:hero) <!-- longclaw:item=ck_1ad785b0 -->
 - [x] (Screenshot) Record the hero image as a deliberate exception to the no-raster rule <!-- longclaw:item=ck_9ded55a1 -->
-- [ ] (Privacy) Replace "nothing is sent anywhere" with the exact network statement (update check + star count); draft the copy with the maintainer <!-- longclaw:item=ck_146acc0f -->
+- [x] (Privacy) Replace "nothing is sent anywhere" with the exact network statement (update check + star count); draft the copy with the maintainer <!-- longclaw:item=ck_146acc0f -->
 - [ ] (Install) Add an Install section below the header: download, first launch, linking the CLI from Settings → Command line <!-- longclaw:item=ck_b3d2a5c3 -->
 - [ ] (Features) Lead with the human + agent loop: a short agent-written ticket.md excerpt and how the board reflects it <!-- longclaw:item=ck_75ed72cc -->
 - [ ] (Features) Cover user-visible features shipped in 0.2.0–0.3.1 <!-- longclaw:item=ck_b9a360ef -->
@@ -59,6 +59,13 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [ ] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
 - [ ] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
 - [ ] (Acknowledgements) Credit every skill source in skills-lock.json, Matt Pocock (mattpocock/skills) first, then JuliusBrussee/caveman; build the list from the lockfile so no source is missed <!-- longclaw:item=ck_132c5bd3 -->
+- [ ] (Repo settings) Set the About description to match the site's tagline and description (needs the owner account) <!-- longclaw:item=ck_e7f59695 -->
+- [ ] (Repo settings) Set the About website to https://longclaw.io (needs the owner account) <!-- longclaw:item=ck_b477835c -->
+- [ ] (Repo settings) Add topics: issue-tracker, project-management, local-first, ai-agents, coding-agents, claude-code, markdown, tauri, rust, macos, desktop-app, developer-tools (needs the owner account) <!-- longclaw:item=ck_9c1e3cd2 -->
+- [ ] (Repo settings) Upload a 1280×640 social preview image generated from the site's og card, not hand-made (needs the owner account) <!-- longclaw:item=ck_58c22b80 -->
+- [ ] (Repo settings) Turn off the unused Wiki and Projects tabs; decide whether Issues stays open for outside bug reports, since work is tracked in LongClaw (needs the owner account) <!-- longclaw:item=ck_447a0031 -->
+- [ ] (Repo settings) In the About sidebar, show Releases and hide Packages; decide on Deployments (needs the owner account) <!-- longclaw:item=ck_00975eea -->
+- [ ] (Repo settings) Raise the community profile from 42%: add CODE_OF_CONDUCT.md, SECURITY.md (how to report a vulnerability), and issue and PR templates <!-- longclaw:item=ck_a26b6a66 -->
 - [ ] (Final pass) Remove internal ticket keys (e.g. LC-233) from README prose <!-- longclaw:item=ck_c55841a0 -->
 - [ ] (Final pass) Check every claim against website-content-brief.md §6 <!-- longclaw:item=ck_adb7f5bb -->
 - [ ] (Final pass) Check that every relative link resolves <!-- longclaw:item=ck_4984fd14 -->
@@ -984,6 +991,257 @@ changes:
   - field: checklist.ck_9ded55a1.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_198b1088
+kind: update
+occurred_at: 2026-09-25T10:53:14.008Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_146acc0f.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Privacy copy settled with the maintainer on 2026-09-25. Draft B was chosen from four: a headline and a paragraph, in a new README section, What leaves your machine, below the intro. The intro sentence is now "Nothing requires an account." Rejected: A (one sentence, which kept the two requests out of the README), C (audit bullets, too spec-like), and B plus C's details. The copy says what LongClaw sends, not "your tickets never leave your machine", because the tickets are pushed with git. Facts from v0.3.1.md §The local-only boundary and ADR 0014.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_560eb4f8
+kind: update
+occurred_at: 2026-09-25T10:53:51.208Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e7f59695.added
+    to: (Repo settings) Set the About description to match the site's tagline and description (needs the owner account)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9194d8ba
+kind: update
+occurred_at: 2026-09-25T10:53:51.273Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e7f59695.moved
+    from: "21"
+    to: "18"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_403f57f3
+kind: update
+occurred_at: 2026-09-25T10:53:51.335Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b477835c.added
+    to: (Repo settings) Set the About website to https://longclaw.io (needs the owner account)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_490f1614
+kind: update
+occurred_at: 2026-09-25T10:53:51.391Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b477835c.moved
+    from: "22"
+    to: "19"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0b92b14d
+kind: update
+occurred_at: 2026-09-25T10:53:51.443Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_9c1e3cd2.added
+    to: "(Repo settings) Add topics: issue-tracker, project-management, local-first, ai-agents, coding-agents, claude-code, markdown, tauri, rust, macos, desktop-app, developer-tools (needs the owner account)"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8f3d2138
+kind: update
+occurred_at: 2026-09-25T10:53:51.503Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_9c1e3cd2.moved
+    from: "23"
+    to: "20"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_becfee60
+kind: update
+occurred_at: 2026-09-25T10:53:51.543Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_58c22b80.added
+    to: (Repo settings) Upload a 1280×640 social preview image generated from the site's og card, not hand-made (needs the owner account)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dcb74ada
+kind: update
+occurred_at: 2026-09-25T10:53:51.593Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_58c22b80.moved
+    from: "24"
+    to: "21"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2eae2b69
+kind: update
+occurred_at: 2026-09-25T10:53:51.623Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_447a0031.added
+    to: (Repo settings) Turn off the unused Wiki and Projects tabs; decide whether Issues stays open for outside bug reports, since work is tracked in LongClaw (needs the owner account)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_41faddc9
+kind: update
+occurred_at: 2026-09-25T10:53:51.658Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_447a0031.moved
+    from: "25"
+    to: "22"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2fd52c84
+kind: update
+occurred_at: 2026-09-25T10:53:51.680Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_00975eea.added
+    to: (Repo settings) In the About sidebar, show Releases and hide Packages; decide on Deployments (needs the owner account)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_19425c44
+kind: update
+occurred_at: 2026-09-25T10:53:51.716Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_00975eea.moved
+    from: "26"
+    to: "23"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7c112bea
+kind: update
+occurred_at: 2026-09-25T10:53:51.739Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a26b6a66.added
+    to: "(Repo settings) Raise the community profile from 42%: add CODE_OF_CONDUCT.md, SECURITY.md (how to report a vulnerability), and issue and PR templates"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_94433040
+kind: update
+occurred_at: 2026-09-25T10:53:51.772Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a26b6a66.moved
+    from: "27"
+    to: "24"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2b119edb
+kind: update
+occurred_at: 2026-09-25T10:53:56.820Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_1ad785b0.text
+    from: (Screenshot) Generate the hero image from the site's HeroTour/AppWindow component (light + dark, 2×, scripted), shown with <picture>
+    to: (Screenshot) Generate the hero image from the site's HeroTour/AppWindow component (light theme only, 2×, scripted as npm run readme:hero)
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

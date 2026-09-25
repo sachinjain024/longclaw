@@ -38,11 +38,21 @@ Cursor, and want the plan to live in the repository those agents already read.
 
 The record outlives the app. A ticket is a directory of plain text inside your
 project — readable in an editor, diffable in review, and committed with the work
-it describes. Nothing requires an account, and nothing is sent anywhere.
+it describes. Nothing requires an account.
 
 **Status: early, in v0.** LongClaw tracks its own development, and it ships
 often. The [changelog](https://longclaw.io/changelog/) and the
 [release notes](docs/release-notes/) say what each release changed.
+
+## What leaves your machine
+
+**No account. No telemetry. LongClaw sends nothing about you, your projects or
+your tickets.**
+
+It makes two requests, both to its own GitHub repository and neither carrying
+an identifier: a check for a newer version, and the public star count. One
+switch in *Settings → Updates* turns both off. With no connection at all, every
+feature works the same.
 
 ## What it does
 
