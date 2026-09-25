@@ -123,12 +123,9 @@ a native Mac app, and every ticket records which human or agent changed what.
 A `TODO.md` needs nothing installed, and is fine until you want statuses,
 priorities, a board, or a record of what the agent changed.
 
-**Think of LongClaw as a local-first alternative to Linear.** Because the
-tracker is files, an agent reads a ticket straight from disk. That is faster
-than a round trip to an API, and it costs fewer tokens than the JSON an API
-wraps around the same text. Each ticket becomes the context layer for its task:
-the full description, the checklist, and the feedback humans recorded along the
-way, in one file the agent already knows how to read.
+**Think of LongClaw as a local-first alternative to Linear.** Agents read ticket
+context directly from your repository, without an API integration. Each ticket
+keeps its description, checklist, and human feedback in one file.
 
 ## The `longclaw` CLI
 
