@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 9f1da099-2ad1-48b1-a72a-ae7c9e5ee34e
 key: LC-265y
 title: Auto-Update Functionality - Restart App doesn’t work
-status: in_progress
+status: done
 priority: urgent
 type: bug
 due: 2026-09-22
 estimate: "2"
 created_at: 2026-09-22T10:19:17.882Z
-updated_at: 2026-09-22T11:48:52.216Z
+updated_at: 2026-09-22T14:09:10.905Z
 ---
 
 I am on Apple Macbook Air M2 8GB Machine and It shows Update available properly but when I click on Download, It downloads the app and then CTA becomes Restart after that clicking on Restart button doesn’t work.
@@ -209,4 +209,45 @@ changes:
 ## Still to do
 
 Cutting 0.3.1 is not done. `release:macos` needs the signing identity, the notary keychain profile and the updater key password, and the DMG step needs a person, so it is yours to drive. The fix is verified against extraction and against the real published archive; it is not yet verified end to end against a release built by the changed script, and that is what the new release is for.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_22d06526
+kind: comment
+occurred_at: 2026-09-22T13:54:02.465Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+0.3.1 is published: https://github.com/sachinjain024/longclaw/releases/tag/v0.3.1, tagged on main at 65f80da.
+
+**The archive, which is what this ticket was about.** Packed with COPYFILE_DISABLE=1 and read back by the release script before it would accept it — 11 entries, one root, no AppleDouble siblings — and the copy GitHub is serving is byte-identical to the one that was checked locally (sha256 cfda6042473fff0f2467c75c280cc7a808bbbdc1a3cbff14ac22451517b747cd). 0.3.0's archive reads as 22 entries and two complaints under the same reader.
+
+**The manifest is current.** https://github.com/sachinjain024/longclaw/releases/latest/download/latest.json now answers 0.3.1, signed by the key the shipped bundle carries.
+
+**Signing and notarization.** Submission 717544d1-6235-4c37-91a7-e80d67047815, Accepted; app and DMG both stapled. release:binary-audit passes on all of it. gatekeeper-check --phase online passes: the quarantined copy is accepted as source=Notarized Developer ID with the ticket stapled.
+
+**Also in the release.** Try Again now has bytes to retry with; a failed install says the install failed rather than blaming the download; the cached download and the ready-to-install flag answer 'is this the same release?' the same way; and the pane's download link names longclaw.io rather than longclaw.io/download.
+
+**What is left, and it is the thing the ticket asked for.** An installed 0.3.0 updating itself to 0.3.1 through Settings → Updates, on a real machine. That is the only test the fix has not had: the install path was proved against a probe that replicates install_inner byte for byte, and against the published archive, but not once through the app's own button. Until that run, this ticket is not done.
+
+**Not run, by request.** audit:network offline and online, and gatekeeper-check --phase offline, which needs the network off and a person. The double-click acceptance of /Users/Shared/longclaw-acceptance/LongClaw-online.app is also outstanding.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_585a7c51
+kind: update
+occurred_at: 2026-09-22T14:09:10.905Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
