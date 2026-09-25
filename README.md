@@ -253,8 +253,8 @@ The website, longclaw.io, is a separate static Astro package in
 [`apps/website`](apps/website) with its own README, which covers its layout,
 rules, agent skills and deployment.
 
-The architecture decisions, domain language, design docs, agent instructions,
-and the planning and evidence behind the project are indexed in
+The architecture decisions, domain language, design docs, agent instructions
+and release evidence are indexed in
 [docs/README.md](docs/README.md).
 
 ## Acknowledgements
