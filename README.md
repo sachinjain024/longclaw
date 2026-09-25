@@ -131,10 +131,10 @@ way, in one file the agent already knows how to read.
 
 ## The `longclaw` CLI
 
-The same crate the window uses also ships as a command-line binary, so key
-allocation, the write seams and the file format have exactly one implementation
-([ADR 0011](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)). This is
-how an agent files and updates work:
+Agents file and update tickets with `longclaw`, a command-line tool built from
+the same code as the app. A ticket an agent writes is exactly the ticket the app
+would have written, so the two never disagree about the format
+([why](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)).
 
 **Installing the app installs the command.** The binary ships inside the app,
 and step 4 of [Install](#install) puts it on your `PATH`.
@@ -146,20 +146,18 @@ longclaw ticket create --title "Fix the retry policy" --label storage \
   --checklist "Reproduce it" --agent-id claude-code --agent-name "Claude Code"
 longclaw ticket edit MP-1 --status in_progress --agent-id claude-code
 longclaw ticket list
-longclaw                       # the full surface
+longclaw                       # prints every command
 ```
 
-Every command prints JSON on stdout and exits non-zero with a typed error on
-failure. A label must be defined before a ticket can carry it — the CLI refuses
-a slug the project does not define, so a label cannot be created by using it.
-**An agent must pass `--agent-id`**: the file format declares an actor
-and never infers one, so without it the activity entry claims a human did the
-work.
+- **Output is JSON**, and a failure exits non-zero with a typed error.
+- **A label must exist before a ticket can use it.** The CLI refuses a label the
+  project hasn't defined, rather than creating it.
+- **An agent must pass `--agent-id`.** Without it, the activity log records the
+  change as a human's.
 
-This repository tracks its own work this way. Every `LC-*` item under
-[`.longclaw/tickets/`](.longclaw/tickets/) was filed through this CLI, and the
-agent-authored entries in those files were written by agents reading the same
-contract yours will.
+This repository tracks its own work this way. People file tickets in the app,
+agents file and update them through this CLI, and both land in the same files
+under [`.longclaw/tickets/`](.longclaw/tickets/).
 
 The [CLI reference](https://longclaw.io/docs/cli/) covers the commands and
 their flags. Some agents won't look inside `.longclaw/` on their own;
