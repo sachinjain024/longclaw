@@ -44,6 +44,23 @@ it describes. Nothing requires an account.
 often. The [changelog](https://longclaw.io/changelog/) and the
 [release notes](docs/release-notes/) say what each release changed.
 
+## Install
+
+1. **Download** LongClaw for Mac from [longclaw.io](https://longclaw.io/#download),
+   or take the `.dmg` from the [latest release](https://github.com/sachinjain024/longclaw/releases/latest).
+   Open it and drag LongClaw into Applications.
+2. **Open it once.** The app is signed and notarized, so macOS asks one question
+   about an app downloaded from the internet. Click **Open**, and it won't ask
+   again.
+3. **Choose a folder**, usually the repository you already work in. LongClaw
+   creates `.longclaw/` inside it and writes nowhere else.
+4. **Put `longclaw` on your `PATH`** so agents can file and update tickets. The
+   app offers this on first launch, and again any time in *Settings › Command
+   line*. Nothing is installed until you press **Install**.
+
+The [install guide](https://longclaw.io/docs/) covers checksums, the dialogs you
+should never see, and building from source.
+
 ## Completely Secure Local-first app
 
 **No account. No telemetry. LongClaw sends nothing about you, your projects or
@@ -91,17 +108,10 @@ allocation, the write seams and the file format have exactly one implementation
 ([ADR 0011](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)). This is
 how an agent files and updates work:
 
-**Installing the app installs the command.** The binary rides inside the signed
-bundle, and one press in *Settings → Command line* links it into
-`/usr/local/bin` (LC-233). Build it from a checkout only when there is no
-installed app, or when the checkout has moved ahead of one — an installed
-`longclaw` is the app's own build, and this tree's format is spoken only by
-this tree's binary.
+**Installing the app installs the command.** The binary ships inside the app,
+and step 4 of [Install](#install) puts it on your `PATH`.
 
 ```sh
-# from a checkout, when there is no installed app:
-cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
-
 longclaw project init --name "My Project" --key MP
 longclaw label add --slug storage --name Storage
 longclaw ticket create --title "Fix the retry policy" --label storage \
