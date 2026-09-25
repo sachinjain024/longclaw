@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T12:13:00.706Z
+updated_at: 2026-09-25T12:13:46.357Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -68,9 +68,9 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [ ] (Repo settings) Turn off the unused Wiki and Projects tabs; decide whether Issues stays open for outside bug reports, since work is tracked in LongClaw (needs the owner account) <!-- longclaw:item=ck_447a0031 -->
 - [ ] (Repo settings) In the About sidebar, show Releases and hide Packages; decide on Deployments (needs the owner account) <!-- longclaw:item=ck_00975eea -->
 - [ ] (Repo settings) Raise the community profile from 42%: add CODE_OF_CONDUCT.md, SECURITY.md (how to report a vulnerability), and issue and PR templates <!-- longclaw:item=ck_a26b6a66 -->
-- [ ] (Final pass) Remove internal ticket keys (e.g. LC-233) from README prose <!-- longclaw:item=ck_c55841a0 -->
-- [ ] (Final pass) Check every claim against website-content-brief.md §6 <!-- longclaw:item=ck_adb7f5bb -->
-- [ ] (Final pass) Check that every relative link resolves <!-- longclaw:item=ck_4984fd14 -->
+- [x] (Final pass) Remove internal ticket keys (e.g. LC-233) from README prose <!-- longclaw:item=ck_c55841a0 -->
+- [x] (Final pass) Check every claim against website-content-brief.md §6 <!-- longclaw:item=ck_adb7f5bb -->
+- [x] (Final pass) Check that every relative link resolves <!-- longclaw:item=ck_4984fd14 -->
 
 ## Activity
 
@@ -1416,4 +1416,28 @@ changes:
     to: "16"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_32fa9e7e
+kind: update
+occurred_at: 2026-09-25T12:13:46.357Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c55841a0.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_adb7f5bb.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_4984fd14.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Final pass, 2026-09-25. No internal ticket keys remain in README prose; the only key is LC-274e inside the ticket.md sample, where it is data. All 15 relative links, the #install anchor and every external link resolve. Claims hold against website-content-brief.md §6. The one absolute claim left is the heading "Completely Secure Local-first app", which the maintainer chose on purpose; it was raised once here, as promised, and stands. For the (CLI) review item: check the CLI section's sentence "Every LC-* item ... was filed through this CLI" against how LC-1…LC-58 were imported on 2026-08-05.
 <!-- /longclaw:event -->
