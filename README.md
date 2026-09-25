@@ -171,6 +171,11 @@ This repository tracks its own work this way. Every `LC-*` item under
 agent-authored entries in those files were written by agents reading the same
 contract yours will.
 
+The [CLI reference](https://longclaw.io/docs/cli/) covers the commands and
+their flags. Some agents won't look inside `.longclaw/` on their own;
+[examples/agent-context](examples/agent-context/) has the lines to add to your
+`AGENTS.md` or `CLAUDE.md` so they do.
+
 ## A project on disk
 
 A project is any folder you choose. The `.longclaw/` directory inside it is what
@@ -231,15 +236,6 @@ and recovery.
 - Humans and agents collaborate on the same tickets, while assignees remain human.
 - The desktop experience targets Linear-grade speed and polish.
 - Local use requires no account or telemetry.
-
-## Documentation
-
-- [Install guide](https://longclaw.io/docs/) — requirements, first launch, checksums, building from source
-- [User guide](docs/user-guide.md) — project folders, backups, agent setup, recovery
-- [CLI reference](https://longclaw.io/docs/cli/) — the `longclaw` commands and their flags
-- [File format](docs/file_format.md) — the contract for `ticket.md` and `.longclaw/`
-- [Release notes](docs/release-notes/) — what each version changed
-- [Example agent context files](examples/agent-context/)
 
 ## Contributing
 
