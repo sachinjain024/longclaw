@@ -9,7 +9,7 @@ labels:
   - product
 type: docs
 created_at: 2026-09-25T13:32:47.752Z
-updated_at: 2026-09-25T14:50:08.117Z
+updated_at: 2026-09-25T15:04:18.721Z
 ---
 
 Follow-up to LC-274e and merged PR #62. The objective is to make the README credible, impressive, and easy to act on for a first-time Hacker News or Reddit visitor. The previous ticket substantially improved structure, installation, imagery, comparisons, and repository housekeeping. This follow-up focuses on accurate claims and the first successful human/agent workflow.
@@ -71,7 +71,6 @@ Sources checked during the audit:
 - [x] (Claims) Remove unsupported speed/token comparisons and the absolute app/CLI format guarantee. <!-- longclaw:item=ck_a31e97ed -->
 - [x] (Opening) Rewrite the pitch around developers, the Mac board, coding agents, and repository-owned Markdown records. <!-- longclaw:item=ck_7df9b9b3 -->
 - [x] (Workflow) Lead How it works with create, delegate, and observe; consolidate the two long file/event examples. <!-- longclaw:item=ck_dacb6a19 -->
-- [x] (Onboarding) Bring AGENTS.md/CLAUDE.md setup into installation and include a first-task prompt using the actual ticket key. <!-- longclaw:item=ck_596009f2 -->
 - [x] (Hero) Refresh illustrative tasks so they match shipped capabilities and demonstrate agent activity; regenerate with the existing script. <!-- longclaw:item=ck_0cf08e91 -->
 - [x] (Comparison) Verify and link competitor claims; explain LongClaw's fit without implying shared features are unique. <!-- longclaw:item=ck_51cf2263 -->
 - [x] (Feedback) Add a clear route for feature feedback alongside bug reporting. <!-- longclaw:item=ck_e8b97e30 -->
@@ -324,4 +323,21 @@ actor:
 ### Codex commented
 
 Added a GitHub feature-request issue form and linked it in a new README Feedback section beside the bug-report route. The README now has no Install section, following the maintainer decision; feedback links stand on their own. The downloaded-release workflow and GitHub-render checks remain open.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_44176de4
+kind: update
+occurred_at: 2026-09-25T15:04:18.721Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_596009f2.removed
+    from: (Onboarding) Bring AGENTS.md/CLAUDE.md setup into installation and include a first-task prompt using the actual ticket key.
+-->
+### Claude Code updated this ticket
+
+Decision: the README will not carry onboarding. The maintainer removed the Install section, so the AGENTS.md/CLAUDE.md setup snippet and the first-task prompt are no longer in the README. The Onboarding checklist item (ck_596009f2) is deleted rather than left ticked for work that is gone. Installation and agent setup are left to the install guide on longclaw.io, which the README header links.
 <!-- /longclaw:event -->
