@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 9f1da099-2ad1-48b1-a72a-ae7c9e5ee34e
 key: LC-265y
 title: Auto-Update Functionality - Restart App doesn’t work
-status: in_progress
+status: done
 priority: urgent
 type: bug
 due: 2026-09-22
 estimate: "2"
 created_at: 2026-09-22T10:19:17.882Z
-updated_at: 2026-09-22T11:48:52.216Z
+updated_at: 2026-09-22T14:09:10.905Z
 ---
 
 I am on Apple Macbook Air M2 8GB Machine and It shows Update available properly but when I click on Download, It downloads the app and then CTA becomes Restart after that clicking on Restart button doesn’t work.
@@ -235,4 +235,19 @@ actor:
 **What is left, and it is the thing the ticket asked for.** An installed 0.3.0 updating itself to 0.3.1 through Settings → Updates, on a real machine. That is the only test the fix has not had: the install path was proved against a probe that replicates install_inner byte for byte, and against the published archive, but not once through the app's own button. Until that run, this ticket is not done.
 
 **Not run, by request.** audit:network offline and online, and gatekeeper-check --phase offline, which needs the network off and a person. The double-click acceptance of /Users/Shared/longclaw-acceptance/LongClaw-online.app is also outstanding.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_585a7c51
+kind: update
+occurred_at: 2026-09-22T14:09:10.905Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
