@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T10:30:01.427Z
+updated_at: 2026-09-25T10:39:54.302Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -47,8 +47,8 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Header) Add a one-line who-it-is-for statement, within the no-oversell rules <!-- longclaw:item=ck_cfa8fdd1 -->
 - [x] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
 - [x] (Header) Update the status line and release-notes links to the current release (0.3.1) <!-- longclaw:item=ck_9479afb8 -->
-- [ ] (Screenshot) Generate the hero image from the site's HeroTour/AppWindow component (light + dark, 2×, scripted), shown with <picture> <!-- longclaw:item=ck_1ad785b0 -->
-- [ ] (Screenshot) Record the hero image as a deliberate exception to the no-raster rule <!-- longclaw:item=ck_9ded55a1 -->
+- [x] (Screenshot) Generate the hero image from the site's HeroTour/AppWindow component (light + dark, 2×, scripted), shown with <picture> <!-- longclaw:item=ck_1ad785b0 -->
+- [x] (Screenshot) Record the hero image as a deliberate exception to the no-raster rule <!-- longclaw:item=ck_9ded55a1 -->
 - [ ] (Privacy) Replace "nothing is sent anywhere" with the exact network statement (update check + star count); draft the copy with the maintainer <!-- longclaw:item=ck_146acc0f -->
 - [ ] (Install) Add an Install section below the header: download, first launch, linking the CLI from Settings → Command line <!-- longclaw:item=ck_b3d2a5c3 -->
 - [ ] (Features) Lead with the human + agent loop: a short agent-written ticket.md excerpt and how the board reflects it <!-- longclaw:item=ck_75ed72cc -->
@@ -963,6 +963,25 @@ changes:
     from: "false"
     to: "true"
   - field: checklist.ck_9479afb8.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0e2b42dd
+kind: update
+occurred_at: 2026-09-25T10:39:54.302Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_1ad785b0.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_9ded55a1.checked
     from: "false"
     to: "true"
 -->
