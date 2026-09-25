@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T12:56:36.414Z
+updated_at: 2026-09-25T13:02:32.775Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -56,7 +56,7 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Features) Tighten each feature to one bold headline plus one sentence <!-- longclaw:item=ck_efc22bdc -->
 - [x] (File format) Replace the tree diagram with a trimmed real ticket.md sample (frontmatter, checklist, one activity event) <!-- longclaw:item=ck_89ee93bd -->
 - [x] (Comparison) Add a short "How it compares" section (GitHub Issues/Linear, Backlog.md, plain TODO.md; no git-bug), followed by the local-first-alternative-to-Linear positioning <!-- longclaw:item=ck_5412a4be -->
-- [ ] (Comparison) Decide whether to turn the How it compares section into a Markdown table <!-- longclaw:item=ck_77ee5d67 -->
+- [x] (Comparison) Turn the How it compares section into a Markdown table <!-- longclaw:item=ck_77ee5d67 -->
 - [x] (CLI) Review the existing CLI section: its opening (crate, write seams, ADR link), the example commands, and the rules paragraph, for a user reading it for the first time <!-- longclaw:item=ck_2f89c14b -->
 - [x] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
 - [x] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
@@ -71,7 +71,7 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Final pass) Remove internal ticket keys (e.g. LC-233) from README prose <!-- longclaw:item=ck_c55841a0 -->
 - [x] (Final pass) Check every claim against website-content-brief.md §6 <!-- longclaw:item=ck_adb7f5bb -->
 - [x] (Final pass) Check that every relative link resolves <!-- longclaw:item=ck_4984fd14 -->
-- [ ] (Public docs) Review what the public repo says about future plans (monetization, paid sync, teams, phases) and decide what to keep, rewrite, or move to a private place <!-- longclaw:item=ck_b00d26d7 -->
+- [x] (Public docs) Review what the public repo says about future plans (monetization, paid sync, teams, phases) and decide what to keep, rewrite, or move to a private place <!-- longclaw:item=ck_b00d26d7 -->
 
 ## Activity
 
@@ -1601,4 +1601,38 @@ Scope for the (Public docs) item, found 2026-09-25:
 Already public by design: every release note's What is not here names Phase 2 (terminals) and Phase 3 (sync and teams), and so does the launch blog post. Decide whether those stay.
 Constraint: these files have been public since the initial commit (962722e). Editing or deleting them hides them from casual readers, but git history keeps every earlier version. Truly private plans need a private home from now on.
 This PR's new docs/README.md links vision.md, design_brief.md, mvp_plan_order.md and the backlogs; reconsider those links as part of the decision.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_27d462ec
+kind: update
+occurred_at: 2026-09-25T13:01:53.798Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_b00d26d7.checked
+    from: "false"
+    to: "true"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_180450e4
+kind: update
+occurred_at: 2026-09-25T13:02:32.775Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_77ee5d67.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_77ee5d67.text
+    from: (Comparison) Decide whether to turn the How it compares section into a Markdown table
+    to: (Comparison) Turn the How it compares section into a Markdown table
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
