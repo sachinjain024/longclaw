@@ -103,7 +103,7 @@ file before anything is overwritten.
 | Tool | Where tickets live | Agent access | Interface |
 |---|---|---|---|
 | **LongClaw** | Markdown files in your repo | File reads and CLI updates | Mac desktop app, Apple Silicon |
-| **[Backlog.md](https://github.com/MrLesk/Backlog.md)** | Markdown files in your repo | CLI and MCP | Terminal and local browser board; macOS, Linux, Windows |
+| **[Backlog.md](https://github.com/MrLesk/Backlog.md)** | Markdown files in your repo | CLI and MCP | Terminal and local browser board |
 | **[GitHub Issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues)** | GitHub service | [CLI](https://cli.github.com/manual/gh_issue), API, [MCP](https://github.com/github/github-mcp-server) | Web and mobile |
 | **[Linear](https://linear.app)** | Linear service | API, [MCP and integrations](https://linear.app/docs/mcp) | [Web, desktop and mobile](https://linear.app/download) |
 | **A `TODO.md`** | One file in your repo | File reads and edits | Your editor |
