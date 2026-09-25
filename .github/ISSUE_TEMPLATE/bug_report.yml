@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in LongClaw or the longclaw CLI does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. LongClaw tracks its own work as tickets in
+        `.longclaw/tickets/`, so a maintainer turns this issue into one and links it here.
+
+        **A security problem?** Please don't file it here; see [SECURITY.md](https://github.com/sachinjain024/longclaw/blob/main/SECURITY.md).
+        **Don't paste private ticket content.** A trimmed or invented `ticket.md` is enough.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and what you expected to see instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a project…
+        2. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: LongClaw version
+      description: Shown in the status bar at the foot of the window.
+      placeholder: "0.3.1"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 15.4"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options:
+        - The app
+        - The longclaw CLI
+        - An agent editing ticket files
+        - Updating
+        - Somewhere else
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: |
+        Output from running the app with `LONGCLAW_LOCAL_DIAGNOSTIC=1`; see the
+        [troubleshooting guide](https://longclaw.io/docs/troubleshooting/).
+      render: text

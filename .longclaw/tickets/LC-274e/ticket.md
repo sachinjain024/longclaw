@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T12:15:55.309Z
+updated_at: 2026-09-25T12:28:38.651Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -65,9 +65,9 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [ ] (Repo settings) Set the About website to https://longclaw.io (needs the owner account) <!-- longclaw:item=ck_b477835c -->
 - [ ] (Repo settings) Add topics: issue-tracker, project-management, local-first, ai-agents, coding-agents, claude-code, markdown, tauri, rust, macos, desktop-app, developer-tools (needs the owner account) <!-- longclaw:item=ck_9c1e3cd2 -->
 - [ ] (Repo settings) Upload a 1280×640 social preview image generated from the site's og card, not hand-made (needs the owner account) <!-- longclaw:item=ck_58c22b80 -->
-- [ ] (Repo settings) Turn off the unused Wiki and Projects tabs; decide whether Issues stays open for outside bug reports, since work is tracked in LongClaw (needs the owner account) <!-- longclaw:item=ck_447a0031 -->
-- [ ] (Repo settings) In the About sidebar, show Releases and hide Packages; decide on Deployments (needs the owner account) <!-- longclaw:item=ck_00975eea -->
-- [ ] (Repo settings) Raise the community profile from 42%: add CODE_OF_CONDUCT.md, SECURITY.md (how to report a vulnerability), and issue and PR templates <!-- longclaw:item=ck_a26b6a66 -->
+- [ ] (Repo settings) Turn off the unused Wiki and Projects tabs; keep Issues open for outside bug reports, with the bug-report form and blank issues off (needs the owner account) <!-- longclaw:item=ck_447a0031 -->
+- [ ] (Repo settings) In the About sidebar, show Releases and hide Packages and Deployments (needs the owner account, web UI only) <!-- longclaw:item=ck_00975eea -->
+- [x] (Repo settings) Raise the community profile from 42%: add CODE_OF_CONDUCT.md, SECURITY.md (how to report a vulnerability), and issue and PR templates <!-- longclaw:item=ck_a26b6a66 -->
 - [x] (Final pass) Remove internal ticket keys (e.g. LC-233) from README prose <!-- longclaw:item=ck_c55841a0 -->
 - [x] (Final pass) Check every claim against website-content-brief.md §6 <!-- longclaw:item=ck_adb7f5bb -->
 - [x] (Final pass) Check that every relative link resolves <!-- longclaw:item=ck_4984fd14 -->
@@ -1456,4 +1456,75 @@ changes:
     to: "true"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dc5f7c5c
+kind: update
+occurred_at: 2026-09-25T12:28:38.598Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_447a0031.text
+    from: (Repo settings) Turn off the unused Wiki and Projects tabs; decide whether Issues stays open for outside bug reports, since work is tracked in LongClaw (needs the owner account)
+    to: (Repo settings) Turn off the unused Wiki and Projects tabs; keep Issues open for outside bug reports, with the bug-report form and blank issues off (needs the owner account)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fe106ce5
+kind: update
+occurred_at: 2026-09-25T12:28:38.626Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_00975eea.text
+    from: (Repo settings) In the About sidebar, show Releases and hide Packages; decide on Deployments (needs the owner account)
+    to: (Repo settings) In the About sidebar, show Releases and hide Packages and Deployments (needs the owner account, web UI only)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1bd5d3af
+kind: update
+occurred_at: 2026-09-25T12:28:38.651Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a26b6a66.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d5781f94
+kind: comment
+occurred_at: 2026-09-25T12:28:38.673Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Repo settings, decided 2026-09-25: keep Issues open for bug reports; security reports through GitHub private vulnerability reporting; conduct reports to sachinjain.hq@gmail.com; About description is the tagline plus proof; hide Deployments. theinfin8y has push but not admin, so the owner account applies these:
+
+gh repo edit sachinjain024/longclaw \
+  --description "Local-first issue tracker for AI coding agents. Tickets are Markdown files in your repo: humans plan, agents execute and write back. macOS, no account." \
+  --homepage https://longclaw.io \
+  --add-topic issue-tracker,project-management,local-first,ai-agents,coding-agents,claude-code,markdown,tauri,rust,macos,desktop-app,developer-tools \
+  --enable-wiki=false --enable-projects=false
+gh api -X PUT repos/sachinjain024/longclaw/private-vulnerability-reporting
+
+In the web UI only: Settings > Social preview (upload apps/website/dist/og.png, 1200x630, from npm run site:build), and the About gear (untick Packages and Deployments).
 <!-- /longclaw:event -->
