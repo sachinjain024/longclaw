@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T11:44:13.881Z
+updated_at: 2026-09-25T11:48:10.840Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -56,8 +56,9 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Features) Tighten each feature to one bold headline plus one sentence <!-- longclaw:item=ck_efc22bdc -->
 - [x] (File format) Replace the tree diagram with a trimmed real ticket.md sample (frontmatter, checklist, one activity event) <!-- longclaw:item=ck_89ee93bd -->
 - [x] (Comparison) Add a short "How it compares" section (GitHub Issues/Linear, Backlog.md, plain TODO.md; no git-bug), followed by the local-first-alternative-to-Linear positioning <!-- longclaw:item=ck_5412a4be -->
-- [ ] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
-- [ ] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
+- [ ] (Comparison) Decide whether to turn the How it compares section into a Markdown table <!-- longclaw:item=ck_77ee5d67 -->
+- [x] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
+- [x] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
 - [ ] (Acknowledgements) Credit every skill source in skills-lock.json, Matt Pocock (mattpocock/skills) first, then JuliusBrussee/caveman; build the list from the lockfile so no source is missed <!-- longclaw:item=ck_132c5bd3 -->
 - [ ] (Repo settings) Set the About description to match the site's tagline and description (needs the owner account) <!-- longclaw:item=ck_e7f59695 -->
 - [ ] (Repo settings) Set the About website to https://longclaw.io (needs the owner account) <!-- longclaw:item=ck_b477835c -->
@@ -1315,6 +1316,56 @@ changes:
   - field: checklist.ck_5412a4be.text
     from: (Comparison) Add a short "How it compares" section (GitHub Issues/Linear, Backlog.md/git-bug, plain TODO.md)
     to: (Comparison) Add a short "How it compares" section (GitHub Issues/Linear, Backlog.md, plain TODO.md; no git-bug), followed by the local-first-alternative-to-Linear positioning
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dd7a2cc3
+kind: update
+occurred_at: 2026-09-25T11:47:54.855Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_77ee5d67.added
+    to: (Comparison) Decide whether to turn the How it compares section into a Markdown table
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0ec1f1d8
+kind: update
+occurred_at: 2026-09-25T11:47:54.891Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_77ee5d67.moved
+    from: "28"
+    to: "15"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d1d140dc
+kind: update
+occurred_at: 2026-09-25T11:48:10.840Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_9c377205.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_c07eb526.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

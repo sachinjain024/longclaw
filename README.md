@@ -234,10 +234,12 @@ and recovery.
 
 ## Documentation
 
-- [User guide](docs/user-guide.md) — project folders, file format, backups, agent setup, recovery
+- [Install guide](https://longclaw.io/docs/) — requirements, first launch, checksums, building from source
+- [User guide](docs/user-guide.md) — project folders, backups, agent setup, recovery
+- [CLI reference](https://longclaw.io/docs/cli/) — the `longclaw` commands and their flags
+- [File format](docs/file_format.md) — the contract for `ticket.md` and `.longclaw/`
 - [Release notes](docs/release-notes/) — what each version changed
 - [Example agent context files](examples/agent-context/)
-- [longclaw.io](https://longclaw.io) — product documentation, CLI reference, blog and changelog
 
 ## Contributing
 
@@ -257,28 +259,9 @@ The website, longclaw.io, is a separate static Astro package in
 [`apps/website`](apps/website) with its own README, which covers its layout,
 rules, agent skills and deployment.
 
-**How it is built**
-
-- [On-disk file format and data model](docs/file_format.md)
-- [Architecture decisions](docs/adr/) — twelve ADRs, 0001–0012
-- [Domain language](CONTEXT.md) — the vocabulary every surface and document uses
-- [Design docs](docs/design/) — the prototype bundle the app was built from
-- [App-specific notes](apps/desktop/README.md) — registry recovery, device preferences
-
-**Working with agents**
-
-- [Instructions for agents](AGENTS.md) — the contract an agent in this repository follows
-- [Issue tracker surface](docs/agents/issue-tracker.md), [triage labels](docs/agents/triage-labels.md), [domain docs](docs/agents/domain.md)
-
-**Planning and evidence**
-
-- [Vision and scope](docs/vision.md)
-- [Design brief](docs/design_brief.md)
-- [MVP execution plan](docs/mvp_plan_order.md)
-- [v0 backlog](docs/backlog/v0-backlog.md) · [post-MVP backlog](docs/backlog/post-mvp-backlog.md)
-- [Acceptance scenarios and records](docs/acceptance/README.md)
-- [Mid-v0 pilot protocol](docs/pilot/README.md) · [response memo](docs/pilot/response-memo.md)
-- [v0 release risks](docs/release-risks.md)
+The architecture decisions, domain language, design docs, agent instructions,
+and the planning and evidence behind the project are indexed in
+[docs/README.md](docs/README.md).
 
 ## License
 
