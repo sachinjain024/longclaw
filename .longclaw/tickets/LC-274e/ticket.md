@@ -8,7 +8,7 @@ priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T12:28:38.651Z
+updated_at: 2026-09-25T12:53:54.316Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -61,12 +61,12 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 - [x] (Docs index) Cut to about 6 user-facing links; put planning and evidence docs behind one Project docs link <!-- longclaw:item=ck_9c377205 -->
 - [x] (Docs index) Drop the ADR count; link docs/adr/ without a number <!-- longclaw:item=ck_c07eb526 -->
 - [x] (Acknowledgements) Credit every skill source in skills-lock.json, Matt Pocock (mattpocock/skills) first, then JuliusBrussee/caveman; build the list from the lockfile so no source is missed <!-- longclaw:item=ck_132c5bd3 -->
-- [ ] (Repo settings) Set the About description to match the site's tagline and description (needs the owner account) <!-- longclaw:item=ck_e7f59695 -->
-- [ ] (Repo settings) Set the About website to https://longclaw.io (needs the owner account) <!-- longclaw:item=ck_b477835c -->
-- [ ] (Repo settings) Add topics: issue-tracker, project-management, local-first, ai-agents, coding-agents, claude-code, markdown, tauri, rust, macos, desktop-app, developer-tools (needs the owner account) <!-- longclaw:item=ck_9c1e3cd2 -->
-- [ ] (Repo settings) Upload a 1280×640 social preview image generated from the site's og card, not hand-made (needs the owner account) <!-- longclaw:item=ck_58c22b80 -->
-- [ ] (Repo settings) Turn off the unused Wiki and Projects tabs; keep Issues open for outside bug reports, with the bug-report form and blank issues off (needs the owner account) <!-- longclaw:item=ck_447a0031 -->
-- [ ] (Repo settings) In the About sidebar, show Releases and hide Packages and Deployments (needs the owner account, web UI only) <!-- longclaw:item=ck_00975eea -->
+- [x] (Repo settings) Set the About description to match the site's tagline and description (needs the owner account) <!-- longclaw:item=ck_e7f59695 -->
+- [x] (Repo settings) Set the About website to https://longclaw.io (needs the owner account) <!-- longclaw:item=ck_b477835c -->
+- [x] (Repo settings) Add topics: issue-tracker, project-management, local-first, ai-agents, coding-agents, claude-code, markdown, tauri, rust, macos, desktop-app, developer-tools (needs the owner account) <!-- longclaw:item=ck_9c1e3cd2 -->
+- [x] (Repo settings) Upload a social preview image: the site's og card, apps/website/dist/og.png (needs the owner account, web UI only) <!-- longclaw:item=ck_58c22b80 -->
+- [x] (Repo settings) Turn off the unused Wiki and Projects tabs; keep Issues open for outside bug reports, with the bug-report form and blank issues off (needs the owner account) <!-- longclaw:item=ck_447a0031 -->
+- [x] (Repo settings) In the About sidebar, show Releases and hide Packages and Deployments (needs the owner account, web UI only) <!-- longclaw:item=ck_00975eea -->
 - [x] (Repo settings) Raise the community profile from 42%: add CODE_OF_CONDUCT.md, SECURITY.md (how to report a vulnerability), and issue and PR templates <!-- longclaw:item=ck_a26b6a66 -->
 - [x] (Final pass) Remove internal ticket keys (e.g. LC-233) from README prose <!-- longclaw:item=ck_c55841a0 -->
 - [x] (Final pass) Check every claim against website-content-brief.md §6 <!-- longclaw:item=ck_adb7f5bb -->
@@ -1527,4 +1527,53 @@ gh repo edit sachinjain024/longclaw \
 gh api -X PUT repos/sachinjain024/longclaw/private-vulnerability-reporting
 
 In the web UI only: Settings > Social preview (upload apps/website/dist/og.png, 1200x630, from npm run site:build), and the About gear (untick Packages and Deployments).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_33e2a9bc
+kind: update
+occurred_at: 2026-09-25T12:37:50.364Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_58c22b80.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_58c22b80.text
+    from: (Repo settings) Upload a 1280×640 social preview image generated from the site's og card, not hand-made (needs the owner account)
+    to: "(Repo settings) Upload a social preview image: the site's og card, apps/website/dist/og.png (needs the owner account, web UI only)"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_685ab2a3
+kind: update
+occurred_at: 2026-09-25T12:53:54.316Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e7f59695.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b477835c.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_9c1e3cd2.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_447a0031.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_00975eea.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Repo settings applied by the owner on 2026-09-25 and checked through the API: description, website, Wiki and Projects off, Issues on, private vulnerability reporting on. The owner chose the topics: ai-agents, claude-code, coding-agents, developer-tools, issue-tracker, jira-alternative, linear-alternative, local-first, markdown, open-source, project-management. The owner reports Packages and Deployments hidden (not checkable by API). The social preview is uploaded.
 <!-- /longclaw:event -->
