@@ -64,7 +64,7 @@ should never see, and building from source.
 ## How it works
 
 ```text
-You create a ticket on the Mac board
+You create a ticket on the Board
   |
   v
 Agent reads it, works, updates via CLI
@@ -100,17 +100,18 @@ file before anything is overwritten.
 
 ## How it compares
 
-| | Where tickets live | How an agent works with it | Runs on | Accounts and sync |
-|---|---|---|---|---|
-| **LongClaw** | Markdown files in your repo | Reads the files; writes through the CLI or a plain edit, and each change names the agent | macOS app, Apple Silicon | None |
-| **GitHub Issues, Linear** | A hosted service | Through an API or an integration | Web and apps | Accounts, sync and teams |
-| **Backlog.md** | Markdown files in your repo | CLI and MCP | macOS, Linux and Windows, with a board in the browser | None |
-| **A `TODO.md`** | One file in your repo | Reads and edits it | Anywhere | None |
+| Tool | Where tickets live | Agent access | Interface |
+|---|---|---|---|
+| **LongClaw** | Markdown files in your repo | File reads and CLI updates | Mac desktop app, Apple Silicon |
+| **[Backlog.md](https://github.com/MrLesk/Backlog.md)** | Markdown files in your repo | CLI and MCP | Terminal and local browser board; macOS, Linux, Windows |
+| **[GitHub Issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues)** | GitHub service | [CLI](https://cli.github.com/manual/gh_issue), API, [MCP](https://github.com/github/github-mcp-server) | Web and mobile |
+| **[Linear](https://linear.app)** | Linear service | API, [MCP and integrations](https://linear.app/docs/mcp) | [Web, desktop and mobile](https://linear.app/download) |
+| **A `TODO.md`** | One file in your repo | File reads and edits | Your editor |
 
-Backlog.md is the closest neighbour, and it runs on more platforms. LongClaw is
-a native Mac app, and every ticket records which human or agent changed what.
-A `TODO.md` needs nothing installed, and is fine until you want statuses,
-priorities, a board, or a record of what the agent changed.
+LongClaw fits developers who want a Mac desktop app, repository-owned tickets,
+and visible human and agent activity. Backlog.md shares the Markdown-and-agent
+workflow and offers terminal and browser interfaces across more platforms.
+A plain `TODO.md` works well when a text list is enough.
 
 **Think of LongClaw as a local-first alternative to Linear.** Agents read ticket
 context directly from your repository, without an API integration. Each ticket

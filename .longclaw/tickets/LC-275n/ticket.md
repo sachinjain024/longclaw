@@ -9,7 +9,7 @@ labels:
   - product
 type: docs
 created_at: 2026-09-25T13:32:47.752Z
-updated_at: 2026-09-25T14:27:43.160Z
+updated_at: 2026-09-25T14:38:30.711Z
 ---
 
 Follow-up to LC-274e and merged PR #62. The objective is to make the README credible, impressive, and easy to act on for a first-time Hacker News or Reddit visitor. The previous ticket substantially improved structure, installation, imagery, comparisons, and repository housekeeping. This follow-up focuses on accurate claims and the first successful human/agent workflow.
@@ -73,7 +73,7 @@ Sources checked during the audit:
 - [x] (Workflow) Lead How it works with create, delegate, and observe; consolidate the two long file/event examples. <!-- longclaw:item=ck_dacb6a19 -->
 - [ ] (Onboarding) Bring AGENTS.md/CLAUDE.md setup into installation and include a first-task prompt using the actual ticket key. <!-- longclaw:item=ck_596009f2 -->
 - [ ] (Hero) Refresh illustrative tasks so they match shipped capabilities and demonstrate agent activity; regenerate with the existing script. <!-- longclaw:item=ck_0cf08e91 -->
-- [ ] (Comparison) Verify and link competitor claims; explain LongClaw's fit without implying shared features are unique. <!-- longclaw:item=ck_51cf2263 -->
+- [x] (Comparison) Verify and link competitor claims; explain LongClaw's fit without implying shared features are unique. <!-- longclaw:item=ck_51cf2263 -->
 - [ ] (Feedback) Add a clear route for feature feedback alongside bug reporting. <!-- longclaw:item=ck_e8b97e30 -->
 - [ ] (Validation) Follow the README against the downloaded release in a fresh project and complete one human-to-agent-to-board workflow. <!-- longclaw:item=ck_b17f5508 -->
 - [ ] (Validation) Inspect GitHub rendering on mobile and both themes; check links, image legibility, tables, and code blocks. <!-- longclaw:item=ck_3a7209fe -->
@@ -242,4 +242,22 @@ actor:
 ### Codex commented
 
 Replaced the numbered workflow with a compact vertical text diagram at the maintainer request. It shows creating a ticket on the Mac board, agent work and CLI updates, then review in LongClaw. The accompanying sentence explains the shared Markdown ticket.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ce1062a1
+kind: update
+occurred_at: 2026-09-25T14:38:30.711Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_51cf2263.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Completed the comparison checklist item. Split GitHub Issues and Linear into separate rows, linked official product and agent-access documentation, and replaced the ambiguous accounts/sync column with a compact interface comparison. Verified Backlog.md Markdown storage, CLI/MCP, local browser and terminal boards, and cross-platform support against https://github.com/MrLesk/Backlog.md; GitHub access against https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues, https://cli.github.com/manual/gh_issue, and https://github.com/github/github-mcp-server; Linear against https://linear.app/docs/mcp and https://linear.app/download. Positioning now explicitly acknowledges the shared Markdown/agent workflow and states LongClaw’s fit without claiming uniqueness. Also changed the workflow diagram wording from Mac board to Board as requested.
 <!-- /longclaw:event -->
