@@ -6,8 +6,9 @@
  * token-driven `AppWindow` that longclaw.io draws cannot render there live. This
  * renders it instead: it serves the built site, opens the home page in WebKit at
  * 2×, puts the hero tour on its Board stage with motion off, and captures the
- * window alone in both appearances. The README picks one with `<picture>` and
- * `prefers-color-scheme`.
+ * window alone in the light appearance. Light only, on purpose: at README size
+ * the dark render's secondary text is too faint to read, and the light window
+ * reads well on GitHub's dark theme too.
  *
  * That makes it the one raster of the product in the repository, and a
  * deliberate exception to the site's no-raster rule (see this package's README).
@@ -69,30 +70,35 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await webkit.launch();
 
 try {
-  for (const scheme of ['light', 'dark']) {
-    const page = await browser.newPage({
-      viewport: { width: 1440, height: 1100 },
-      deviceScaleFactor: 2,
-      colorScheme: scheme,
-      reducedMotion: 'reduce',
-    });
-    await page.goto(`${origin}/`, { waitUntil: 'networkidle' });
-    await page.evaluate(() => document.fonts.ready);
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1100 },
+    deviceScaleFactor: 2,
+    colorScheme: 'light',
+    reducedMotion: 'reduce',
+  });
+  await page.goto(`${origin}/`, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
 
-    // The tour opens on Projects; the board is what the README is about.
-    await page.click('[data-stage-pill="board"]');
-    const win = page.locator('[data-hero-tour] [data-appwin]');
-    if ((await win.getAttribute('data-stage')) !== 'board') {
-      throw new Error('The hero window did not move to the Board stage.');
-    }
-    // Let the stage swap settle; reduced motion makes it near-instant.
-    await page.waitForTimeout(300);
-
-    const file = join(out, `hero-${scheme}.png`);
-    await win.screenshot({ path: file });
-    console.log(`wrote ${file}`);
-    await page.close();
+  // The tour opens on Projects; the board is what the README is about.
+  await page.click('[data-stage-pill="board"]');
+  const win = page.locator('[data-hero-tour] [data-appwin]');
+  if ((await win.getAttribute('data-stage')) !== 'board') {
+    throw new Error('The hero window did not move to the Board stage.');
   }
+  // Let the stage swap settle; reduced motion makes it near-instant.
+  await page.waitForTimeout(300);
+
+  // One image serves GitHub's light and dark themes, so the page behind the
+  // window's rounded corners must not be captured with it.
+  await win.evaluate((el) => {
+    for (let node = el.parentElement; node; node = node.parentElement) {
+      node.style.setProperty('background', 'transparent', 'important');
+    }
+  });
+
+  const file = join(out, 'hero.png');
+  await win.screenshot({ path: file, omitBackground: true });
+  console.log(`wrote ${file}`);
 } finally {
   await browser.close();
   server.close();

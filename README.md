@@ -30,10 +30,7 @@
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.png">
-    <img src="assets/readme/hero-light.png" alt="The LongClaw board: projects in a sidebar, tickets in To do, In progress and Done columns, and a card an agent edited, marked claude-code via file edit." width="1160">
-  </picture>
+  <img src="assets/readme/hero.png" alt="The LongClaw board: projects in a sidebar, tickets in To do, In progress and Done columns, and a card an agent edited, marked claude-code via file edit." width="1160">
 </p>
 
 Built for developers who hand work to coding agents such as Claude Code and
