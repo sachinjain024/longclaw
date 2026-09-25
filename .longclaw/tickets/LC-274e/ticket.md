@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: c5710220-c278-4a24-9467-477cda87698b
 key: LC-274e
 title: "Refine the GitHub README: current status, install path, and a user-first order"
-status: in_progress
+status: done
 priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T13:02:32.775Z
+updated_at: 2026-09-25T13:32:55.971Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -1635,4 +1635,22 @@ changes:
     to: (Comparison) Turn the How it compares section into a Markdown table
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2c246f5a
+kind: update
+occurred_at: 2026-09-25T13:32:55.971Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Codex updated this ticket
+
+PR #62 has been merged. Marked done at the maintainer request; the subsequent README launch audit, suggested copy, and remaining acceptance checks are tracked in LC-275n.
 <!-- /longclaw:event -->

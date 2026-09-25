@@ -145,7 +145,14 @@ longclaw project init --name "My Project" --key MP
 longclaw label add --slug storage --name Storage
 longclaw ticket create --title "Fix the retry policy" --label storage \
   --checklist "Reproduce it" --agent-id claude-code --agent-name "Claude Code"
-longclaw ticket edit MP-1 --status in_progress --agent-id claude-code
+```
+
+Copy the ticket's `key` from the JSON returned by `ticket create`, including
+its random trailing letter. For example, if it returns `MP-1a`, use that key
+below; replace `MP-1a` with the key your command returned.
+
+```sh
+longclaw ticket edit MP-1a --status in_progress --agent-id claude-code
 longclaw ticket list
 longclaw                       # prints every command
 ```
