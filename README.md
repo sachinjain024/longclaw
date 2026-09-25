@@ -34,7 +34,7 @@ and removed. Archive takes a ticket off the board without deleting anything
 `⌘↵` from a quick-create field that can stay open and file several tickets in a
 row; `⌘Z` undoes the last mutation from a toast. The whole ticket lifecycle —
 create, find, open, edit, move, search, archive, undo, retry — completes without
-a pointer, and `npm run a11y:audit` proves it in WebKit on every run.
+a pointer.
 
 **It notices when an agent edits a file.** A native watcher reads external
 writes and the board updates without a refresh. A ticket changed outside the app
@@ -45,7 +45,7 @@ a conflict banner shows the file before anything is overwritten.
 
 **Human and agent are visually distinct** everywhere it matters, in five theme
 presets (Indigo, Clay, Slate, Plum, Graphite) across light, dark and system
-appearance. A visual matrix regression runs over the combinations.
+appearance.
 
 ## The `longclaw` CLI
 
@@ -119,73 +119,30 @@ and recovery.
 - The desktop experience targets Linear-grade speed and polish.
 - Local use requires no account or telemetry.
 
-## The website
-
-[longclaw.io](https://longclaw.io) — the marketing home, product documentation,
-CLI reference, blog and changelog — lives in [`apps/website`](apps/website) as a
-static Astro site, and deploys to GitHub Pages on every push to `main` that
-touches it.
-
-```sh
-npm --prefix apps/website ci
-npm run site:dev       # localhost:4321
-npm run site:verify    # type-check and build, what CI runs
-```
-
-Its product visuals — the board, the ticket panel, file trees, terminal blocks
-and the owl mark — are HTML and CSS built from design tokens rather than
-screenshots, so they re-render in light and dark and stay crisp at any size.
-Docs pages, blog posts and release notes are each one Markdown file. See
-[the website README](apps/website/README.md) for the layout and the rules it is
-built to.
-
-Four agent skills cover the routine work on it — `website-change`,
-`product-docs`, `changelog-entry` and `roadmap-update`, in
-[`.agents/skills/`](.agents/skills/). They carry the rules the site is built to
-and the defects a green build does not catch.
-
-## Development
-
-Prerequisites:
-
-- macOS 13 or newer on Apple Silicon — the only target the app is built for.
-- Node.js 22 or newer.
-- Rust with Cargo, Rustfmt, and Clippy.
-- Tauri v2 platform prerequisites for macOS.
-
-Install and verify from a clean checkout:
-
-```sh
-npm --prefix apps/desktop ci
-npm run verify
-```
-
-Run it:
-
-```sh
-npm run dev            # launch the app
-npm run dev:fixture    # launch with the development fixture registered
-npm run build          # web assets
-npm run build:app      # the production desktop app
-```
-
-`npm run verify` is the gate every change must pass: design-token and structural
-guards, the release audit, formatting, lint, types, the frontend and Rust
-suites, the Vite production build, and the watcher integration round trip. It is
-described in full — including which guard rejects what — in
-[CONTRIBUTING](CONTRIBUTING.md#quality-gates), which is the one place that list
-lives.
-
-Local diagnostics are stdout-only and prefixed with `LONGCLAW_LOCAL_DIAGNOSTIC`;
-no telemetry or analytics are sent.
-
 ## Documentation
-
-**Using it**
 
 - [User guide](docs/user-guide.md) — project folders, file format, backups, agent setup, recovery
 - [0.1.0 release notes](docs/release-notes/v0.1.0.md)
 - [Example agent context files](examples/agent-context/)
+- [longclaw.io](https://longclaw.io) — product documentation, CLI reference, blog and changelog
+
+## Contributing
+
+Everything below is for working on LongClaw itself.
+[CONTRIBUTING](CONTRIBUTING.md) is the full guide: prerequisites, filing work,
+branching, and the quality gate every change must pass.
+
+```sh
+npm --prefix apps/desktop ci
+npm run verify         # the gate — see CONTRIBUTING for what it runs
+npm run dev            # launch the app
+npm run dev:fixture    # launch with the development fixture registered
+npm run build:app      # the production desktop app
+```
+
+The website, longclaw.io, is a separate static Astro package in
+[`apps/website`](apps/website) with its own README, which covers its layout,
+rules, agent skills and deployment.
 
 **How it is built**
 
@@ -193,10 +150,7 @@ no telemetry or analytics are sent.
 - [Architecture decisions](docs/adr/) — twelve ADRs, 0001–0012
 - [Domain language](CONTEXT.md) — the vocabulary every surface and document uses
 - [Design docs](docs/design/) — the prototype bundle the app was built from
-- [Contributor setup and the quality gate](CONTRIBUTING.md)
 - [App-specific notes](apps/desktop/README.md) — registry recovery, device preferences
-- [The website](apps/website/README.md) — longclaw.io: structure, content model, deployment
-- [Website skills](.agents/skills/) — `website-change`, `product-docs`, `changelog-entry`, `roadmap-update`
 
 **Working with agents**
 

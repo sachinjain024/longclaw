@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: c5710220-c278-4a24-9467-477cda87698b
 key: LC-274e
 title: "Refine the GitHub README: current status, install path, and a user-first order"
-status: todo
+status: in_progress
 priority: none
 labels:
   - product
 created_at: 2026-09-25T08:46:18.691Z
-updated_at: 2026-09-25T10:10:07.755Z
+updated_at: 2026-09-25T10:22:08.652Z
 ---
 
 The repository README is the first page a visitor to the GitHub repo reads, and it has drifted from what the project is now. It still describes the product as it stood at 0.1.0, it gives no way to install the app, and it is written more for contributors than for someone deciding whether to try LongClaw.
@@ -42,7 +42,7 @@ The repository README is the first page a visitor to the GitHub repo reads, and 
 
 ## Checklist
 
-- [ ] (Structure) Put user content first and contributor content second; move the a11y audit, visual matrix, gate detail, website token rules and the four skills to CONTRIBUTING.md / apps/website/README.md <!-- longclaw:item=ck_2bfc37bb -->
+- [x] (Structure) Put user content first and contributor content second; move the a11y audit, visual matrix, gate detail, website token rules and the four skills to CONTRIBUTING.md / apps/website/README.md <!-- longclaw:item=ck_2bfc37bb -->
 - [ ] (Header) Add a header: mark, name, one-line pitch, platform line (macOS 13+, Apple Silicon only), and an Install CTA <!-- longclaw:item=ck_e4b0c4df -->
 - [ ] (Header) Add a one-line who-it-is-for statement, within the no-oversell rules <!-- longclaw:item=ck_cfa8fdd1 -->
 - [ ] (Header) Add license and latest-version badges <!-- longclaw:item=ck_d5047e2e -->
@@ -909,6 +909,37 @@ changes:
   - field: checklist.ck_4984fd14.text
     from: Check that every relative link resolves
     to: (Final pass) Check that every relative link resolves
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d00d6168
+kind: update
+occurred_at: 2026-09-25T10:19:20.071Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3d0a1a98
+kind: update
+occurred_at: 2026-09-25T10:22:08.652Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_2bfc37bb.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

@@ -95,6 +95,19 @@ strong one. These come from
 excluded from the sitemap, disallowed in `robots.txt`, and carries a `noindex`.
 Linking to it from anywhere is the decision to publish it.
 
+## Agent skills
+
+Four first-party skills in [`.agents/skills/`](../../.agents/skills/) cover the
+routine work here. They carry the rules this site is built to, and the defects
+a green build does not catch. Use them rather than working from memory.
+
+| Skill | For |
+|---|---|
+| `website-change` | Layout, components, styles, copy, SEO, navigation |
+| `product-docs` | A page under `/docs` |
+| `changelog-entry` | A release entry on `/changelog` |
+| `roadmap-update` | The roadmap, and the decision to publish it |
+
 ## Adding content
 
 ### A documentation page
