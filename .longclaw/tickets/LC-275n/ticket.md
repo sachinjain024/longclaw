@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 51ecd5db-9da4-4a32-8175-ee0afef03c7b
 key: LC-275n
 title: "Polish the README for HN and Reddit: credible claims and a working first-agent workflow"
-status: in_progress
+status: done
 priority: none
 labels:
   - product
 type: docs
 created_at: 2026-09-25T13:32:47.752Z
-updated_at: 2026-09-25T15:04:18.721Z
+updated_at: 2026-09-25T15:35:40.145Z
 ---
 
 Follow-up to LC-274e and merged PR #62. The objective is to make the README credible, impressive, and easy to act on for a first-time Hacker News or Reddit visitor. The previous ticket substantially improved structure, installation, imagery, comparisons, and repository housekeeping. This follow-up focuses on accurate claims and the first successful human/agent workflow.
@@ -74,9 +74,9 @@ Sources checked during the audit:
 - [x] (Hero) Refresh illustrative tasks so they match shipped capabilities and demonstrate agent activity; regenerate with the existing script. <!-- longclaw:item=ck_0cf08e91 -->
 - [x] (Comparison) Verify and link competitor claims; explain LongClaw's fit without implying shared features are unique. <!-- longclaw:item=ck_51cf2263 -->
 - [x] (Feedback) Add a clear route for feature feedback alongside bug reporting. <!-- longclaw:item=ck_e8b97e30 -->
-- [ ] (Validation) Follow the README against the downloaded release in a fresh project and complete one human-to-agent-to-board workflow. <!-- longclaw:item=ck_b17f5508 -->
-- [ ] (Validation) Inspect GitHub rendering on mobile and both themes; check links, image legibility, tables, and code blocks. <!-- longclaw:item=ck_3a7209fe -->
-- [ ] (Final pass) Check copy against shipped behavior and website claims, prioritize major user benefits, and describe the final scope accurately in the follow-up PR. <!-- longclaw:item=ck_be9a72ab -->
+- [x] (Validation) Follow the README against the downloaded release in a fresh project and complete one human-to-agent-to-board workflow. <!-- longclaw:item=ck_b17f5508 -->
+- [x] (Validation) Inspect GitHub rendering on mobile and both themes; check links, image legibility, tables, and code blocks. <!-- longclaw:item=ck_3a7209fe -->
+- [x] (Final pass) Check copy against shipped behavior and website claims, prioritize major user benefits, and describe the final scope accurately in the follow-up PR. <!-- longclaw:item=ck_be9a72ab -->
 
 ## Activity
 
@@ -340,4 +340,64 @@ changes:
 ### Claude Code updated this ticket
 
 Decision: the README will not carry onboarding. The maintainer removed the Install section, so the AGENTS.md/CLAUDE.md setup snippet and the first-task prompt are no longer in the README. The Onboarding checklist item (ck_596009f2) is deleted rather than left ticked for work that is gone. Installation and agent setup are left to the install guide on longclaw.io, which the README header links.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ca5ef000
+kind: update
+occurred_at: 2026-09-25T15:35:31.599Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_b17f5508.checked
+    from: "false"
+    to: "true"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_56d82169
+kind: update
+occurred_at: 2026-09-25T15:35:32.679Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_3a7209fe.checked
+    from: "false"
+    to: "true"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1e0aab1f
+kind: update
+occurred_at: 2026-09-25T15:35:33.534Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_be9a72ab.checked
+    from: "false"
+    to: "true"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_939dd091
+kind: update
+occurred_at: 2026-09-25T15:35:40.145Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
