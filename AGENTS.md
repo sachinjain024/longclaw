@@ -83,13 +83,13 @@ are easy to break by accident:
 Adding a docs page, a blog post or a release note is one Markdown file plus, for
 docs, one line in `DOCS_NAV` (`src/lib/site.ts`).
 
-**Four skills cover the routine work; use them rather than working from memory.**
+**Five skills cover the routine work; use them rather than working from memory.**
 They are the only first-party skills in `.agents/skills/` — everything else there
 is vendored, and every vendored skill is tracked in `skills-lock.json` with the
 `source` it came from. `mattpocock/skills` is where nearly all of them come from;
 `caveman` came from `JuliusBrussee/caveman` and is the reason this sentence names
 the lockfile rather than one upstream. **The lockfile is the rule**: a skill under
-`.agents/skills/` that is neither one of the four above nor an entry there is
+`.agents/skills/` that is neither one of the five above nor an entry there is
 untracked, and that is the thing to fix.
 
 | Skill | For |
@@ -98,6 +98,7 @@ untracked, and that is the thing to fix.
 | `product-docs` | A page under `/docs` |
 | `changelog-entry` | A release entry on `/changelog` |
 | `roadmap-update` | The roadmap, and the decision to publish it |
+| `release-app` | Cutting an app release end to end: gates, signing, the GitHub release, the site's download link, the release ticket |
 
 Each names the traps that a green build does not catch — template whitespace
 eaten inside a `<pre>`, grid floors that cannot shrink below a phone, prose
