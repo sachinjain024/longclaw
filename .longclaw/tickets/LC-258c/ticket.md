@@ -3,7 +3,7 @@ format: longclaw.ticket/v1
 id: a9c8542b-32de-4866-a237-2dc090923f76
 key: LC-258c
 title: Zoom the app with ⌘+, ⌘- and ⌘0
-status: todo
+status: in_progress
 priority: none
 labels:
   - frontend
@@ -11,7 +11,7 @@ labels:
   - design
 type: feature
 created_at: 2026-09-17T00:35:29.146Z
-updated_at: 2026-09-17T00:35:29.146Z
+updated_at: 2026-09-28T07:25:33Z
 ---
 
 `⌘+` and `⌘-` zoom the app in and out, and `⌘0` returns it to 100%. The level
@@ -113,15 +113,15 @@ Rust-side call.
 
 ## Checklist
 
-- [ ] Rust-side webview zoom; the webview names an intent, not a scale factor <!-- longclaw:item=ck_206f0998 -->
-- [ ] Bind the three chords through isChord; accept = as well as + and do not require Shift <!-- longclaw:item=ck_e6df9ce5 -->
-- [ ] Fixed ladder of levels, 50%-200%, no-op at both ends <!-- longclaw:item=ck_2c12d498 -->
-- [ ] Persist the level in device preferences; validate on read, drop an unknown value <!-- longclaw:item=ck_c50c189f -->
-- [ ] Apply before first render, as the appearance already is <!-- longclaw:item=ck_13fc0cba -->
-- [ ] Add Zoom In / Zoom Out / Actual Size to the View menu <!-- longclaw:item=ck_b72c2c2d -->
-- [ ] List all three rows in the shortcuts pane in ProjectSettings.tsx <!-- longclaw:item=ck_123de52d -->
-- [ ] Add the rows to keyboard-focus-map.md in place; re-pin citations <!-- longclaw:item=ck_6abcb5ee -->
-- [ ] Zoom chords still work while a text field has focus <!-- longclaw:item=ck_b58c28c0 -->
+- [x] Rust-side webview zoom; the webview names an intent, not a scale factor <!-- longclaw:item=ck_206f0998 -->
+- [x] Bind the three chords through isChord; accept = as well as + and do not require Shift <!-- longclaw:item=ck_e6df9ce5 -->
+- [x] Fixed ladder of levels, 50%-200%, no-op at both ends <!-- longclaw:item=ck_2c12d498 -->
+- [x] Persist the level in device preferences; validate on read, drop an unknown value <!-- longclaw:item=ck_c50c189f -->
+- [x] Apply before first render, as the appearance already is <!-- longclaw:item=ck_13fc0cba -->
+- [x] Add Zoom In / Zoom Out / Actual Size to the View menu <!-- longclaw:item=ck_b72c2c2d -->
+- [x] List all three rows in the shortcuts pane in ProjectSettings.tsx <!-- longclaw:item=ck_123de52d -->
+- [x] Add the rows to keyboard-focus-map.md in place; re-pin citations <!-- longclaw:item=ck_6abcb5ee -->
+- [x] Zoom chords still work while a text field has focus <!-- longclaw:item=ck_b58c28c0 -->
 - [ ] Run a11y:audit; decide whether A5 should drive real zoom instead of halving the viewport <!-- longclaw:item=ck_e49e6aa3 -->
 - [ ] Run probe:header at the ladder's levels, not only at window widths <!-- longclaw:item=ck_a53d6a59 -->
 
@@ -137,4 +137,32 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2b72597b
+kind: update
+occurred_at: 2026-09-28T07:25:33Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### Claude Code updated this ticket
+
+Implemented on `claude/busy-mendel-tzxhee`. Rust owns the ladder (`zoom.rs`: 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200) and applies it with `Webview::set_zoom`. The webview sends `in`/`out`/`reset` (`zoom.ts`) through `isChord` in a capture-phase listener, remembers the level Rust answers with in device preferences (absent means 100%), and restores it before the first render. `⌘0` is also read by the physical key, for AZERTY. The View menu gains Actual Size / Zoom In / Zoom Out, which emit the same intent to the webview. The shortcuts pane and `keyboard-focus-map.md` list all three; the map's rows are inserted after the Global table and every later citation is re-pointed by +3 and re-pinned.
+
+Hand-edited rather than through the CLI: the branch was built in a Linux container whose volume cannot exchange files atomically, so `longclaw ticket edit` refused.
+
+Still open — none of it verifiable there (no WebKit, no macOS):
+
+- `a11y:audit` and `probe:header` have not been run. `perf/main.tsx` does not install zoom and the perf stubs serve neither command; the event stub has one listener slot, so installing zoom in the harness needs a name-aware stub first. A5 still simulates 200% by halving the viewport, since the harness has no Tauri webview to zoom.
+- `probe:header` at the ladder: the CSS viewport at level z in a window w wide is w/z, so the window's 1440–760 range at 125%, 150% and 200% is `--widths=1152,960,720,608,507,380`.
+- Double-firing: the menu accelerators rely on WebKit not re-dispatching a key equivalent the page `preventDefault`ed. In the bundle, one `⌘=` from 100% must land on 110%, not 125%.
+- Pre-render: `set_zoom` goes through the event loop; confirm a relaunch at 150% shows no frame at 100%.
+- The menu names `⌘=` (muda cannot spell Plus); the pane matches it.
 <!-- /longclaw:event -->

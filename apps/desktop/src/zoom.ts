@@ -6,7 +6,7 @@
  * window's minimum width that only zoom reaches. This is the way in.
  *
  * **The webview names an intent and Rust decides the level** (`zoom.rs`). The
- * ladder lives there and only there, so nothing here can ask for a size the
+ * ladder lives there — the frontend knows only that 100 is actual size — so nothing here can ask for a size the
  * layout has not been looked at, and the level that comes back is the one to
  * remember. The View menu sends the same intents as an event, so a menu click
  * and a chord are one path from request to remembered level.
@@ -25,8 +25,6 @@ import {
 import { forgetZoom, readZoom, rememberZoom } from "./devicePreferences";
 import { isChord } from "./keyContext";
 
-export type { ZoomIntent };
-
 /**
  * The zoom a keypress asks for, or `undefined` for one that is not a zoom chord.
  *
@@ -36,11 +34,18 @@ export type { ZoomIntent };
  * unshifted `=` and does not ask for Shift — and answers `+` as well, for the
  * shifted press and for a layout that gives `+` a key of its own. `⌘0` is free:
  * `chordDigit` stops at 1 because there is no zeroth project (LC-230).
+ *
+ * `⌘0` is also read by the physical key, because on AZERTY the digits are the
+ * shifted layer and the unshifted key types `à` — without this, actual size
+ * would be the one zoom chord a French keyboard cannot press.
  */
 export function zoomIntent(event: KeyboardEvent): ZoomIntent | undefined {
   if (isChord(event, "=") || isChord(event, "+")) return "in";
   if (isChord(event, "-")) return "out";
   if (isChord(event, "0")) return "reset";
+  if ((event.metaKey || event.ctrlKey) && event.code === "Digit0") {
+    return "reset";
+  }
   return undefined;
 }
 

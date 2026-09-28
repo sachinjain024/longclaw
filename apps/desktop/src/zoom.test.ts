@@ -14,7 +14,8 @@ import {
   resetDevicePreferences,
   restoreDevicePreferences,
 } from "./devicePreferences";
-import { installZoom, restoreZoom, zoomIntent, type ZoomIntent } from "./zoom";
+import type { ZoomIntent } from "./api";
+import { installZoom, restoreZoom, zoomIntent } from "./zoom";
 
 vi.mock("./api", () => ({
   readPreferences: vi.fn(),
@@ -99,6 +100,13 @@ describe("zoomIntent", () => {
   it("reads ⌘- as zoom out and ⌘0 as actual size", () => {
     expect(zoomIntent(chord("-"))).toBe("out");
     expect(zoomIntent(chord("0"))).toBe("reset");
+  });
+
+  it("reads ⌘0 by its key on a layout where 0 is shifted", () => {
+    expect(zoomIntent(chord("à", { metaKey: true, code: "Digit0" }))).toBe(
+      "reset",
+    );
+    expect(zoomIntent(chord("à", { code: "Digit0" }))).toBeUndefined();
   });
 
   it("takes Ctrl as it takes ⌘, as every chord in the app does", () => {

@@ -33,13 +33,17 @@ import { readPreferences, writePreferences } from "./api";
 import { isOrderingMode, type OrderingMode } from "./ordering";
 import { PANEL_WIDTH_DEFAULT, isStoredPanelWidth } from "./panelWidth";
 import { useLongClawStore, type Appearance } from "./state";
-
-/** Actual size — what the ladder in `zoom.rs` resets to, and absent means. */
-const ZOOM_ACTUAL_SIZE = 100;
 import {
   forgetWebviewPreferences,
   webviewPreferences,
 } from "./webviewPreferences";
+
+/**
+ * Actual size: `ZOOM_ACTUAL_SIZE` in `zoom.rs`, and what an absent `zoom` means.
+ * The one rung the frontend has to know, because it decides whether a level is
+ * worth writing down; every other rung is Rust's alone.
+ */
+const ZOOM_ACTUAL_SIZE = 100;
 
 export type ViewMode = "board" | "list";
 export type ProjectWorkspace = {
