@@ -17,7 +17,7 @@
  * what this is — a thing that sits between two regions and reports a position —
  * and it is the pattern `←`/`→` on a focused handle belongs to. A mouse-only
  * handle would be the same gap the panel's controls had before Step 17 and its
- * checklist rows had before LC-185 (`keyboard-focus-map.md:62`, rule 1).
+ * checklist rows had before LC-185 (`keyboard-focus-map.md:65`, rule 1).
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";

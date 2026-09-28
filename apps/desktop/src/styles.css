@@ -959,7 +959,7 @@ h1 {
 }
 
 /* Create, then `Back` beside it — the create form's closing row, in the order
-   `keyboard-focus-map.md:154-156` gives it. `:only-child` is the sidebar's
+   `keyboard-focus-map.md:157-159` gives it. `:only-child` is the sidebar's
    quick create, whose form ends in its submit alone and whose submit has
    always filled the 216px panel. */
 .form-actions {
@@ -3758,7 +3758,7 @@ button:disabled {
 
 /* It appears when the section is hovered, and whenever it holds focus. `:focus`
    rather than `:focus-visible`, because focus returns here when the editor
-   closes (`keyboard-focus-map.md:93`) — including when the human closed it with
+   closes (`keyboard-focus-map.md:96`) — including when the human closed it with
    the mouse, which is the one way to hold focus and match neither rule. */
 .description-block:hover .description-edit,
 .description-edit:focus {
@@ -4239,7 +4239,7 @@ button:disabled {
 
    It appears on hover and while the row holds focus, which are the two moments
    a reorder is being considered; the keyboard's way in is `⌥↑`/`⌥↓` on the row
-   (`keyboard-focus-map.md:63`) and never needs to see it. */
+   (`keyboard-focus-map.md:66`) and never needs to see it. */
 .checklist-row {
   position: relative;
 }

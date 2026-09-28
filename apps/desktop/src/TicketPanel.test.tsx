@@ -1650,7 +1650,7 @@ describe("the panel's honesty about the file", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  // `keyboard-focus-map.md:72-75`: "`S`/`P` still work (they target the open
+  // `keyboard-focus-map.md:75-78`: "`S`/`P` still work (they target the open
   // ticket)". Focus is in the panel, so neither surface's own binding sees them.
   it("opens the status and priority menus on S and P", async () => {
     render(panel());
@@ -2079,7 +2079,7 @@ describe("priority in the panel (V0-08)", () => {
       ),
     ).toBe("Priority: P2");
     // The panel tab order is status → priority → labels
-    // (`keyboard-focus-map.md:62`), so priority follows status in the document.
+    // (`keyboard-focus-map.md:65`), so priority follows status in the document.
     const triggers = screen.getAllByRole("button", {
       name: /^(Status|Priority): /,
     });
@@ -2163,7 +2163,7 @@ describe("labels in the panel (V0-10)", () => {
     await ready();
 
     expect(chips()).toEqual(["Backend"]);
-    // status → priority → labels (`keyboard-focus-map.md:62`).
+    // status → priority → labels (`keyboard-focus-map.md:65`).
     const triggers = screen.getAllByRole("button", {
       name: /^(Status|Priority|Labels): /,
     });
@@ -2817,7 +2817,7 @@ describe("the description editor (V0-12)", () => {
     fireEvent.change(textarea, { target: { value: "Cancelled." } });
     fireEvent.keyDown(textarea, { key: "Escape" });
 
-    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:88`).
+    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:91`).
     expect(onClose).not.toHaveBeenCalled();
     expect(editTicketMock).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Description")).toBeNull();
@@ -2956,7 +2956,7 @@ describe("the panel's fields read as the record, not as a form", () => {
       addChecklistItems: ["Walk the panel"],
     });
     // Cleared and still focused, which is what makes a list typeable in one
-    // pass (`keyboard-focus-map.md:64`).
+    // pass (`keyboard-focus-map.md:67`).
     expect(field.value).toBe("");
     expect(document.activeElement).toBe(field);
   });
@@ -3545,7 +3545,7 @@ describe("a comment the human wrote", () => {
  * The handle's own behaviour is `PanelResizeHandle.test.tsx`. What matters here
  * is that the panel has one, first, because the Tab order matches the visual
  * order and the handle is the panel's leftmost edge
- * (`keyboard-focus-map.md:62`).
+ * (`keyboard-focus-map.md:65`).
  */
 describe("the panel's width", () => {
   it("opens with the resize handle as its first stop", async () => {

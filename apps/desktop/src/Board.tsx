@@ -58,7 +58,7 @@
  * A drop is a mutation and the board holds no project id, so it is raised as
  * `onMoveTicket` and written in `App.tsx`, beside `changePriority`.
  *
- * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:264-271`
+ * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:267-274`
  * puts reordering within a column outside v0 and names `S` — the status move —
  * as the keyboard path that exists for the column a ticket is in.
  */
@@ -234,7 +234,7 @@ export function Board(
     onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
     /**
      * Raised by a column's `+`, with that column's status
-     * (`keyboard-focus-map.md:45`). The board opens no surface of its own; App
+     * (`keyboard-focus-map.md:48`). The board opens no surface of its own; App
      * decides that a create preseeded with a status is quick create.
      */
     onCreateInStatus: (status: TicketStatus) => void;
@@ -384,7 +384,7 @@ export function Board(
     const field = metaFieldFor(event.key);
     if (field) {
       // Inert on a file that would not read: there is no field to write to
-      // (`keyboard-focus-map.md:49`).
+      // (`keyboard-focus-map.md:52`).
       if (ticketAt(from).state !== "indexed") return;
       event.preventDefault();
       setMetaMenu({ key: fromKey, field });
@@ -692,7 +692,7 @@ function BoardColumn(props: {
                 today={today}
                 // A file this build cannot read has no frontmatter to write a
                 // status or a rank into, so it is not draggable — the same
-                // reason `P` is inert on one (`keyboard-focus-map.md:49`).
+                // reason `P` is inert on one (`keyboard-focus-map.md:52`).
                 draggable={ticket.state === "indexed"}
                 dragging={ticket.key === props.dragKey}
                 onSelect={props.onSelect}
@@ -708,7 +708,7 @@ function BoardColumn(props: {
 
 /**
  * A column header's `+`: quick create, preseeded with that column's status
- * (`screen-specs.md` § Board, `keyboard-focus-map.md:45`). It stands at all
+ * (`screen-specs.md` § Board, `keyboard-focus-map.md:48`). It stands at all
  * times — see `.column-add` for why the board's most-reached action is not
  * something you have to sweep a pointer over a heading to discover.
  *

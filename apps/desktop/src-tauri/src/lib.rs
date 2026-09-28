@@ -9,6 +9,7 @@ mod preferences;
 mod registry;
 pub mod update;
 mod update_plugin;
+mod zoom;
 
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -28,6 +29,7 @@ use serde::Deserialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 use update::{UpdatePath, UpdateProgress, UpdateStatus};
+use zoom::{Zoom, ZoomIntent};
 
 const PROJECT_EVENT_NAME: &str = "longclaw://project-event";
 static PROCESS_STARTED: OnceLock<Instant> = OnceLock::new();
@@ -660,6 +662,39 @@ fn write_preferences(document: PreferenceDocument, state: State<'_, AppState>) -
     state.write_preferences(document)
 }
 
+/// One step of zoom — in, out, or back to actual size (LC-258c).
+///
+/// The webview names the intent and this decides the level (`zoom.rs`), then
+/// answers with it so the webview can remember it. The size is applied to the
+/// webview that asked, which in a one-window app is the window.
+#[tauri::command]
+fn zoom_app(intent: ZoomIntent, webview: tauri::Webview, zoom: State<'_, Zoom>) -> AppResult<u16> {
+    zoom.step(intent, |scale| webview.set_zoom(scale))
+        .map_err(zoom_failed)
+}
+
+/// Puts back the level the last launch remembered, before the first render.
+///
+/// `None` is a level this build's ladder does not have: nothing is applied, and
+/// the webview drops the value rather than keeping one it cannot use.
+#[tauri::command]
+fn restore_zoom(
+    level: u16,
+    webview: tauri::Webview,
+    zoom: State<'_, Zoom>,
+) -> AppResult<Option<u16>> {
+    zoom.restore(level, |scale| webview.set_zoom(scale))
+        .map_err(zoom_failed)
+}
+
+fn zoom_failed(error: tauri::Error) -> core::AppError {
+    core::AppError::new(
+        core::ErrorCode::Internal,
+        format!("The window could not be zoomed: {error}"),
+        true,
+    )
+}
+
 /// The current user's home directory, for tilde-abbreviating paths in the UI.
 /// Only the actual home prefix is abbreviated — `/Users/other/...` stays as-is.
 #[tauri::command]
@@ -719,8 +754,14 @@ pub fn run() {
                 state.register_project(PathBuf::from(root))?;
             }
             app.manage(state);
+            app.manage(Zoom::default());
+            // Tauri installs its default menu on macOS on its own; this is that
+            // menu with the zoom items added to View (LC-258c).
+            #[cfg(target_os = "macos")]
+            app.set_menu(zoom::menu_with_zoom(app.handle())?)?;
             Ok(())
         })
+        .on_menu_event(zoom::on_menu_event)
         .invoke_handler(tauri::generate_handler![
             list_projects,
             register_project,
@@ -763,7 +804,9 @@ pub fn run() {
             update_status,
             download_update,
             install_update,
-            open_download_page
+            open_download_page,
+            zoom_app,
+            restore_zoom
         ])
         .run(tauri::generate_context!())
         .expect("LongClaw desktop should run");

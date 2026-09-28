@@ -307,6 +307,23 @@ describe("the sections (LC-208)", () => {
     expect(within(section).getAllByText("⌘").length).toBeGreaterThan(0);
   });
 
+  /** All three zoom chords (LC-258c): a shortcut absent from this pane is a
+   *  shortcut nobody finds. */
+  it("Shortcuts lists zoom in, zoom out and actual size", () => {
+    render(<Harness section="shortcuts" />);
+    const section = screen.getByRole("tabpanel", { name: "Shortcuts" });
+    const keysFor = (action: string) =>
+      Array.from(
+        within(section)
+          .getByText(action)
+          .parentElement!.querySelectorAll("kbd"),
+        (key) => key.textContent,
+      );
+    expect(keysFor("Zoom in")).toEqual(["⌘", "="]);
+    expect(keysFor("Zoom out")).toEqual(["⌘", "-"]);
+    expect(keysFor("Actual size")).toEqual(["⌘", "0"]);
+  });
+
   it("Danger zone keeps the guarantee beside the button", () => {
     const onRemove = vi.fn();
     render(<Harness section="danger" onRemove={onRemove} />);
