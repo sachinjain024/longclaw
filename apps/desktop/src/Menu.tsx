@@ -155,7 +155,7 @@ export function Menu<T extends string>(props: MenuProps<T>) {
           : 0;
     if (step !== 0) {
       event.preventDefault();
-      // Wraps at both ends (`keyboard-focus-map.md:139`), over the rows and
+      // Wraps at both ends (`keyboard-focus-map.md:142`), over the rows and
       // the footer alike — `↓` past the last label reaches the define row,
       // which is the one thing in this popover that is not a value.
       setActive((standing) => {
@@ -290,7 +290,7 @@ export function MenuButton<T extends string>(props: {
   /**
    * Opened from outside the trigger: the `S`/`P` single-key path, which acts on
    * the open ticket while focus is somewhere else in the panel entirely
-   * (`keyboard-focus-map.md:72-75`). Omitted, the trigger owns its own state —
+   * (`keyboard-focus-map.md:75-78`). Omitted, the trigger owns its own state —
    * every other caller wants that and should not have to hold one.
    */
   open?: boolean;

@@ -359,6 +359,31 @@ export async function writePreferences(
   await invoke("write_preferences", { document });
 }
 
+/** What the webview may ask of the zoom: never a level (`zoom.rs`, LC-258c). */
+export type ZoomIntent = "in" | "out" | "reset";
+
+const ZOOM_EVENT_NAME = "longclaw://zoom";
+
+/** One step of zoom, answered with the level now in force, as a percentage. */
+export async function zoomApp(intent: ZoomIntent): Promise<number> {
+  return invoke("zoom_app", { intent });
+}
+
+/**
+ * Puts back a remembered level. `null` is a level this build's ladder does not
+ * have, and nothing was applied for it.
+ */
+export async function restoreZoomLevel(level: number): Promise<number | null> {
+  return invoke("restore_zoom", { level });
+}
+
+/** What the View menu's zoom items ask for — the intent, as a chord names it. */
+export async function listenForZoomRequests(
+  handler: (intent: ZoomIntent) => void,
+): Promise<UnlistenFn> {
+  return listen<ZoomIntent>(ZOOM_EVENT_NAME, ({ payload }) => handler(payload));
+}
+
 /** The current user's home directory, for tilde-abbreviating paths in the UI. */
 export async function homeDir(): Promise<string | null> {
   return invoke("home_dir");

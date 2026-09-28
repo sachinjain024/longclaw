@@ -11,7 +11,7 @@
 1. **Every pointer action has a keyboard path.** Anything clickable is
    reachable via focus + Enter, a single-key action, or a palette command. The shell's order follows the DOM: the side panel's gear, its project rows, its footer pair (LC-239w), then the header's controls, and last the status bar's — the `Update` link where one is waiting, then the GitHub star control, which is the final stop in the shell (LC-256a, LC-257s).
 2. **Single-key shortcuts suspend while any input has focus.** Chords
-   (`⌘K`, `⌘F`, `⌘Z`, `⌘↵`, `⌘1`…`⌘9`) stay live everywhere except where the
+   (`⌘K`, `⌘F`, `⌘Z`, `⌘↵`, `⌘1`…`⌘9`, `⌘=` `⌘-` `⌘0`) stay live everywhere except where the
    OS owns them (e.g. `⌘Z` in a focused text field is the field's undo).
 3. **Focus is visible, human-accent, and never lost.** Keyboard focus =
    `--lc-focus-ring` + 1px `accent-human` border (focus is a planning act).
@@ -33,6 +33,9 @@
 | `⌘,` | Open project settings on General; a no-op while it is already open |
 | `⌘1`…`⌘9` | Switch to the nth project of the sidebar's Local list |
 | `Esc` | Ladder rule 4 |
+| `⌘=` or `⌘+` | Zoom in one step, to at most 200% (LC-258c); also View ▸ Zoom In |
+| `⌘-` | Zoom out one step, to at least 50%; also View ▸ Zoom Out |
+| `⌘0` | Actual size; also View ▸ Actual Size |
 ## Board
 
 | Key | Action |

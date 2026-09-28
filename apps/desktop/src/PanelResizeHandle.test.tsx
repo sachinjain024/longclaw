@@ -5,7 +5,7 @@
  * what it refuses in a window with nowhere to drag into (LC-238s).
  *
  * The width itself is arithmetic and is covered in `panelWidth.test.ts`. What
- * is here is the contract a reader meets — `keyboard-focus-map.md:62,65`, and
+ * is here is the contract a reader meets — `keyboard-focus-map.md:65,68`, and
  * rule 1: every pointer action has a keyboard path.
  */
 

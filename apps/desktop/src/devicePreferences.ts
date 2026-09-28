@@ -38,6 +38,13 @@ import {
   webviewPreferences,
 } from "./webviewPreferences";
 
+/**
+ * Actual size: `ZOOM_ACTUAL_SIZE` in `zoom.rs`, and what an absent `zoom` means.
+ * The one rung the frontend has to know, because it decides whether a level is
+ * worth writing down; every other rung is Rust's alone.
+ */
+const ZOOM_ACTUAL_SIZE = 100;
+
 export type ViewMode = "board" | "list";
 export type ProjectWorkspace = {
   view?: ViewMode;
@@ -122,6 +129,20 @@ type DevicePreferences = {
     /** When it said it, ISO-8601. Only a success writes here. */
     fetchedAt: string;
   };
+
+  /**
+   * How large the app is drawn, as a percentage (LC-258c).
+   *
+   * Device-local because it is a fact about this screen and these eyes, not
+   * about a project that may sit on a shared disk. Absent is actual size, so a
+   * launch that has zoomed nothing writes nothing.
+   *
+   * **Checked twice, by the side that knows each half.** Here: that it is a
+   * whole percentage at all. Rust: that it is a rung of this build's ladder
+   * (`zoom.rs`), which is the only list of levels there is — a level it does
+   * not recognise is refused at restore and dropped from here (`zoom.ts`).
+   */
+  zoom?: number;
 };
 
 /**
@@ -135,6 +156,19 @@ let held: DevicePreferences = nothing();
 
 function isAppearance(value: unknown): value is Appearance {
   return value === "light" || value === "dark" || value === "system";
+}
+
+/**
+ * A whole percentage a webview could be drawn at. The ladder is Rust's; this
+ * only keeps out what could never be on it, so a string or a fraction is
+ * dropped on read rather than handed across IPC.
+ */
+function isStoredZoom(value: unknown): value is number {
+  return (
+    Number.isInteger(value) &&
+    (value as number) > 0 &&
+    (value as number) <= 1_000
+  );
 }
 
 /** Every field this build knows, taken from a document it must not trust. */
@@ -184,6 +218,7 @@ function adopt(stored: unknown): DevicePreferences {
       };
     }
   }
+  if (isStoredZoom(value.zoom)) adopted.zoom = value.zoom;
   const saved = value.projectWorkspaces;
   if (saved && typeof saved === "object" && !Array.isArray(saved)) {
     for (const [projectId, candidate] of Object.entries(
@@ -230,6 +265,7 @@ function isEmpty(preferences: DevicePreferences) {
     preferences.panelWidth === undefined &&
     preferences.updates === undefined &&
     preferences.stars === undefined &&
+    preferences.zoom === undefined &&
     Object.keys(preferences.projectWorkspaces).length === 0
   );
 }
@@ -246,6 +282,7 @@ function serialized(): Record<string, unknown> {
   if (held.panelWidth !== undefined) written.panelWidth = held.panelWidth;
   if (held.updates) written.updates = held.updates;
   if (held.stars) written.stars = held.stars;
+  if (held.zoom !== undefined) written.zoom = held.zoom;
   return written;
 }
 
@@ -499,5 +536,37 @@ export function rememberStarCount(
   fetchedAt = new Date().toISOString(),
 ) {
   held = { ...held, stars: { count, fetchedAt } };
+  flush();
+}
+
+/** The level the app was last left at, or `undefined` for actual size. */
+export function readZoom(): number | undefined {
+  return held.zoom;
+}
+
+/**
+ * Records the level a step landed on.
+ *
+ * Actual size deletes the key rather than writing `100`, the way on deletes
+ * `updates.automatic`: absent already means it, and a second spelling of one
+ * state is a thing the next reader has to work out. It also keeps a launch
+ * that has zoomed nothing from writing anything.
+ */
+export function rememberZoom(level: number) {
+  if (level === ZOOM_ACTUAL_SIZE) {
+    forgetZoom();
+    return;
+  }
+  if (held.zoom === level) return;
+  held = { ...held, zoom: level };
+  flush();
+}
+
+/** Drops the remembered level — actual size, or one this build refused. */
+export function forgetZoom() {
+  if (held.zoom === undefined) return;
+  const next = { ...held };
+  delete next.zoom;
+  held = next;
   flush();
 }

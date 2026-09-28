@@ -128,7 +128,7 @@ export function ProjectSettings(props: {
 
   /**
    * "Focus enters the first meaningful control"
-   * (`keyboard-focus-map.md:144-148`), which for this panel is the first
+   * (`keyboard-focus-map.md:147-151`), which for this panel is the first
    * control **of the section that was asked for** rather than a fixed field.
    * The Name input carried `autoFocus` while every section was on screen at
    * once; with a nav in front of them that would land a human who picked
@@ -602,7 +602,7 @@ function StatusSection() {
  * a shortcut only its author uses.
  *
  * It is a hand-copy of the map's § Global and § Board tables
- * (`keyboard-focus-map.md:29-35`, `:40-45`) and there is no way for it not to
+ * (`keyboard-focus-map.md:29-38`, `:43-48`) and there is no way for it not to
  * be — the map is prose for people, not a module. So it is written to be
  * *checkable* instead: one row per row of those two tables, in their order,
  * and it shipped missing `⌘↵` and the `J K H L` half of board movement.
@@ -624,6 +624,12 @@ const SHORTCUTS: { action: string; keys: string[] }[] = [
     keys: ["⌘", "1–9"],
   },
   { action: "Close one layer", keys: ["Esc"] },
+  // `=` rather than `+`, the key the View menu names too (LC-258c): `+` is
+  // `⇧=` on a US layout, and the chord does not ask for Shift. `⌘+` works as
+  // well — the map's row says so — but the pane names the key to press.
+  { action: "Zoom in", keys: ["⌘", "="] },
+  { action: "Zoom out", keys: ["⌘", "-"] },
+  { action: "Actual size", keys: ["⌘", "0"] },
   { action: "Move between tickets", keys: ["↑", "↓", "←", "→"] },
   { action: "…or without leaving the home row", keys: ["K", "J", "H", "L"] },
   { action: "Open the focused ticket", keys: ["↵"] },

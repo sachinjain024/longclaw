@@ -316,7 +316,7 @@ export function DatePicker(props: {
       setCursor((day) => addDays(day, step[event.key]));
       return;
     }
-    // A month, or a year with Shift (`keyboard-focus-map.md:183`). Both are
+    // A month, or a year with Shift (`keyboard-focus-map.md:186`). Both are
     // `addMonths`, which clamps, so a year off 29 February lands on the 28th
     // rather than on 1 March.
     if (event.key === "PageUp" || event.key === "PageDown") {
@@ -328,7 +328,7 @@ export function DatePicker(props: {
       return;
     }
     // The week's ends, which are the grid's own row rather than the seven days
-    // around the cursor (`keyboard-focus-map.md:184`): `Home` is the Monday it
+    // around the cursor (`keyboard-focus-map.md:187`): `Home` is the Monday it
     // opens on and `End` the Sunday it closes on, both from `startOfWeek`.
     if (event.key === "Home" || event.key === "End") {
       event.preventDefault();

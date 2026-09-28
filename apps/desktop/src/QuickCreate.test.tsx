@@ -725,7 +725,7 @@ describe("quick create prototype parity", () => {
     expect(priorityTrigger().getAttribute("aria-haspopup")).toBe("menu");
     // Status first, then priority — the meta grid's order everywhere else in
     // the app (`screen-specs.md:243`), and the Tab order the focus map states
-    // (`keyboard-focus-map.md:134`).
+    // (`keyboard-focus-map.md:137`).
     expect(
       statusTrigger().compareDocumentPosition(priorityTrigger()) &
         Node.DOCUMENT_POSITION_FOLLOWING,

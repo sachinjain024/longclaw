@@ -550,7 +550,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,250`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,135,253`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -2650,7 +2650,7 @@ export function App() {
                       onMoveTicket={moveCard}
                       // A column's `+` is the same quick create `C` opens,
                       // arriving with the column it was pressed in already
-                      // chosen (`keyboard-focus-map.md:45`).
+                      // chosen (`keyboard-focus-map.md:48`).
                       onCreateInStatus={(status) => {
                         // A whole draft, empty but for the column: "nothing
                         // typed yet" is `""`, `[]` and `{}` rather than absent,
@@ -3232,7 +3232,7 @@ function ProjectSection(props: {
 
   /**
    * `⌥↑` / `⌥↓` on a row, which is the whole of the keyboard's reorder and the
-   * same binding the panel's checklist carries (`keyboard-focus-map.md:63`).
+   * same binding the panel's checklist carries (`keyboard-focus-map.md:66`).
    * The row keeps focus across the move because React keys the list by project
    * id and moves the node rather than rewriting it.
    *
