@@ -3,7 +3,7 @@ format: longclaw.ticket/v1
 id: a9c8542b-32de-4866-a237-2dc090923f76
 key: LC-258c
 title: Zoom the app with ⌘+, ⌘- and ⌘0
-status: in_progress
+status: done
 priority: none
 labels:
   - frontend
@@ -11,7 +11,7 @@ labels:
   - design
 type: feature
 created_at: 2026-09-17T00:35:29.146Z
-updated_at: 2026-09-28T07:25:33Z
+updated_at: 2026-09-28T08:29:44.143Z
 ---
 
 `⌘+` and `⌘-` zoom the app in and out, and `⌘0` returns it to 100%. The level
@@ -165,4 +165,22 @@ Still open — none of it verifiable there (no WebKit, no macOS):
 - Double-firing: the menu accelerators rely on WebKit not re-dispatching a key equivalent the page `preventDefault`ed. In the bundle, one `⌘=` from 100% must land on 110%, not 125%.
 - Pre-render: `set_zoom` goes through the event loop; confirm a relaunch at 150% shows no frame at 100%.
 - The menu names `⌘=` (muda cannot spell Plus); the pane matches it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e5086815
+kind: update
+occurred_at: 2026-09-28T08:29:44.143Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Verified by hand in the dev app: ⌘+, ⌘- and ⌘0 zoom as specified. Closed with PR #71. The two unchecked items (a11y:audit and probe:header at the zoom ladder) were not run and remain open.
 <!-- /longclaw:event -->
