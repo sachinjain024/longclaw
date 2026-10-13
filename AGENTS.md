@@ -8,6 +8,14 @@ read straight from disk — `LC-69` is `.longclaw/tickets/LC-69/ticket.md`. Both
 backlogs were imported on 2026-08-05 as `LC-1`…`LC-58`; file new work as a ticket
 rather than as a Markdown file under `docs/plans/`.
 
+**A ticket's spec (PRD) is a file, and the ticket links to it.** When a ticket
+gets a spec — `/to-spec`, or any product brief written for it — write it to
+`docs/specs/<KEY>-<slug>.md` with `ticket: <KEY>` in its frontmatter, then edit
+the ticket so its description keeps the problem in a paragraph and links the
+spec (`**Spec:** [docs/specs/…](../../../docs/specs/…)`), and label it
+`ready-for-agent`. Do not paste the spec into `ticket.md` or file a second
+ticket for it. `LC-256a` and `LC-206` are the pattern.
+
 **A key minted from 2026-08-25 carries a trailing letter** — `LC-233` was the
 last of the old shape, and the next one looks like `LC-234x`. Keys are allocated
 from the directories in one working tree, so two branches off the same `main`
