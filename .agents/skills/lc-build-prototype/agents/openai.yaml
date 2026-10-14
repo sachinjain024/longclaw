@@ -1,0 +1,3 @@
+interface:
+  display_name: "Build Prototype"
+  short_description: "A reviewable HTML UX prototype for a ticket"
