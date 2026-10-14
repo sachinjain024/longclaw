@@ -1,7 +1,10 @@
 # Ticket prototypes
 
 One HTML file per ticket that proposes a visible change, named for its key.
-Each is standalone: open it in a browser, no server and no build.
+Each is standalone: open it in a browser, no server and no build. Build a new
+one with the `lc-build-prototype` skill (`.agents/skills/lc-build-prototype/`),
+which starts from a template carrying the driver, the copy deck and a feedback
+panel.
 
 They are **not** the v0 prototype. `docs/design/prototype/` is the end-to-end
 handoff bundle that the app was built from and that the design docs cite; these

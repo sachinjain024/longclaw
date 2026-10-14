@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-lc-theme="indigo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TODO(prototype) KEY — what the reviewer is looking at</title>
+
+<!-- The app's own fonts, tokens and stylesheet. Scenes render the markup the
+     components render, wearing the rules `styles.css` already carries, so what
+     is on screen is what would ship rather than a drawing of it. -->
+<link rel="stylesheet" href="../../design/foundations/proof/fonts.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/styles.css">
+
+<!-- ====================================================================
+     PROPOSED — the additions this ticket would ask of
+     `apps/desktop/src/styles.css`. Tokens only, no raw colour. Say above each
+     rule why it exists; say which rules are alternatives rather than a set.
+     ==================================================================== -->
+<style id="proposed">
+/* TODO(prototype) the CSS this ticket proposes */
+</style>
+
+<!-- ====================================================================
+     HARNESS — the review page itself. Not proposed, not shipped.
+     ==================================================================== -->
+<style id="harness">
+body {
+  margin: 0;
+  padding: 20px 24px 64px;
+  color: var(--lc-ink);
+  background: var(--lc-bg);
+  font: var(--lc-type-body-weight) var(--lc-type-body-size) /
+    var(--lc-type-body-leading) var(--lc-type-body-font);
+}
+
+.h-head { max-width: 900px; margin-bottom: 18px; }
+.h-eyebrow {
+  margin: 0 0 6px;
+  color: var(--lc-ink-3);
+  font: 500 11px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.h-head h1 { margin: 0 0 8px; font: 600 22px/1.25 var(--lc-font-display); letter-spacing: -0.02em; }
+.h-head p { margin: 0 0 8px; color: var(--lc-ink-2); font-size: var(--lc-type-small-size); line-height: 1.55; }
+
+.h-bar {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  border: var(--lc-border-hairline) dashed var(--lc-line-strong);
+  border-radius: var(--lc-radius-panel);
+  padding: 10px 12px;
+  background: var(--lc-surface);
+}
+.h-bar .h-tag {
+  margin: 0 4px 0 8px;
+  color: var(--lc-ink-3);
+  font: 500 10px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.h-bar .h-tag:first-child { margin-left: 0; }
+.h-bar .h-break { flex-basis: 100%; height: 0; }
+.h-bar button, .h-btn {
+  height: 24px;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 0 9px;
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  font: 500 11.5px var(--lc-font-ui);
+  cursor: pointer;
+}
+.h-bar button[aria-pressed="true"] {
+  border-color: var(--lc-accent-human);
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+}
+.h-bar .h-count {
+  margin-left: 4px;
+  border-radius: var(--lc-radius-full);
+  padding: 0 6px;
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+  font: 500 10px var(--lc-font-mono);
+}
+
+.h-note { max-width: 940px; margin: 0 0 12px; color: var(--lc-ink-3); font-size: 12px; line-height: 1.55; }
+.h-note strong { color: var(--lc-ink-2); }
+
+/* A scene's questions and the reviewer's answer to them, side by side, so
+   feedback is written against the question it answers. */
+.h-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  max-width: 1180px;
+  margin-bottom: 18px;
+  border: var(--lc-border-hairline) dashed var(--lc-line-strong);
+  border-radius: var(--lc-radius-panel);
+  padding: 12px 14px;
+  background: var(--lc-surface);
+}
+.h-review h2 {
+  margin: 0 0 6px;
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.h-review ol { margin: 0; padding-left: 18px; color: var(--lc-ink-2); font-size: 12.5px; line-height: 1.55; }
+.h-review textarea, .h-deck textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 84px;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 7px 9px;
+  color: var(--lc-ink);
+  background: var(--lc-bg);
+  font: 400 12.5px/1.5 var(--lc-font-ui);
+  resize: vertical;
+}
+.h-deck textarea { min-height: 30px; margin-top: 6px; }
+@media (max-width: 760px) { .h-review { grid-template-columns: 1fr; } }
+
+.h-rail { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 22px; }
+.h-col { display: grid; gap: 18px; }
+.h-case { display: grid; margin: 0; gap: 8px; }
+.h-case > figcaption {
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* A window-sized frame for a scene that shows the feature in the whole app.
+   Its width follows the driver's `window` control. */
+.h-window {
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-modal);
+  background: var(--lc-bg);
+  box-shadow: var(--lc-shadow-modal);
+}
+
+.h-deck {
+  overflow: auto;
+  max-width: 1180px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  background: var(--lc-surface);
+}
+.h-deck table { width: 100%; border-collapse: collapse; }
+.h-deck th {
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+  padding: 9px 14px;
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.h-deck td {
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line-soft);
+  padding: 9px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.h-deck td.id { color: var(--lc-ink-2); font: 400 11.5px var(--lc-font-mono); white-space: nowrap; }
+.h-deck td.where { color: var(--lc-ink-3); font-size: 12px; }
+.h-deck .rowhint { display: block; margin-top: 3px; color: var(--lc-ink-3); font-size: 11.5px; }
+.h-deck .st {
+  display: inline-block;
+  border-radius: var(--lc-radius-full);
+  padding: 1px 7px;
+  font: 500 10px var(--lc-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.h-deck .st-new { color: var(--lc-accent-human-text); background: var(--lc-accent-human-soft); }
+.h-deck .st-changed, .h-deck .st-moved { color: var(--lc-warn-ink); background: var(--lc-warn-surface); }
+.h-deck .st-existing { color: var(--lc-ink-3); background: var(--lc-wash); }
+
+.h-out {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1180px;
+  min-height: 320px;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-panel);
+  padding: 12px 14px;
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font: 400 12px/1.55 var(--lc-font-mono);
+}
+.h-actions { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
+.h-actions span { color: var(--lc-ink-3); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="h-head">
+  <p class="h-eyebrow">TODO(prototype) KEY · ux prototype</p>
+  <h1>TODO(prototype) the feature, in the words a reviewer would use</h1>
+  <p>
+    TODO(prototype) One paragraph: what this ticket changes for the person
+    using LongClaw, and where in the app it lives. Link the spec by path.
+  </p>
+  <p>
+    TODO(prototype) One paragraph: what the spec has already settled (not up
+    for review here) and what this page is asking you to decide.
+  </p>
+  <p>
+    <strong>How to review.</strong> Walk the scenes in order — <kbd>←</kbd>
+    <kbd>→</kbd> step through them. Try both appearances and the narrow window.
+    Write under <em>Your feedback</em> on any scene, or against a row in the copy
+    deck; the <em>Feedback</em> scene gathers everything into one Markdown note
+    to paste into the ticket. Notes stay in this browser until you clear them.
+  </p>
+</div>
+
+<div class="h-bar" id="driver"></div>
+<div id="stage"></div>
+
+<script>
+/* ------------------------------------------------------------------ the copy
+ * The one object the scenes and the deck both render from. Reply with an id to
+ * change a row (`attach.button.label → …`). `{name}` placeholders are filled
+ * from COPY.vars at render.
+ *
+ * kind:   button · field label · placeholder · empty state · note · write
+ *         feedback · refusal · menu row · menu hint · aria-label · title ·
+ *         live region · toast · CLI output …
+ * status: new · changed · moved · existing (a neighbour, here for tone)
+ */
+const KEY = "TODO(prototype) KEY";
+const COPY = {
+  vars: {
+    /* Realistic sample data the strings are filled with. */
+  },
+  rows: [
+    { id: "TODO.example", kind: "button", where: "TODO(prototype) where it appears", text: "TODO(prototype)", status: "new",
+      note: "Why it is worded this way, if that is not obvious." },
+  ],
+};
+
+/* ------------------------------------------------------------------ helpers */
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fill = (s) => String(s).replace(/\{(\w+)\}/g, (m, k) => (k in COPY.vars ? COPY.vars[k] : m));
+const ROW = {};
+COPY.rows.forEach((r) => { ROW[r.id] = r; });
+/* Every visible string goes through T, so an id that is not in the deck fails
+   loudly on screen rather than quietly reading as finished copy. */
+function T(id) {
+  if (!ROW[id]) { console.error("copy id not in the deck:", id); return "⟦" + id + "⟧"; }
+  return esc(fill(ROW[id].text));
+}
+
+/* ----------------------------------------------------------------- the state
+ * What the scenes read. Every toggle in the driver writes here; the stage is
+ * redrawn from it.
+ */
+const app = {
+  scene: null,
+  appearance: "light",
+  theme: "indigo",
+  width: 1180,
+  /* TODO(prototype) the feature's own states: e.g. items: "some", pending: false */
+};
+
+/* ---------------------------------------------------------------- the scenes
+ * One entry per scene, in the order a reviewer should walk them: the feature
+ * in place first, then each state, then the edges. `ask` is what the reviewer
+ * is asked to decide on this scene. `controls` are the scene's own toggles.
+ */
+const SCENES = [
+  {
+    id: "TODO",
+    label: "A · TODO(prototype) the feature in place",
+    notes: ["TODO(prototype) what this scene shows, and what it does not."],
+    ask: ["TODO(prototype) the question this scene puts to the reviewer"],
+    controls: [
+      /* { key: "items", label: "items", options: [["none", "none"], ["some", "a few"], ["many", "forty"]] } */
+    ],
+    render: () =>
+      '<div class="h-window" style="width:' + app.width + 'px">' +
+        "<!-- TODO(prototype) the app's real markup, with the proposed change in it -->" +
+      "</div>",
+  },
+];
+
+/* --------------------------------------------------------------- the review */
+const STORE = "lc-prototype-feedback:" + KEY;
+let feedback = {};
+try { feedback = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (e) { feedback = {}; }
+function saveFeedback() {
+  try { localStorage.setItem(STORE, JSON.stringify(feedback)); } catch (e) { /* the page still works */ }
+}
+const filled = () => Object.keys(feedback).filter((k) => feedback[k] && feedback[k].trim());
+
+function review(scene) {
+  const ask = scene.ask && scene.ask.length
+    ? "<ol>" + scene.ask.map((q) => "<li>" + q + "</li>").join("") + "</ol>"
+    : '<p class="h-note">Nothing in particular — anything you notice.</p>';
+  return '<div class="h-review">' +
+    "<div><h2>Decide here</h2>" + ask + "</div>" +
+    '<div><h2>Your feedback</h2><textarea name="scene:' + scene.id + '" data-fb="scene:' + scene.id + '" placeholder="What works, what does not, what you expected instead">' +
+      esc(feedback["scene:" + scene.id] || "") + "</textarea></div>" +
+  "</div>";
+}
+
+function deck() {
+  const rows = COPY.rows.map((r) =>
+    "<tr>" +
+      '<td class="id">' + esc(r.id) + "</td>" +
+      "<td>" + esc(r.kind) + "</td>" +
+      '<td class="where">' + esc(r.where) + "</td>" +
+      "<td>" + esc(fill(r.text)) +
+        (r.note ? '<span class="rowhint">' + esc(r.note) + "</span>" : "") +
+        '<textarea name="copy:' + esc(r.id) + '" data-fb="copy:' + esc(r.id) + '" placeholder="Suggest a rewrite">' + esc(feedback["copy:" + r.id] || "") + "</textarea>" +
+      "</td>" +
+      '<td><span class="st st-' + esc(r.status) + '">' + esc(r.status) + "</span></td>" +
+    "</tr>").join("");
+  return '<div class="h-deck"><table><thead><tr><th>Id</th><th>Kind</th><th>Where</th><th>Text</th><th>Status</th></tr></thead><tbody>' +
+    rows + "</tbody></table></div>";
+}
+
+function markdown() {
+  const out = ["## Prototype review — " + KEY, ""];
+  SCENES.forEach((s) => {
+    const v = (feedback["scene:" + s.id] || "").trim();
+    if (v) out.push("### " + s.label, "", v, "");
+  });
+  const copy = COPY.rows.filter((r) => (feedback["copy:" + r.id] || "").trim());
+  if (copy.length) {
+    out.push("### Copy", "");
+    copy.forEach((r) => out.push("- `" + r.id + "` (“" + fill(r.text) + "”) → " + feedback["copy:" + r.id].trim()));
+    out.push("");
+  }
+  if (out.length === 2) out.push("_No feedback written yet._");
+  return out.join("\n");
+}
+
+function feedbackScene() {
+  return '<div class="h-actions">' +
+      '<button class="h-btn" tabindex="0" data-act="copy-md">Copy as Markdown</button>' +
+      '<button class="h-btn" tabindex="0" data-act="clear-fb">Clear all feedback</button>' +
+      '<span id="h-copied" role="status"></span>' +
+    "</div>" +
+    '<textarea class="h-out" name="feedback-markdown" readonly>' + esc(markdown()) + "</textarea>";
+}
+
+/* --------------------------------------------------------------- the driver */
+const ALL = SCENES.concat([
+  { id: "deck", label: "Copy deck", notes: ["Every user-facing string this ticket proposes, including the ones no screen shows. The scenes render from this same object, so the deck cannot go stale against them. <code>existing</code> rows are neighbours, here for tone."] },
+  { id: "feedback", label: "Feedback", notes: ["Everything written on this page, as one note. Paste it into the ticket as a comment, or hand it back to the agent that built the prototype."] },
+]);
+app.scene = ALL[0].id;
+const sceneOf = (id) => ALL.find((s) => s.id === id);
+const THEMES = ["indigo", "clay", "slate", "plum", "graphite"];
+const WIDTHS = [[1440, "1440"], [1180, "1180 · default"], [760, "760 · min"]];
+
+function pressed(on) { return ' aria-pressed="' + on + '"'; }
+
+function renderDriver() {
+  const scene = sceneOf(app.scene);
+  const bar = ['<span class="h-tag">scene</span>'];
+  ALL.forEach((s) => {
+    const count = s.id === "feedback" && filled().length ? '<span class="h-count">' + filled().length + "</span>" : "";
+    bar.push('<button tabindex="0" data-scene="' + s.id + '"' + pressed(app.scene === s.id) + ">" + s.label + count + "</button>");
+  });
+  bar.push('<span class="h-break"></span><span class="h-tag">appearance</span>');
+  ["light", "dark"].forEach((a) => bar.push('<button tabindex="0" data-appearance="' + a + '"' + pressed(app.appearance === a) + ">" + a + "</button>"));
+  bar.push('<span class="h-tag">theme</span>');
+  THEMES.forEach((t) => bar.push('<button tabindex="0" data-theme-pick="' + t + '"' + pressed(app.theme === t) + ">" + t + "</button>"));
+  if (scene.render) {
+    bar.push('<span class="h-tag">window</span>');
+    WIDTHS.forEach(([w, label]) => bar.push('<button tabindex="0" data-width="' + w + '"' + pressed(app.width === w) + ">" + label + "</button>"));
+  }
+  (scene.controls || []).forEach((c) => {
+    bar.push('<span class="h-tag">' + esc(c.label) + "</span>");
+    c.options.forEach(([v, label]) => bar.push('<button tabindex="0" data-ctl="' + c.key + '" data-val="' + v + '"' + pressed(String(app[c.key]) === v) + ">" + esc(label) + "</button>"));
+  });
+  document.getElementById("driver").innerHTML = bar.join("");
+}
+
+function renderStage() {
+  const scene = sceneOf(app.scene);
+  const notes = (scene.notes || []).map((n) => '<p class="h-note">' + n + "</p>").join("");
+  let body;
+  if (scene.id === "deck") body = deck();
+  else if (scene.id === "feedback") body = feedbackScene();
+  else body = review(scene) + scene.render();
+  document.getElementById("stage").innerHTML = notes + body;
+}
+
+function render() {
+  document.documentElement.dataset.theme = app.appearance;
+  document.documentElement.dataset.lcTheme = app.theme;
+  renderDriver();
+  renderStage();
+}
+
+document.addEventListener("click", (event) => {
+  const el = event.target.closest("[data-scene], [data-appearance], [data-theme-pick], [data-width], [data-ctl], [data-act]");
+  if (!el) return;
+  const d = el.dataset;
+  if (d.scene) app.scene = d.scene;
+  else if (d.appearance) app.appearance = d.appearance;
+  else if (d.themePick) app.theme = d.themePick;
+  else if (d.width) app.width = Number(d.width);
+  else if (d.ctl) app[d.ctl] = d.val === "true" ? true : d.val === "false" ? false : d.val;
+  else if (d.act === "copy-md") {
+    const done = (msg) => { document.getElementById("h-copied").textContent = msg; };
+    navigator.clipboard.writeText(markdown()).then(() => done("Copied."), () => done("Select the text below and copy it."));
+    return;
+  } else if (d.act === "clear-fb") { feedback = {}; saveFeedback(); }
+  /* TODO(prototype) the feature's own stubbed actions: data-act="…" → change
+     `app`, then fall through to render(). No network, no disk. */
+  render();
+});
+
+/* Feedback is saved as it is typed, and only the driver's count is redrawn,
+   so the textarea keeps focus. */
+document.addEventListener("input", (event) => {
+  const key = event.target.dataset && event.target.dataset.fb;
+  if (!key) return;
+  feedback[key] = event.target.value;
+  saveFeedback();
+  renderDriver();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  if (event.target.closest && event.target.closest("input, textarea, select, [contenteditable]")) return;
+  const i = ALL.findIndex((s) => s.id === app.scene);
+  app.scene = ALL[(i + (event.key === "ArrowRight" ? 1 : ALL.length - 1)) % ALL.length].id;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
