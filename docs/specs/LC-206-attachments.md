@@ -278,7 +278,8 @@ exists to vet.
   its copy deck, before it reaches `src/`. The refusal messages, the
   unavailable-attachment state, the orphan wording and the git-size warning are
   the copy most likely to be argued over. Write the settled deck back into
-  LC-206.
+  LC-206. The prototype is
+  [`docs/ux/prototypes/LC-206-Attachments.html`](../ux/prototypes/LC-206-Attachments.html).
 - Natural slices for `/to-tickets`, blockers first: (1) the core attach and
   remove operations, with fixtures; (2) the CLI verb and the agent guide;
   (3) the URI scheme and the CSP; (4) rendering; (5) the Attachments section;

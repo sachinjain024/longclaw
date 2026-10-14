@@ -9,12 +9,14 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-13T16:47:27.625Z
+updated_at: 2026-10-14T12:46:39.388Z
 ---
 
 Users should be able to add attachments in description and comments: paste, drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; list, open, remove and re-attach them from an Attachments section in the panel. Agents get the same operation as `longclaw ticket attach`.
 
 **Spec:** [`docs/specs/LC-206-attachments.md`](../../../docs/specs/LC-206-attachments.md) covers the problem, user stories, implementation and testing decisions, and the two test seams: the core attach operation, shared by the app and the CLI, and the frontend render-and-insert path. It supersedes the "no attachment UI" half of ADR 0005.
+
+**Prototype:** [`docs/ux/prototypes/LC-206-Attachments.html`](../../../docs/ux/prototypes/LC-206-Attachments.html) — ten scenes and a copy deck, up for design and copy review before any of it reaches `src/`. Open it in a browser; the Feedback scene turns review notes into one Markdown block to paste here as a comment.
 
 Removal only unregisters; the bytes stay as a recoverable orphan. Permanent delete or trash is LC-276x.
 
@@ -107,4 +109,20 @@ changes:
     to: 2026-10-16
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b98fffe1
+kind: update
+occurred_at: 2026-10-14T12:46:39.388Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+UX prototype for review: docs/ux/prototypes/LC-206-Attachments.html. Ten scenes (in place, attach in the description, attach in a comment, rendering, the section in every state, remove/undo/re-attach, refusals, agent via CLI, while creating, and three placements for the Attach control) plus a 67-row copy deck. The asks that matter most: where the Attach control goes (scene J), whether Cancel after attaching should offer to remove the file (B), the words missing / not attached / unavailable (D, E), and hold-then-attach in the create surfaces (I).
 <!-- /longclaw:event -->
