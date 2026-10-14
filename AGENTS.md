@@ -92,12 +92,13 @@ Adding a docs page, a blog post or a release note is one Markdown file plus, for
 docs, one line in `DOCS_NAV` (`src/lib/site.ts`).
 
 **Four skills cover the routine work; use them rather than working from memory.**
-They are the only first-party skills in `.agents/skills/` — everything else there
+They and `lc-build-prototype` (below, under *UX prototypes*) are the only
+first-party skills in `.agents/skills/` — everything else there
 is vendored, and every vendored skill is tracked in `skills-lock.json` with the
 `source` it came from. `mattpocock/skills` is where nearly all of them come from;
 `caveman` came from `JuliusBrussee/caveman` and is the reason this sentence names
 the lockfile rather than one upstream. **The lockfile is the rule**: a skill under
-`.agents/skills/` that is neither one of the four above nor an entry there is
+`.agents/skills/` that is neither one of the five first-party skills nor an entry there is
 untracked, and that is the thing to fix.
 
 | Skill | For |
@@ -120,6 +121,11 @@ layout and the copy. `docs/ux/prototypes/README.md` covers the file's shape —
 one standalone HTML file per ticket, the app's own tokens and `styles.css`, the
 components' real markup, and the CSS it proposes in `<style id="proposed">`
 apart from the harness's own.
+
+**Build one with the `lc-build-prototype` skill** — it takes a ticket key or a
+spec path, starts from a template that already has the driver, the copy deck
+and a feedback panel that turns a reviewer's notes into Markdown for the
+ticket, and walks every scene in both appearances before handing over.
 
 **Every prototype also carries a copy deck**, in the prototype itself — the last
 scene in its driver bar, not a separate document. Collect into it every
