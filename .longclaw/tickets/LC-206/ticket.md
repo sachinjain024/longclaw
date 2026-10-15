@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T12:34:33.778Z
+updated_at: 2026-10-15T12:36:18.641Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -140,6 +140,11 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
 - [ ] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
 - [ ] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
+- [ ] Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open <!-- longclaw:item=ck_8c2b2bef -->
+- [ ] Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it <!-- longclaw:item=ck_b136d98b -->
+- [ ] Open item · test that an archived ticket's attachment links still render and serve (story 39) <!-- longclaw:item=ck_3c15004e -->
+- [ ] Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens <!-- longclaw:item=ck_858c3bc0 -->
+- [ ] Open item · run npm run audit:network on a built bundle, offline and online, before release (new URI scheme) <!-- longclaw:item=ck_6a95d5b1 -->
 ## Activity
 
 <!-- longclaw:event
@@ -418,4 +423,35 @@ changes:
 ### Claude Code updated this ticket
 
 Slice 4 landed in f18450a: images in a frame with an in-app viewer, videos that never autoplay, file chips that open in the default app, and Removed/Unavailable chips, in the description, its preview and comments. Open refuses file names macOS would run rather than show (extension allow-list; SVG and XML excluded because they open in Safari).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_63b450fa
+kind: update
+occurred_at: 2026-10-15T12:36:18.641Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8c2b2bef.added
+    to: "Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open"
+  - field: checklist.ck_b136d98b.added
+    to: "Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it"
+  - field: checklist.ck_3c15004e.added
+    to: Open item · test that an archived ticket's attachment links still render and serve (story 39)
+  - field: checklist.ck_858c3bc0.added
+    to: "Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens"
+  - field: checklist.ck_6a95d5b1.added
+    to: Open item · run npm run audit:network on a built bundle, offline and online, before release (new URI scheme)
+-->
+### Claude Code updated this ticket
+
+Open items after slice 4, added to the checklist to look at later:
+
+1. **Open allow-list.** `open_attachment` opens only names LaunchServices shows rather than runs (`fix.command` would run in Terminal; SVG and XML open in Safari, where a script runs). So a text chip for `.sh`, `.py`, `.rs`, `.html` etc. refuses Open and points at Show in Finder, while its aria-label still says *Opens in its default app*. The spec didn't ask for it and its copy is not in the deck. Decide whether to keep it, record it as a review decision, and add deck rows.
+2. **Viewer meta.** The viewer header shows `{type} · {size}`, which no deck row covers.
+3. **Archived tickets (story 39).** Archiving leaves the ticket in place, so links should keep working, but no test pins it.
+4. **Real webview.** The scheme and rendering are tested in Rust and jsdom only; nothing has been seen in WebKit yet.
+5. **audit:network.** Owed on a bundle before release, since slice 3 added a URI scheme.
 <!-- /longclaw:event -->
