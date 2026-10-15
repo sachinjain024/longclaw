@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T12:36:18.641Z
+updated_at: 2026-10-15T12:55:53.252Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -137,7 +137,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [x] 2 · CLI: `longclaw ticket attach` as a thin wrapper over the core operation, plus the agent guide — after 1 <!-- longclaw:item=ck_a74fb95d -->
 - [x] 3 · Serving: the attachment URI scheme and the CSP change, so the webview loads a ticket's own files and nothing else — after 1 <!-- longclaw:item=ck_2bf48f8c -->
 - [x] 4 · Rendering: full-width images, videos that never autoplay, file chips, Removed/Unavailable chips and the in-app viewer, in the description and in comments — after 3 <!-- longclaw:item=ck_e0ee20a9 -->
-- [ ] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
+- [x] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
 - [ ] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
 - [ ] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
 - [ ] Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open <!-- longclaw:item=ck_8c2b2bef -->
@@ -145,6 +145,10 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Open item · test that an archived ticket's attachment links still render and serve (story 39) <!-- longclaw:item=ck_3c15004e -->
 - [ ] Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens <!-- longclaw:item=ck_858c3bc0 -->
 - [ ] Open item · run npm run audit:network on a built bundle, offline and online, before release (new URI scheme) <!-- longclaw:item=ck_6a95d5b1 -->
+- [ ] Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html <!-- longclaw:item=ck_fef87636 -->
+- [ ] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass) <!-- longclaw:item=ck_b585edab -->
+- [ ] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — confirm or add rows <!-- longclaw:item=ck_a135eea2 -->
+- [ ] Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) <!-- longclaw:item=ck_74e5808b -->
 ## Activity
 
 <!-- longclaw:event
@@ -454,4 +458,30 @@ Open items after slice 4, added to the checklist to look at later:
 3. **Archived tickets (story 39).** Archiving leaves the ticket in place, so links should keep working, but no test pins it.
 4. **Real webview.** The scheme and rendering are tested in Rust and jsdom only; nothing has been seen in WebKit yet.
 5. **audit:network.** Owed on a bundle before release, since slice 3 added a URI scheme.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6be1876a
+kind: update
+occurred_at: 2026-10-15T12:55:53.252Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_51e4f1af.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_fef87636.added
+    to: Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html
+  - field: checklist.ck_b585edab.added
+    to: Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass)
+  - field: checklist.ck_a135eea2.added
+    to: "Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — confirm or add rows"
+  - field: checklist.ck_74e5808b.added
+    to: Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo)
+-->
+### Claude Code updated this ticket
+
+Slice 5 landed in ebe1338: the References section (collapsed with a count, opens when a file or doc lands, five rows then View all, one ⋮ per row with View/Open, Show in Finder, Remove and Re-attach, Undo/⌘Z for Remove, Added in a comment, and the external-write accent). Orphans now carry size and sniffed type; new reattach_attachment command. Open items added to the checklist: doc rows' Open/Show in Finder (slice 7), a11y:audit rows for the section, undo-toast copy, and where not-attached rows sit.
 <!-- /longclaw:event -->
