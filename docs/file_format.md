@@ -500,7 +500,7 @@ added_by:
   id: claude-code
   name: Claude Code
 -->
-[LC-206-attachments.md](<../../../docs/specs/LC-206-attachments.md>)
+[LC-206-attachments.md](../../../docs/specs/LC-206-attachments.md)
 <!-- /longclaw:reference -->
 ```
 

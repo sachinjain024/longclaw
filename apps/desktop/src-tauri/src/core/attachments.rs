@@ -38,9 +38,9 @@ pub struct PreparedAttachment {
     /// does, the bytes are an orphan.
     pub write: TicketWrite,
     pub attachment: Attachment,
-    /// The link to paste where the file is written about: an image link for an
-    /// image, a plain one for anything else. Always this form — an agent is
-    /// told one shape, and the renderer decides how it looks.
+    /// The link to paste where the file is written about — the plain link
+    /// form whatever the type (`cli.attach.markdown`). An agent is told one
+    /// shape, and the renderer decides from the registry how it looks.
     pub markdown_link: String,
 }
 
@@ -104,6 +104,60 @@ pub fn prepare_attachment(
     }
     storage::atomic_write("Attaching a file", &target, bytes)?;
     Ok(prepared(write, attachment))
+}
+
+/// [`prepare_attachment`] for a file on disk: the CLI's argument, or what the
+/// app's file picker returns. The size is judged from the file system before a
+/// byte is read, so a 4 GB video is refused without loading it. `name` is the
+/// display name, and defaults to the file's own.
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_attachment_file(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+    source: &Path,
+    name: Option<&str>,
+    expected_hash: &str,
+    now: &str,
+    author: &Actor,
+) -> AppResult<PreparedAttachment> {
+    let shown = source.display().to_string();
+    let name = display_name(name.unwrap_or_else(|| {
+        source
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(FALLBACK_NAME)
+    }));
+    let metadata = fs::metadata(source).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            not_found(format!("{shown} does not exist"))
+        } else {
+            AppError::io("Reading the file to attach", source, error)
+        }
+    })?;
+    if !metadata.is_file() {
+        return Err(AppError::new(
+            ErrorCode::UnsupportedMediaType,
+            format!("{shown} is a folder; attach the files in it one at a time"),
+            true,
+        )
+        .with_context("fileName", name));
+    }
+    if metadata.len() > ATTACHMENT_SIZE_LIMIT {
+        return Err(too_large(&name, metadata.len()));
+    }
+    let bytes = fs::read(source)
+        .map_err(|error| AppError::io("Reading the file to attach", source, error))?;
+    prepare_attachment(
+        project_root,
+        project_key,
+        key,
+        &bytes,
+        &name,
+        expected_hash,
+        now,
+        author,
+    )
 }
 
 /// Registers a file already under `attachments/` — an orphan — without
@@ -344,17 +398,14 @@ pub fn sanitized_name(name: &str) -> String {
     }
 }
 
-/// The link a caller pastes for an attachment.
+/// The link a caller pastes for an attachment: `[name](./attachments/…)`,
+/// never the image form, for the reason [`PreparedAttachment::markdown_link`]
+/// gives.
 pub fn markdown_link(attachment: &Attachment) -> String {
-    let bang = if attachment.media_type.starts_with("image/") {
-        "!"
-    } else {
-        ""
-    };
     format!(
-        "{bang}[{}](<./{}>)",
+        "[{}]({})",
         ticket::link_text(&attachment.name),
-        ticket::link_destination(&attachment.file)
+        ticket::attachment_href(&attachment.file)
     )
 }
 

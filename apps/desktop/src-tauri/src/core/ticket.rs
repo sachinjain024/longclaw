@@ -2329,9 +2329,9 @@ fn render_attachment(attachment: &Attachment) -> String {
     record.push_str(HEADER_TERMINATOR);
     record.push('\n');
     record.push_str(&format!(
-        "[{}](<./{}>)\n",
+        "[{}]({})\n",
         link_text(&attachment.name),
-        link_destination(&attachment.file)
+        attachment_href(&attachment.file)
     ));
     record.push_str(ATTACHMENT_CLOSE);
     record.push('\n');
@@ -2359,7 +2359,7 @@ fn render_reference(reference: &Reference) -> String {
         format!("{TICKET_TO_PROJECT}{}", reference.path)
     };
     record.push_str(&format!(
-        "[{}](<{}>)\n",
+        "[{}]({})\n",
         link_text(reference.name()),
         link_destination(&target)
     ));
@@ -2390,10 +2390,26 @@ pub(crate) fn link_text(text: &str) -> String {
     escaped
 }
 
-/// A destination for the `<…>` form, which allows spaces and parentheses and
-/// ends only at an unescaped `>`.
+/// Where a link to an attachment points, from the description, a comment or
+/// the record itself: `./attachments/…`, as a destination.
+pub(crate) fn attachment_href(file: &str) -> String {
+    link_destination(&format!("./{file}"))
+}
+
+/// A link destination, bare when it can be — the form the copy deck shows and
+/// a person types — and in `<…>` when CommonMark would end or bend a bare one:
+/// a space, a parenthesis, an angle bracket, a backslash or a control
+/// character.
 pub(crate) fn link_destination(path: &str) -> String {
-    path.replace('<', "\\<").replace('>', "\\>")
+    let bare = !path.is_empty()
+        && !path.chars().any(|c| {
+            c.is_whitespace() || c.is_control() || matches!(c, '(' | ')' | '<' | '>' | '\\')
+        });
+    if bare {
+        path.to_owned()
+    } else {
+        format!("<{}>", path.replace('<', "\\<").replace('>', "\\>"))
+    }
 }
 
 /// Renders a brand-new ticket in the documented key order. This is the one place
@@ -5891,7 +5907,7 @@ mod record_tests {
         // code host reaches it too.
         assert!(
             rendered
-                .contains("[LC-206-attachments.md](<../../../docs/specs/LC-206-attachments.md>)\n"),
+                .contains("[LC-206-attachments.md](../../../docs/specs/LC-206-attachments.md)\n"),
             "{rendered}"
         );
         let event = next.ticket().last_activity().expect("an event");

@@ -214,18 +214,17 @@ fn an_image_a_text_and_a_video_each_register_with_the_type_their_bytes_have() {
     assert!(detail.missing_attachments.is_empty());
     assert!(detail.orphan_attachments.is_empty());
     // The link a person reading the file follows.
-    assert!(project.raw().contains(&format!(
-        "[Failure state.png](<./{}>)",
-        image.attachment.file
-    )));
+    assert!(project
+        .raw()
+        .contains(&format!("[Failure state.png](./{})", image.attachment.file)));
     // And the link the caller pastes, which is the same one.
     assert_eq!(
         image.markdown_link,
-        format!("![Failure state.png](<./{}>)", image.attachment.file)
+        format!("[Failure state.png](./{})", image.attachment.file)
     );
     assert_eq!(
         text.markdown_link,
-        format!("[debug log.txt](<./{}>)", text.attachment.file)
+        format!("[debug log.txt](./{})", text.attachment.file)
     );
 }
 

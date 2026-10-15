@@ -78,6 +78,16 @@ longclaw ticket edit LC-1 \
   --agent-id your-tool-id --agent-name "Your Tool"
 ```
 
+Attach a file with `longclaw ticket attach <KEY> <file> --agent-id <id>`.
+It copies, checks and registers the file and prints the Markdown link to
+paste. Write an attachment record by hand only when the CLI is not
+installed.
+
+```sh
+longclaw ticket attach LC-1 ./failure-state.png \
+  --agent-id your-tool-id --agent-name "Your Tool"
+```
+
 ## This project's vocabulary
 
 ### Labels

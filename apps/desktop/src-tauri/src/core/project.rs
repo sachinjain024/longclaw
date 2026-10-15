@@ -1186,6 +1186,16 @@ pub fn render_agent_contract(project: &Project) -> String {
             "  --agent-id your-tool-id --agent-name \"Your Tool\"\n",
             "```\n",
             "\n",
+            "Attach a file with `longclaw ticket attach <KEY> <file> --agent-id <id>`.\n",
+            "It copies, checks and registers the file and prints the Markdown link to\n",
+            "paste. Write an attachment record by hand only when the CLI is not\n",
+            "installed.\n",
+            "\n",
+            "```sh\n",
+            "longclaw ticket attach {example_key} ./failure-state.png \\\n",
+            "  --agent-id your-tool-id --agent-name \"Your Tool\"\n",
+            "```\n",
+            "\n",
             "## This project's vocabulary\n",
             "\n",
         ),
@@ -1840,9 +1850,9 @@ mod tests {
         assert!(contract.contains("longclaw help"), "{contract}");
         assert!(contract.contains("longclaw ticket create"), "{contract}");
         assert!(contract.contains("longclaw ticket edit LC-1"), "{contract}");
-        // Both worked examples attribute themselves, because an entry without
-        // `--agent-id` says a human did the work.
-        assert_eq!(contract.matches("--agent-id your-tool-id").count(), 2);
+        // Every worked example — create, edit and attach — attributes itself,
+        // because an entry without `--agent-id` says a human did the work.
+        assert_eq!(contract.matches("--agent-id your-tool-id").count(), 3);
 
         // The two enums `longclaw help` prints appear once each, in the
         // hand-editing fallback where there is no `longclaw help` to read.
@@ -1947,6 +1957,22 @@ mod tests {
         // nothing that could disagree with the file it includes.
         assert!(pointer.contains("@AGENTS.md"), "{pointer}");
         assert!(pointer.lines().count() < 10, "{pointer}");
+    }
+
+    /// LC-206: the guide names `ticket attach` first, and the hand-written
+    /// procedure stays as the fallback for a machine without the CLI.
+    #[test]
+    fn the_generated_agent_contract_names_attach_before_the_hand_procedure() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+        let verb = contract
+            .find("Attach a file with `longclaw ticket attach <KEY> <file> --agent-id <id>`.")
+            .expect("the guide names the verb");
+        let by_hand = contract
+            .find("Copy the file into the ticket's `attachments/` directory")
+            .expect("the hand procedure is kept");
+        assert!(verb < by_hand);
+        assert!(contract.contains("longclaw ticket attach LC-1 ./failure-state.png"));
     }
 
     /// The example carries a readable ticket, and the same file says what a

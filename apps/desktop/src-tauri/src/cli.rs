@@ -39,6 +39,7 @@ use chrono::{SecondsFormat, Utc};
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
+use crate::core::attachments;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
 use crate::core::ticket::{
@@ -83,6 +84,11 @@ TICKETS
                     [--edit-item <item-id> --item-text <text>]
                     [--remove-item <item-id>]
                     [--archive | --unarchive] [--path <dir>]
+  ticket attach <KEY> <FILE> [--name <name>] [--path <dir>]
+                    Copy a text, image or video file of up to 10 MB into the
+                    ticket, register it, and print the record and the Markdown
+                    link to paste where you write about it. The type is judged
+                    from the file's content, not its name.
   ticket list       [--path <dir>]
   ticket show <KEY> [--path <dir>]
   ticket renumber <KEY> --id <uuid> [--path <dir>]
@@ -159,6 +165,7 @@ pub fn dispatch(arguments: &[String]) -> AppResult<Option<Value>> {
         ("label", "add") => label_add(rest).map(Some),
         ("ticket", "create") => ticket_create(rest).map(Some),
         ("ticket", "edit") => ticket_edit(rest).map(Some),
+        ("ticket", "attach") => ticket_attach(rest).map(Some),
         ("ticket", "list") => ticket_list(rest).map(Some),
         ("ticket", "show") => ticket_show(rest).map(Some),
         ("ticket", "renumber") => ticket_renumber(rest).map(Some),
@@ -397,6 +404,49 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         &project_key,
         &key
     )?))
+}
+
+/// The copy deck's `cli.attach.usage`, which is also the answer to a call
+/// missing either of its two positionals.
+const ATTACH_USAGE: &str = "Usage: longclaw ticket attach <KEY> <FILE> [--name <NAME>] \
+                            --agent-id <ID> [--agent-name <NAME>]";
+
+/// LC-206's agent surface. A thin wrapper: the core reads, judges, copies and
+/// prepares the registration, and this places it — exactly what `ticket edit`
+/// does with the write it is handed — and prints what an agent needs next.
+fn ticket_attach(arguments: &[String]) -> AppResult<Value> {
+    let options = Options::parse(arguments, &["path", "name", "agent-id", "agent-name"], &[])?;
+    let [key, file] = options.positional.as_slice() else {
+        return Err(usage_error(ATTACH_USAGE));
+    };
+    let name = options.one("name")?;
+    if let Some(name) = name {
+        single_line("name", name)?;
+    }
+    let (root, document) = open_project(&options)?;
+    let project_key = document.project().key.clone();
+    let current = storage::read_ticket_detail(&root, &project_key, key)?;
+    let prepared = attachments::prepare_attachment_file(
+        &root,
+        &project_key,
+        key,
+        Path::new(file),
+        name,
+        &current.content_hash,
+        &now(),
+        &author(&options)?,
+    )?;
+    // The bytes are in. If this write is refused, they stay as an orphan the
+    // panel offers to re-attach — the order the format asks for.
+    storage::atomic_replace(
+        &prepared.write.path,
+        &prepared.write.bytes,
+        prepared.write.expected_hash.as_deref().unwrap_or_default(),
+    )?;
+    Ok(json!({
+        "attachment": prepared.attachment,
+        "markdown": prepared.markdown_link,
+    }))
 }
 
 fn ticket_list(arguments: &[String]) -> AppResult<Value> {

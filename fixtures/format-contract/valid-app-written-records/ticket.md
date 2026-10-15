@@ -9,7 +9,7 @@ created_at: 2026-10-15T08:00:00Z
 updated_at: 2026-10-15T08:02:00Z
 ---
 
-![Failure state.png](<./attachments/att_8e31c0aa-failure-state.png>)
+![Failure state.png](./attachments/att_8e31c0aa-failure-state.png)
 
 ## Attachments
 
@@ -24,7 +24,7 @@ added_by:
   type: human
   id: local
 -->
-[Failure state.png](<./attachments/att_8e31c0aa-failure-state.png>)
+[Failure state.png](./attachments/att_8e31c0aa-failure-state.png)
 <!-- /longclaw:attachment -->
 
 ## Ticket References
@@ -38,7 +38,7 @@ added_by:
   id: claude-code
   name: Claude Code
 -->
-[LC-208-records.md](<../../../docs/specs/LC-208-records.md>)
+[LC-208-records.md](../../../docs/specs/LC-208-records.md)
 <!-- /longclaw:reference -->
 
 ## Activity
