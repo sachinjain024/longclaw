@@ -703,7 +703,7 @@ body {
 <body>
 
 <div class="h-head">
-  <p class="h-eyebrow">LC-206 · ux prototype · review 2</p>
+  <p class="h-eyebrow">LC-206 · ux prototype · review 3</p>
   <h1>Attachments: adding, showing and removing a ticket's files</h1>
   <p>
     A human can attach a screenshot, a recording or a log to a ticket wherever
@@ -727,10 +727,22 @@ body {
     questions your answers opened — the biggest is scene A’s first.
   </p>
   <p>
+    <strong>Review 2 (2026-10-15) is applied.</strong> Docs written for a
+    ticket (a spec, a prototype) are recorded references listed in References
+    after the files, not links in the description, and agents add them with
+    <code>longclaw ticket reference</code>. Undo is back on Remove, on the toast
+    and with <kbd>⌘Z</kbd>. <em>Attached</em> stays until the next re-render.
+    The viewer, the five-row count and the comment-source behaviour are
+    settled. Rows rewritten this round are marked <em>review 2</em> in the deck.
+  </p>
+  <p>
     <strong>Spec changes this implies</strong>, to make once the review settles:
-    References and derived doc rows (new); story 25 and the format's git-size
-    warning dropped; story 28 (undo with ⌘Z) dropped; paste with ⌘V,
+    References, with doc references as a new record in <code>ticket.md</code>
+    and a <code>ticket reference</code> CLI verb (a format change, and the
+    AGENTS.md rule that a ticket links its spec in the description changes with
+    it); story 25 and the format's git-size warning dropped; paste with ⌘V,
     comment-source links, the five-row cap and the collapsed default added.
+    Story 28 (undo) stays.
   </p>
   <p>
     <strong>How to review.</strong> Walk the scenes in order; <kbd>←</kbd>
@@ -785,8 +797,8 @@ const COPY = {
     /* ---- while it copies, and after */
     { id: "attach.status.pending", kind: "write feedback (live region)", where: "a row under the field while a file copies", text: "Attaching {name} · {size}…", status: "new",
       note: "The size is there because it is what explains the wait." },
-    { id: "attach.status.done", kind: "write feedback (live region)", where: "the same row, for a moment, when the file lands", text: "Attached {name}", status: "new", r1: true,
-      note: "Review 1, B3: replaces the toast. The row says it, then goes; it is not restored by a re-render or a reopen of the panel, because it is news about a gesture and not a fact about the ticket." },
+    { id: "attach.status.done", kind: "write feedback (live region)", where: "the same row, for a moment, when the file lands", text: "Attached {name}", status: "new", r2: true,
+      note: "Review 2: replaces the toast, and stands for as long as this view does — the next re-render or refresh takes it away, and nothing brings it back, because it is news about a gesture and not a fact about the ticket." },
     { id: "attach.status.dismiss.aria", kind: "aria-label", where: "the ✕ on a refused row", text: "Dismiss", status: "new" },
     { id: "attach.status.summary", kind: "live region", where: "announced once when a multi-file drop settles", text: "{ok} of {total} files attached. {refused} could not be.", status: "new",
       note: "One sentence for the batch, so five files is not five interruptions. The per-file rows still say which one and why." },
@@ -812,7 +824,7 @@ const COPY = {
     { id: "render.chip.aria", kind: "aria-label", where: "a file chip", text: "{name}, {type}, {size}. Opens in its default app", status: "new" },
     { id: "render.chip.title", kind: "title", where: "hover on a file chip", text: "Open in the default app", status: "new" },
     { id: "render.removed", kind: "chip text", where: "a link to a file that was removed from the ticket but is still in attachments/", text: "Removed", status: "new", r1: true,
-      note: "Review 1, F: answers “should we show (Removed) there?” — yes. The app can tell the two cases apart: the link's file still exists unregistered (removed) or does not exist at all (unavailable)." },
+      note: "Review 1, F: yes. The app can tell the two cases apart: the link's file still exists unregistered (removed) or does not exist at all (unavailable)." },
     { id: "render.removed.aria", kind: "aria-label", where: "the same chip", text: "{name}, removed from this ticket", status: "new", r1: true },
     { id: "render.unavailable", kind: "chip text", where: "a link to an attachment whose file is missing", text: "Unavailable", status: "new", r1: true,
       note: "Review 1, D2: one word, with the warning glyph. The name moves to the title and the accessible name." },
@@ -827,9 +839,9 @@ const COPY = {
 
     /* ---- the section */
     { id: "section.heading", kind: "section heading (toggle)", where: "ticket panel, between Description and Checklist", text: "References", status: "new", r1: true,
-      note: "Review 1, A1: files and the docs the ticket links to, in one list. The heading is the collapse toggle." },
+      note: "Review 1, A1: files and the docs written for the ticket, in one list, files first. The heading is the collapse toggle." },
     { id: "section.add", kind: "button", where: "the section heading's right end", text: "Attach", status: "new" },
-    { id: "section.empty", kind: "empty state", where: "the section, expanded, when the ticket has none", text: "Nothing here yet. Paste or drop a file into the description or a comment, or press Attach. Docs the description links to are listed here too.", status: "new", r1: true },
+    { id: "section.empty", kind: "empty state", where: "the section, expanded, when the ticket has none", text: "Nothing here yet. Paste or drop a file into the description or a comment, or press Attach. Specs and other docs written for this ticket are listed here too.", status: "new", r2: true },
     { id: "section.more", kind: "button", where: "under the fifth row, when there are more", text: "View all {count}", status: "new", r1: true, note: "Review 1, E3." },
     { id: "section.less", kind: "button", where: "the same place, expanded", text: "Show fewer", status: "new", r1: true },
     { id: "row.meta", kind: "row meta", where: "under each file's name", text: "{type} · {size} · {who} · {age}", status: "new",
@@ -837,9 +849,10 @@ const COPY = {
     { id: "row.source.comment", kind: "link", where: "beside a file's name, when it came in through a comment", text: "Added in a comment", status: "new", r1: true,
       note: "Review 1, C2. Pressing it scrolls the record to that comment and marks it." },
     { id: "row.source.comment.aria", kind: "aria-label", where: "the same link", text: "Go to the comment that added {name}", status: "new", r1: true },
-    { id: "doc.meta", kind: "row meta", where: "under a linked doc's name", text: "{path} · linked in the description", status: "new", r1: true },
-    { id: "doc.label.spec", kind: "row name (sample)", where: "a linked doc's name is its link text", text: "Product spec", status: "new", r1: true,
-      note: "Not a string the app writes — the link text the author wrote. Here so the review can see what a doc row reads like." },
+    { id: "doc.meta", kind: "row meta", where: "under a doc reference's name", text: "{path} · {who} · {age}", status: "new", r2: true,
+      note: "Review 2: a doc is a recorded reference, not a link found in the description, so it has an author and an age like a file does." },
+    { id: "doc.label.spec", kind: "row name (sample)", where: "a doc reference's name, given when it is recorded", text: "Product spec", status: "new", r2: true,
+      note: "Not a string the app writes — the --name the agent passed. Here so the review can see what a doc row reads like." },
     { id: "row.menu.aria", kind: "aria-label", where: "the ⋮ at a row's right end", text: "Actions for {name}", status: "new", r1: true },
     { id: "menu.view", kind: "menu row", where: "an image's menu", text: "View", status: "new", r1: true, note: "Opens the in-app viewer." },
     { id: "menu.open", kind: "menu row", where: "a video's, text file's or doc's menu", text: "Open", status: "new", r1: true, note: "In the default app." },
@@ -856,8 +869,9 @@ const COPY = {
     { id: "row.reattach", kind: "menu row", where: "a not-attached file's menu", text: "Re-attach", status: "new" },
 
     /* ---- remove, re-attach */
-    { id: "toast.removed", kind: "toast", where: "after Remove", text: "{key} removed · {name}", status: "new", r1: true,
-      note: "Review 1, F1: no Undo. The toast stays, without the action, because the description's Removed chip may be off screen." },
+    { id: "toast.removed", kind: "toast", where: "after Remove", text: "{key} removed · {name}", status: "new", r2: true,
+      note: "Review 2: Undo is back — on this toast and on ⌘Z, like every other ticket edit (story 28)." },
+    { id: "toast.undo", kind: "toast action", where: "the remove toast", text: "Undo", status: "existing" },
     { id: "toast.reattached", kind: "toast", where: "after Re-attach", text: "{key} re-attached · {name}", status: "new" },
     { id: "activity.attached", kind: "activity entry", where: "the Activity tab", text: "attached {name}", status: "new" },
     { id: "activity.removed", kind: "activity entry", where: "the Activity tab", text: "removed {name}", status: "new",
@@ -872,6 +886,9 @@ const COPY = {
     { id: "cli.attach.usage", kind: "CLI help", where: "longclaw ticket attach, with no arguments", text: "Usage: longclaw ticket attach <KEY> <FILE> [--name <NAME>] --agent-id <ID> [--agent-name <NAME>]", status: "new" },
     { id: "cli.attach.markdown", kind: "CLI output (JSON field)", where: "the attach command's result, key markdown", text: "[{name}](./attachments/{file})", status: "new", r1: true,
       note: "Review 1, H2: always the link form, for every kind of file. An agent that wants an inline image adds the !." },
+    { id: "cli.reference.usage", kind: "CLI help", where: "longclaw ticket reference, with no arguments", text: "Usage: longclaw ticket reference <KEY> <PATH> --name <NAME> --agent-id <ID> [--agent-name <NAME>]", status: "new", r2: true,
+      note: "Review 2: how a spec or a prototype gets into References. The path is a file in the project; nothing is copied." },
+    { id: "agents.guide.reference", kind: "agent guide line", where: ".longclaw/AGENTS.md, References", text: "When you write a spec, a prototype or another doc for a ticket, record it with `longclaw ticket reference <KEY> <path> --name \"Product spec\" --agent-id <id>` instead of linking it in the description.", status: "new", r2: true },
     { id: "agents.guide", kind: "agent guide line", where: ".longclaw/AGENTS.md, Attachments", text: "Attach a file with `longclaw ticket attach <KEY> <file> --agent-id <id>`. It copies, checks and registers the file and prints the Markdown link to paste. Write an attachment record by hand only when the CLI is not installed.", status: "new" },
 
     /* ---- the neighbours, for tone */
@@ -916,11 +933,11 @@ const F = {
   zip:    { name: "trace.png", type: "application/zip", size: "640 KB", kind: "other" },
   long:   { name: "Screenshot 2026-10-12 at 14.31.07 — board, Manual order, column scrolled three rows.png", file: "att_77e0-screenshot-2026-10-12.png", type: "image/png", size: "3.1 MB", who: "You", age: "just now", kind: "image" },
 };
-/* Docs the description links to. Their rows are derived from the links, not
-   registered — see scene A's first ask. */
+/* Docs written for the ticket, recorded as references (review 2) — not links
+   in the description. */
 const DOCS = [
-  { name: "Product spec", path: "docs/specs/LC-312-drop-index.md", kind: "doc" },
-  { name: "UX prototype", path: "docs/ux/prototypes/LC-312-Drop-Target.html", kind: "doc" },
+  { name: "Product spec", path: "docs/specs/LC-312-drop-index.md", kind: "doc", who: "Claude Code", age: "3d" },
+  { name: "UX prototype", path: "docs/ux/prototypes/LC-312-Drop-Target.html", kind: "doc", who: "Claude Code", age: "2d" },
 ];
 
 /* ----------------------------------------------------------------- the state */
@@ -1064,12 +1081,13 @@ function viewerOverlay(f) {
 function win(panel, extra) {
   return '<div class="h-window" style="width:' + app.width + "px;--ticket-panel-width-drawn:" + Math.max(560, Math.min(720, Math.round(app.width * 0.88))) + 'px">' +
     '<div class="app-frame"><main class="app-shell">' + sidePanel() + board() + (extra && extra.modal ? extra.modal : "") + "</main>" + statusBar() + "</div>" +
-    (panel || "") + (extra && extra.toast ? toast(extra.toast) : "") + (app.viewer ? viewerOverlay(F.shot) : "") + "</div>";
+    (panel || "") + (extra && extra.toast ? toast(extra.toast, extra.undo) : "") + (app.viewer ? viewerOverlay(F.shot) : "") + "</div>";
 }
 
-/* No Undo on any toast this ticket adds (review 1, F1). */
-function toast(message) {
-  return '<div class="toast-stack" role="status" aria-live="polite"><div class="toast"><span class="toast-message">' + message + "</span></div></div>";
+/* Undo on the remove toast (review 2); the re-attach toast has none. */
+function toast(message, undo) {
+  return '<div class="toast-stack" role="status" aria-live="polite"><div class="toast"><span class="toast-message">' + message + "</span>" +
+    (undo ? '<button tabindex="0" class="toast-action" data-act="undo">' + T("toast.undo") + " <kbd>⌘Z</kbd></button>" : "") + "</div></div>";
 }
 
 /* -------------------------------------------------------------- the panel */
@@ -1101,15 +1119,13 @@ function descView(o = {}) {
   return '<div class="description-view"><div class="markdown"><p><span>' + DESC_LEAD + "</span></p>" +
     (o.shotGone ? "<p>" + staleNode(F.shot, true) + "</p>" : imageNode(F.shot)) +
     (o.withDrop ? "<p><span>Where it should have gone:</span></p>" + imageNode(F.drop) : "") +
-    "<p><span>Console from the drop, with the computed rank: </span>" + chipNode(F.log) + "</p>" +
-    "<p><span>Spec: </span>" + chipNode(DOCS[0]) + "<span> · Prototype: </span>" + chipNode(DOCS[1]) + "</p></div></div>";
+    "<p><span>Console from the drop, with the computed rank: </span>" + chipNode(F.log) + "</p></div></div>";
 }
 
 function descSource(insert) {
   return DESC_LEAD + "\n\n" + raw("attach.link.image", { name: F.shot.name, file: F.shot.file }) +
     "\n\nWhere it should have gone:\n\n" + (insert || "") +
-    "\n\nConsole from the drop, with the computed rank: " + raw("attach.link.file", { name: F.log.name, file: F.log.file }) +
-    "\n\nSpec: [" + DOCS[0].name + "](../../../" + DOCS[0].path + ") · Prototype: [" + DOCS[1].name + "](../../../" + DOCS[1].path + ")";
+    "\n\nConsole from the drop, with the computed rank: " + raw("attach.link.file", { name: F.log.name, file: F.log.file });
 }
 
 function descEditor(o) {
@@ -1142,7 +1158,7 @@ function refRow(f, o = {}) {
   const isDoc = f.kind === "doc";
   const glyph = isDoc ? G.link : f.kind === "image" && state !== "missing" ? thumbSvg() : f.kind === "video" ? G.film : state === "missing" ? G.warn : G.doc;
   let meta;
-  if (isDoc) meta = T("doc.meta", { path: f.path });
+  if (isDoc) meta = T("doc.meta", { path: f.path, who: f.who, age: f.age });
   else if (state === "missing") meta = T("state.missing.meta", { type: f.type, who: f.who, age: f.age });
   else if (state === "orphan" && o.removed) meta = T("state.removed.meta", { age: "just now", type: f.type, size: f.size });
   else if (state === "orphan") meta = T("state.orphan.meta", { type: f.type, size: f.size });
@@ -1155,7 +1171,7 @@ function refRow(f, o = {}) {
   const item = (label, act, hint) =>
     '<button type="button" class="menu-row" role="menuitem" tabindex="-1"' + (act ? ' data-act="' + act + '"' : "") + '><span class="menu-label">' + label + "</span>" + (hint ? '<span class="menu-hint">' + hint + "</span>" : "") + "</button>";
   let items;
-  if (isDoc) items = item(T("menu.open")) + item(T("viewer.reveal"));
+  if (isDoc) items = item(T("menu.open")) + item(T("viewer.reveal")) + '<hr class="menu-rule">' + item(T("row.remove"), null, T("row.remove.hint"));
   else if (state === "orphan") items = item(T("viewer.reveal")) + item(T("row.reattach"), acts.reattach);
   else if (state === "missing") items = item(T("row.remove"), acts.remove, T("row.remove.hint"));
   else items = item(f.kind === "image" ? T("menu.view") : T("menu.open"), f.kind === "image" ? "viewer" : null) + item(T("viewer.reveal")) + '<hr class="menu-rule">' + item(T("row.remove"), acts.remove, T("row.remove.hint"));
@@ -1288,7 +1304,6 @@ function sceneD() {
     box("an image — press it", "<p><span>Dropped one row high:</span></p>" + imageNode(F.shot)) +
     box("a video — still until Play is pressed", videoNode(F.video)) +
     box("a text file, inline in a sentence", "<p><span>Console from the drop: </span>" + chipNode(F.log) + "<span> — the rank is on line 41.</span></p>") +
-    box("a doc the ticket links to", "<p><span>Spec: </span>" + chipNode(DOCS[0]) + "</p>") +
     box("a link to a removed file, and to a missing one", "<p><span>Before the drop: </span>" + staleNode(F.shot, true) + "</p><p><span>And after: </span>" + staleNode(F.before, false) + "</p>") +
     "</div>" +
     (app.viewer ? '<div style="margin-top:22px">' + win(panel()) + "</div>" : "");
@@ -1323,7 +1338,7 @@ function sceneF() {
     : s === "reattached" ? [change("You", false, T("activity.reattached", { name: F.shot.name }), "just now"), change("You", false, T("activity.removed", { name: F.shot.name }), "1m")]
     : [];
   const t = s === "removed" ? T("toast.removed", { name: F.shot.name }) : s === "reattached" ? T("toast.reattached", { name: F.shot.name }) : null;
-  return win(panel({ view: { shotGone: s === "removed" }, section: section(rows, s === "removed" ? 4 : 5), record: record({ activity }) }), t ? { toast: t } : undefined);
+  return win(panel({ view: { shotGone: s === "removed" }, section: section(rows, s === "removed" ? 4 : 5), record: record({ activity }) }), t ? { toast: t, undo: s === "removed" } : undefined);
 }
 
 function sceneG() {
@@ -1370,10 +1385,17 @@ function sceneH() {
     '    "code": "too_large",\n' +
     '    "message": "' + T("refuse.too_large", { name: F.big.name, size: F.big.size }) + '",\n' +
     '    "recoverable": true\n' +
+    "  }\n}\n\n" +
+    '<span class="p">$</span> longclaw ticket reference LC-312 docs/specs/LC-312-drop-index.md \\\n    --name "Product spec" --agent-id claude-code\n' +
+    "{\n" +
+    '  "reference": {\n' +
+    '    "id": "ref_91c2",\n' +
+    '    "path": "docs/specs/LC-312-drop-index.md",\n' +
+    '    "name": "Product spec"\n' +
     "  }\n}";
   return '<div class="h-rail">' +
     '<figure class="h-case"><figcaption>the agent, in its terminal</figcaption><pre class="h-term">' + term + "</pre>" +
-    '<figcaption style="margin-top:10px">.longclaw/AGENTS.md, generated</figcaption><div class="h-panelbox"><p style="margin:0;font-size:12.5px;line-height:1.55">' + T("agents.guide") + "</p></div></figure>" +
+    '<figcaption style="margin-top:10px">.longclaw/AGENTS.md, generated</figcaption><div class="h-panelbox"><p style="margin:0 0 8px;font-size:12.5px;line-height:1.55">' + T("agents.guide") + '</p><p style="margin:0;font-size:12.5px;line-height:1.55">' + T("agents.guide.reference") + "</p></div></figure>" +
     '<figure class="h-case"><figcaption>the human, a beat later, with the panel open</figcaption>' +
     win(panel({ ack: true, section: section(rows, rows.length), record: record({ tab: "activity", activity }) })) + "</figure></div>";
 }
@@ -1402,24 +1424,23 @@ const SCENES = [
   {
     id: "a", label: "A · In place", refs: false,
     notes: [
-      "<strong>Review 1:</strong> the section is now <strong>References</strong> — the ticket’s files and the docs its description links to (a spec, a prototype) in one list. It is <strong>collapsed by default</strong>: press the heading to open it, press again to close. The screenshot now spans the column in a padded frame.",
-      "LC-312: a screenshot in the description, a log chip inline in a sentence, links to its spec and prototype, a recording in a comment. Open References to see all five; each row has a ⋮ at its right end. Press the screenshot for the in-app viewer.",
+      "<strong>Review 2:</strong> the spec and the prototype are no longer links in the description. They are <strong>recorded references</strong> — added by whoever wrote them (here, an agent, with <code>longclaw ticket reference</code>; scene H) — and listed in References after the files. Removing one drops the reference and never the doc.",
+      "LC-312: a screenshot in the description, a log chip inline in a sentence, a recording in a comment, and two docs written for the ticket. References is collapsed by default — press the heading. Each row has a ⋮ at its right end.",
     ],
     ask: [
-      "<strong>Where does a doc reference come from?</strong> Drawn: it is <em>derived</em> from links in the description and comments to files in the project (no format change; delete the link and the row goes). The alternative is a registry of links in <code>ticket.md</code>, like attachments — more control, a format change. Which?",
-      "Order: files first, then docs (drawn) — or docs first, since a spec is what a reader opens first?",
-      "Collapsed by default hides the count’s meaning until opened. Is “References 5” enough of a hint?",
+      "<strong>How does a human add a doc?</strong> Drawn: nothing in the app — docs arrive through the CLI, from whoever writes them. Should the section’s <em>Attach</em> also offer <em>Add a doc…</em>, picking a file inside the project and recording it without copying it?",
+      "A doc reference points at a file elsewhere in the project. If that file is moved or deleted, the row reads <em>missing</em>, as a file does. Right?",
     ],
     render: sceneA,
   },
   {
     id: "b", label: "B · Attach in the description", refs: true,
     notes: [
-      "<strong>Review 1:</strong> no toast. The row under the field says <em>Attaching…</em>, then <em>Attached</em> for a moment, then goes — and does not come back on a re-render. References opens by itself when the file lands. <strong>⌘V</strong> in the field pastes (stubbed: press ⌘V in the description while editing).",
+      "<strong>Review 2:</strong> no toast. The row under the field says <em>Attaching…</em>, then <em>Attached</em> — which stays until the view re-renders for any other reason, and never comes back. References opens by itself when the file lands. <strong>⌘V</strong> in the field pastes (stubbed: press ⌘V in the description while editing).",
       "Do it: press <strong>Edit</strong>, then the paperclip (or ⌘V). Cancel after attaching keeps the file on the ticket — accepted in review 1.",
     ],
     ask: [
-      "How long should <em>Attached</em> stand before it goes? Drawn: 2.5 seconds.",
+      "Nothing new — <em>Attached</em> now stays until the next re-render (press anything else in the window).",
     ],
     controls: [{ key: "desc", label: "step", options: [["view", "reading"], ["edit", "editing"], ["drag", "dragging"], ["pending", "attaching"], ["done", "attached"], ["saved", "saved"]] }],
     render: sceneB,
@@ -1431,16 +1452,16 @@ const SCENES = [
       "<strong>⌘V of plain text still pastes text.</strong> Only a copied file (an image, a video or a text file copied in Finder or a screenshot tool) becomes an attachment.",
     ],
     ask: [
-      "Until the comment is posted, the file is attached but in no comment — so it has no source link (drawn). Fine, or should an unposted comment’s files wait like the create flow’s do?",
+      "Nothing new — settled in review 2.",
     ],
     controls: [{ key: "com", label: "step", options: [["idle", "typing"], ["drag", "dragging"], ["pending", "attaching"], ["ready", "attached"], ["posted", "posted"]] }],
     render: sceneC,
   },
   {
     id: "d", label: "D · How they render", refs: false,
-    notes: ["<strong>Review 1:</strong> the viewer opens from an image wherever it is — description or comment. A video never autoplays. A stale link is one word: <strong>Removed</strong> when the file is still in <code>attachments/</code> but no longer on the ticket, <strong>Unavailable</strong> when the file is gone. A linked doc is a chip that opens in its default app."],
+    notes: ["<strong>Review 1:</strong> the viewer opens from an image wherever it is — description or comment. A video never autoplays. A stale link is one word: <strong>Removed</strong> when the file is still in <code>attachments/</code> but no longer on the ticket, <strong>Unavailable</strong> when the file is gone. Settled in review 2."],
     ask: [
-      "“In-place” read as: the viewer opens from the image’s own place, over the window (drawn). If you meant the image expands inline in the column instead, say so — that caps it at the column’s width.",
+      "Nothing new — settled in review 2.",
     ],
     controls: [{ key: "viewer", label: "viewer", options: [["false", "closed"], ["true", "open"]] }],
     render: sceneD,
@@ -1449,7 +1470,7 @@ const SCENES = [
     id: "e", label: "E · References, every state", refs: true,
     notes: ["<strong>Review 1:</strong> every row ends in a ⋮ — press one for <em>View / Open</em>, <em>Show in Finder</em> and <em>Remove</em>. Five rows show; the rest are behind <em>View all</em>. <code>forty</code> shows the cap; <code>missing + not attached</code> shows the two broken states with the docs between them."],
     ask: [
-      "Should <em>not attached</em> and <em>missing</em> rows count toward the five, or always show (drawn: they count, in list order)?",
+      "Nothing new — broken rows count toward the five (review 2).",
     ],
     controls: [
       { key: "files", label: "references", options: [["empty", "none"], ["one", "one"], ["several", "five"], ["broken", "missing + not attached"], ["forty", "forty"]] },
@@ -1460,9 +1481,9 @@ const SCENES = [
   },
   {
     id: "f", label: "F · Remove and re-attach", refs: true,
-    notes: ["<strong>Review 1:</strong> no Undo, no confirmation. Do it: press ⋮ on <code>failure-state.png</code> → <strong>Remove</strong>. The row moves to the end as <em>not attached</em>, the image in the description becomes a <strong>Removed</strong> chip, and a toast says so (no action on it). ⋮ → <strong>Re-attach</strong> brings it back. Switch <code>record</code> to <code>activity</code> for the attributed entries."],
+    notes: ["<strong>Review 2:</strong> Undo is back, with no confirmation. Do it: press ⋮ on <code>failure-state.png</code> → <strong>Remove</strong>. The row moves to the end as <em>not attached</em>, the image in the description becomes a <strong>Removed</strong> chip, and a toast offers <strong>Undo</strong> — or press <kbd>⌘Z</kbd>. Undo puts the row back where it was. ⋮ → <strong>Re-attach</strong> brings it back. Switch <code>record</code> to <code>activity</code> for the attributed entries."],
     ask: [
-      "With no Undo, ⌘Z after Remove does nothing here. Should ⌘Z still re-attach, as it undoes other ticket edits — or is Re-attach in the menu the only way back?",
+      "Nothing new — try Undo, ⌘Z, and Re-attach after the toast has gone.",
     ],
     controls: [
       { key: "rm", label: "step", options: [["listed", "listed"], ["removed", "removed"], ["reattached", "re-attached"]] },
@@ -1481,7 +1502,7 @@ const SCENES = [
   },
   {
     id: "h", label: "H · When an agent attaches", refs: true,
-    notes: ["<strong>Review 1:</strong> the CLI always prints the link form. Otherwise unchanged: the existing acknowledgement, the agent rail on the new row, and the Activity entry. References opens by itself because a file landed."],
+    notes: ["<strong>Review 2:</strong> a second verb, <code>longclaw ticket reference</code>, records a doc the agent wrote — the spec here — without copying it; the AGENTS.md guide gains a line for it. <strong>Review 1:</strong> the CLI always prints the link form. Otherwise unchanged: the existing acknowledgement, the agent rail on the new row, and the Activity entry. References opens by itself because a file landed."],
     ask: ["Nothing new."],
     render: sceneH,
   },
@@ -1530,7 +1551,7 @@ function deck() {
         (r.note ? '<span class="rowhint">' + esc(r.note) + "</span>" : "") +
         '<textarea rows="1" name="copy:' + esc(r.id) + '" data-fb="copy:' + esc(r.id) + '" placeholder="Suggest a rewrite">' + esc(feedback["copy:" + r.id] || "") + "</textarea>" +
       "</td>" +
-      '<td><span class="st st-' + esc(r.status) + '">' + esc(r.status) + "</span>" + (r.r1 ? '<br><span class="st st-changed">review 1</span>' : "") + "</td>" +
+      '<td><span class="st st-' + esc(r.status) + '">' + esc(r.status) + "</span>" + (r.r2 ? '<br><span class="st st-changed">review 2</span>' : r.r1 ? '<br><span class="st st-changed">review 1</span>' : "") + "</td>" +
     "</tr>").join("");
   return '<div class="h-deck"><table><thead><tr><th>Id</th><th>Kind</th><th>Where</th><th>Text</th><th>Status</th></tr></thead><tbody>' +
     rows + "</tbody></table></div>";
@@ -1614,18 +1635,17 @@ function render() {
 
 /* The stubbed copy: an attach "takes" a beat, then lands, says so for a
    moment, and the References section opens on it. */
-let flashTimer = null;
 function later(fn, ms = 1400) {
   clearTimeout(timer);
   timer = setTimeout(() => { fn(); render(); }, ms);
 }
+/* "Attached" stands until the view re-renders for any other reason (review
+   2): the next click that redraws the page takes it away. */
 function land(fn) {
   later(() => {
     fn();
     app.flash = true;
     app.refsOpen = true;
-    clearTimeout(flashTimer);
-    flashTimer = setTimeout(() => { app.flash = false; render(); }, 2500);
   });
 }
 function enterScene(id) {
@@ -1633,12 +1653,13 @@ function enterScene(id) {
   const s = sceneOf(id);
   app.refsOpen = !!(s && s.refs);
   app.menu = null; app.showAll = false; app.viewer = false; app.target = null; app.flash = false;
-  clearTimeout(timer); clearTimeout(flashTimer);
+  clearTimeout(timer);
 }
 
 document.addEventListener("click", (event) => {
   /* A click anywhere but the open menu closes it, as the app's menus do. */
   let dirty = false;
+  app.flash = false;
   if (app.menu && !event.target.closest(".menu-popover, [data-act='menu']")) { app.menu = null; dirty = true; }
   const el = event.target.closest("[data-scene], [data-appearance], [data-theme-pick], [data-width], [data-ctl], [data-act]");
   if (!el) { if (dirty) render(); return; }
@@ -1669,6 +1690,8 @@ document.addEventListener("click", (event) => {
   else if (d.act === "remove" && app.scene === "f") { app.rm = "removed"; app.menu = null; }
   else if (d.act === "reattach" && app.scene === "f") { app.rm = "reattached"; app.menu = null; }
   else if (d.act === "unhold") app.held = false;
+  /* Undo puts the record back where it was, as restore_attachment does. */
+  else if (d.act === "undo" && app.scene === "f" && app.rm === "removed") app.rm = "listed";
   else if (d.act === "tab-activity") app.record = "activity";
   else if (d.act === "tab-comments") app.record = "comments";
   else if (d.act === "goto") {
@@ -1695,6 +1718,9 @@ document.addEventListener("keydown", (event) => {
   /* ⌘V in a field that takes files stands in for pasting a copied file
      (review 1, C1, I1). In the app, plain text on the clipboard still pastes
      as text; only a file becomes an attachment. */
+  if (app.scene === "f" && app.rm === "removed" && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z" && !(event.target.closest && event.target.closest("input, textarea"))) {
+    event.preventDefault(); app.rm = "listed"; render(); return;
+  }
   const paste = event.target.dataset && event.target.dataset.paste;
   if (paste && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v") {
     event.preventDefault();

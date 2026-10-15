@@ -140,3 +140,17 @@ actor:
 
 Prototype review 1 (2026-10-15) applied to docs/ux/prototypes/LC-206-Attachments.html: Attachments renamed References (files + docs the description links to), collapsed by default and auto-expanding when a file lands; 5 rows then View all; one ⋮ menu per row; 'Added in a comment' links back to the comment; full-width padded images; transient Attaching/Attached row instead of a toast; no Undo; stale links read Removed or Unavailable; Git LFS warning dropped; CLI prints the link form; ⌘V paste in description, comments and create; Attach control settled as the 7th toolbar button. Kept Remove (not Delete) and Show in Finder (not Open in Finder), pending reply. Open: how doc references are recorded (derived from links vs a registry). Spec changes once settled: References, stories 25 and 28 dropped, paste/source/cap/collapse added.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b3f18227
+kind: comment
+occurred_at: 2026-10-15T08:13:36.845Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype review 2 (2026-10-15) applied: specs, prototypes and other docs written for a ticket become recorded references in References (after the files), added with a new 'longclaw ticket reference' verb, not links in the description: a format change, and AGENTS.md's spec-linking rule changes with it. Undo is back on Remove (toast and ⌘Z). 'Attached' stays until the next re-render. Viewer, five-row count and comment-source behaviour settled. Open: how a human adds a doc in the app, and whether a moved doc reads 'missing'.
+<!-- /longclaw:event -->
