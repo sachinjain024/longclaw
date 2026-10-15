@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T13:25:55.659Z
+updated_at: 2026-10-15T13:31:46.746Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -156,6 +156,10 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile <!-- longclaw:item=ck_876e059e -->
 - [ ] Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict <!-- longclaw:item=ck_bcde4f1c -->
 - [ ] Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group (existing A1–A8 pass) <!-- longclaw:item=ck_53819021 -->
+- [ ] Question · should a doc reference open in its default app? A spec (.md) opens in an editor, but a prototype (.html) opens in Safari, which the file-chip allow-list refuses — decide one rule for chips and doc rows <!-- longclaw:item=ck_3a8834a1 -->
+- [ ] Question · an older installed LongClaw rewrites .longclaw/AGENTS.md from its own template, dropping the attach and reference guidance this branch adds — should a build leave a generated contract newer than itself alone? <!-- longclaw:item=ck_e78aad3a -->
+- [ ] Question · Undo of a Remove re-opens References and pins the restored row past the five, as any landing does — keep, or treat a restore as not news? <!-- longclaw:item=ck_5472f846 -->
+- [ ] Question · 'Added in a comment' is inferred (the earliest comment linking the file, when the description does not) rather than recorded — is that enough, or should an attach record which comment it came in with? <!-- longclaw:item=ck_00b8c65e -->
 ## Activity
 
 <!-- longclaw:event
@@ -523,4 +527,32 @@ changes:
 ### Claude Code updated this ticket
 
 Slice 6 landed in fc17db0: ⌘V, drop and the toolbar's Attach button in the description editor, the composer and both create surfaces (held files with a tray), with Attaching/Attached rows and refusals that stay until dismissed. Review changes: the file picker now runs in Rust and the webview only ever holds a token per file, never a path; saves wait for an attach in flight instead of being dropped; Save and Comment hold while a placeholder is in the text; over-limit files are refused before they are held. Open items added to the checklist: the picker's button label, held files across Open full editor, links for held files, toast refusals after Create, the late panel open, the conflict window after an attach, and an a11y:audit row.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_831bd614
+kind: update
+occurred_at: 2026-10-15T13:31:46.746Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3a8834a1.added
+    to: Question · should a doc reference open in its default app? A spec (.md) opens in an editor, but a prototype (.html) opens in Safari, which the file-chip allow-list refuses — decide one rule for chips and doc rows
+  - field: checklist.ck_e78aad3a.added
+    to: Question · an older installed LongClaw rewrites .longclaw/AGENTS.md from its own template, dropping the attach and reference guidance this branch adds — should a build leave a generated contract newer than itself alone?
+  - field: checklist.ck_5472f846.added
+    to: Question · Undo of a Remove re-opens References and pins the restored row past the five, as any landing does — keep, or treat a restore as not news?
+  - field: checklist.ck_00b8c65e.added
+    to: Question · 'Added in a comment' is inferred (the earliest comment linking the file, when the description does not) rather than recorded — is that enough, or should an attach record which comment it came in with?
+-->
+### Claude Code updated this ticket
+
+Questions waiting on a decision, added to the checklist as 'Question ·' items alongside the open items from slices 4–6:
+
+1. **Opening docs.** Should a doc reference open in its default app? A spec opens in an editor, but a prototype is .html and opens in Safari, which the file-chip allow-list refuses. One rule should cover chips and doc rows. Slice 7 needs the answer before doc rows get Open.
+2. **Agent guide skew.** The installed app, built from main, regenerates .longclaw/AGENTS.md with its older template. That removes the attach guidance this branch adds, and it happened twice this session. Should a build leave a generated contract newer than itself alone?
+3. **Undo of Remove.** It re-opens References and shows the restored row past the five, as any landing does. Keep that, or treat a restore as not news?
+4. **Added in a comment.** This is inferred from which comment links the file rather than recorded at attach time. Is that enough, or should the attach record its comment?
 <!-- /longclaw:event -->
