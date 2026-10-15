@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T12:55:53.252Z
+updated_at: 2026-10-15T13:25:55.659Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -138,7 +138,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [x] 3 · Serving: the attachment URI scheme and the CSP change, so the webview loads a ticket's own files and nothing else — after 1 <!-- longclaw:item=ck_2bf48f8c -->
 - [x] 4 · Rendering: full-width images, videos that never autoplay, file chips, Removed/Unavailable chips and the in-app viewer, in the description and in comments — after 3 <!-- longclaw:item=ck_e0ee20a9 -->
 - [x] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
-- [ ] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
+- [x] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
 - [ ] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
 - [ ] Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open <!-- longclaw:item=ck_8c2b2bef -->
 - [ ] Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it <!-- longclaw:item=ck_b136d98b -->
@@ -149,6 +149,13 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass) <!-- longclaw:item=ck_b585edab -->
 - [ ] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — confirm or add rows <!-- longclaw:item=ck_a135eea2 -->
 - [ ] Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) <!-- longclaw:item=ck_74e5808b -->
+- [ ] Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt): the dialog plugin cannot set it <!-- longclaw:item=ck_d5eae1c0 -->
+- [ ] Open item · held files are lost when quick create's 'Open full editor →' carries the draft over <!-- longclaw:item=ck_52202cc1 -->
+- [ ] Open item · held files attached after Create land in References but no link is added to the description <!-- longclaw:item=ck_34a39e99 -->
+- [ ] Open item · a held file refused after Create is reported in a toast (no field is left to show the row under), against 'no toast for an attach' <!-- longclaw:item=ck_fcf8e3d5 -->
+- [ ] Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile <!-- longclaw:item=ck_876e059e -->
+- [ ] Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict <!-- longclaw:item=ck_bcde4f1c -->
+- [ ] Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group (existing A1–A8 pass) <!-- longclaw:item=ck_53819021 -->
 ## Activity
 
 <!-- longclaw:event
@@ -484,4 +491,36 @@ changes:
 ### Claude Code updated this ticket
 
 Slice 5 landed in ebe1338: the References section (collapsed with a count, opens when a file or doc lands, five rows then View all, one ⋮ per row with View/Open, Show in Finder, Remove and Re-attach, Undo/⌘Z for Remove, Added in a comment, and the external-write accent). Orphans now carry size and sniffed type; new reattach_attachment command. Open items added to the checklist: doc rows' Open/Show in Finder (slice 7), a11y:audit rows for the section, undo-toast copy, and where not-attached rows sit.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c6b7d15b
+kind: update
+occurred_at: 2026-10-15T13:25:55.659Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8cbc2320.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d5eae1c0.added
+    to: "Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt): the dialog plugin cannot set it"
+  - field: checklist.ck_52202cc1.added
+    to: Open item · held files are lost when quick create's 'Open full editor →' carries the draft over
+  - field: checklist.ck_34a39e99.added
+    to: Open item · held files attached after Create land in References but no link is added to the description
+  - field: checklist.ck_fcf8e3d5.added
+    to: Open item · a held file refused after Create is reported in a toast (no field is left to show the row under), against 'no toast for an attach'
+  - field: checklist.ck_876e059e.added
+    to: Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile
+  - field: checklist.ck_bcde4f1c.added
+    to: Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict
+  - field: checklist.ck_53819021.added
+    to: Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group (existing A1–A8 pass)
+-->
+### Claude Code updated this ticket
+
+Slice 6 landed in fc17db0: ⌘V, drop and the toolbar's Attach button in the description editor, the composer and both create surfaces (held files with a tray), with Attaching/Attached rows and refusals that stay until dismissed. Review changes: the file picker now runs in Rust and the webview only ever holds a token per file, never a path; saves wait for an attach in flight instead of being dropped; Save and Comment hold while a placeholder is in the text; over-limit files are refused before they are held. Open items added to the checklist: the picker's button label, held files across Open full editor, links for held files, toast refusals after Create, the late panel open, the conflict window after an attach, and an a11y:audit row.
 <!-- /longclaw:event -->
