@@ -637,3 +637,42 @@ changes:
 
 Slice 7 landed in d446412: `longclaw ticket reference`, the agent guide line with a by-hand References fallback, the Add menu (Attach a file… / Add a reference…), doc rows' missing and outside-project states, and Open and Show in Finder on doc rows (which closes the slice-5 open item; whether .html opens is still the open Question). LC-206's own spec is now recorded as a reference. All seven slices are done. Open items from this slice are on the checklist: how 'outside project' is decided, symlinked references, toast refusals from the Add menu, the picker's button label, and an a11y:audit row.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7ea85a6c
+kind: comment
+occurred_at: 2026-10-15T13:48:18.403Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+All seven slices have landed. Everything still open is on the checklist (Open item · / Question ·), gathered here in one place.
+
+**Questions — need a decision**
+1. Which files may open in their default app? An extension allow-list refuses .sh, .py, .rs and .html, plus SVG and XML, because Safari runs scripts. That covers file chips and doc rows alike, and a prototype (.html) is a doc row.
+2. An older installed LongClaw regenerates .longclaw/AGENTS.md from its own template and drops the attach and reference guidance. Should a build leave a newer generated guide alone?
+3. Undo of a Remove re-opens References and pins the restored row past the five. Keep that, or treat a restore as not news?
+4. Is 'Added in a comment' worked out from links enough, or should an attach record the comment it came in with?
+
+**Before release**
+- Exercise it in a real webview: an image renders, a video seeks, and the viewer opens.
+- Run npm run audit:network on a built bundle, offline and online.
+- Add a11y:audit rows for the Attach button, the References toggle, a row's ⋮ menu, focus after Remove, and the Add menu.
+- Add a test that an archived ticket's attachment links still render (story 39).
+
+**Copy outside the deck**
+- The viewer's {type} · {size} meta.
+- The toasts for undoing a Remove.
+- The picker confirm buttons 'Attach' and 'Add reference', which the dialog plugin cannot set.
+
+**Behaviour to settle**
+- Held files: they are lost on Open full editor, no link is added to the description, a refusal after Create shows as a toast, and the panel opens late.
+- Refusals from the Add menu's Attach a file… are toasts.
+- Not-attached rows sit after all files.
+- The read after an attach keeps drafts, and does not raise an outside edit that lands in that window as a conflict.
+- 'outside project' is decided from the path's shape.
+- Symlinked references are stored by their target.
+<!-- /longclaw:event -->
