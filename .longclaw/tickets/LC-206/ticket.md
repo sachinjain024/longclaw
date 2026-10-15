@@ -9,12 +9,12 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T13:31:46.746Z
+updated_at: 2026-10-15T13:47:19.252Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
 
-**Spec:** [`docs/specs/LC-206-attachments.md`](../../../docs/specs/LC-206-attachments.md) covers the problem, user stories, implementation and testing decisions, and the test seams. It supersedes the "no attachment UI" half of ADR 0005.
+**Spec:** `docs/specs/LC-206-attachments.md`, recorded under References, covers the problem, user stories, implementation and testing decisions, and the test seams. It supersedes the "no attachment UI" half of ADR 0005.
 
 **Prototype:** reviewed in four rounds and settled on 2026-10-15; the decisions and the copy deck are below. The prototype was deleted; its last version is `docs/ux/prototypes/LC-206-Attachments.html` at commit `26c6abc`.
 
@@ -130,7 +130,6 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 | `ack.agent` | banner | the panel, after an agent's change | ❯ updated by Claude Code · just now · via file edit | existing |
 | `format.link` | aria-label | the toolbar button the paperclip sits beside | Link | existing |
 
-
 ## Checklist
 
 - [x] 1 · Core: attach, remove and restore an attachment, and the reference record (add, remove, restore), with the ADR superseding 0005's UI half, the file_format.md changes (References section; git-size bullet removed) and format fixtures — no blockers <!-- longclaw:item=ck_b5b81061 -->
@@ -139,13 +138,13 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [x] 4 · Rendering: full-width images, videos that never autoplay, file chips, Removed/Unavailable chips and the in-app viewer, in the description and in comments — after 3 <!-- longclaw:item=ck_e0ee20a9 -->
 - [x] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
 - [x] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
-- [ ] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
+- [x] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
 - [ ] Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open <!-- longclaw:item=ck_8c2b2bef -->
 - [ ] Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it <!-- longclaw:item=ck_b136d98b -->
 - [ ] Open item · test that an archived ticket's attachment links still render and serve (story 39) <!-- longclaw:item=ck_3c15004e -->
 - [ ] Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens <!-- longclaw:item=ck_858c3bc0 -->
 - [ ] Open item · run npm run audit:network on a built bundle, offline and online, before release (new URI scheme) <!-- longclaw:item=ck_6a95d5b1 -->
-- [ ] Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html <!-- longclaw:item=ck_fef87636 -->
+- [x] Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html <!-- longclaw:item=ck_fef87636 -->
 - [ ] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass) <!-- longclaw:item=ck_b585edab -->
 - [ ] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — confirm or add rows <!-- longclaw:item=ck_a135eea2 -->
 - [ ] Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) <!-- longclaw:item=ck_74e5808b -->
@@ -160,6 +159,26 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Question · an older installed LongClaw rewrites .longclaw/AGENTS.md from its own template, dropping the attach and reference guidance this branch adds — should a build leave a generated contract newer than itself alone? <!-- longclaw:item=ck_e78aad3a -->
 - [ ] Question · Undo of a Remove re-opens References and pins the restored row past the five, as any landing does — keep, or treat a restore as not news? <!-- longclaw:item=ck_5472f846 -->
 - [ ] Question · 'Added in a comment' is inferred (the earliest comment linking the file, when the description does not) rather than recorded — is that enough, or should an attach record which comment it came in with? <!-- longclaw:item=ck_00b8c65e -->
+- [ ] Open item · 'outside project' is decided in the panel from the shape of the stored path (absolute = outside); a hand-written absolute path inside the project would read as outside — Rust should report it, as it does missingReferences <!-- longclaw:item=ck_54a7f2da -->
+- [ ] Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name' <!-- longclaw:item=ck_f2d9dd25 -->
+- [ ] Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach' <!-- longclaw:item=ck_ba83957e -->
+- [ ] Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt) <!-- longclaw:item=ck_88e6c5a4 -->
+- [ ] Open item · extend a11y:audit with a row for the References Add menu <!-- longclaw:item=ck_a411dde4 -->
+
+## Ticket References
+
+<!-- longclaw:reference
+id: ref_0f773116
+path: docs/specs/LC-206-attachments.md
+added_at: 2026-10-15T13:44:46.576Z
+added_by:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+[LC-206-attachments.md](../../../docs/specs/LC-206-attachments.md)
+<!-- /longclaw:reference -->
+
 ## Activity
 
 <!-- longclaw:event
@@ -555,4 +574,66 @@ Questions waiting on a decision, added to the checklist as 'Question ·' items a
 2. **Agent guide skew.** The installed app, built from main, regenerates .longclaw/AGENTS.md with its older template. That removes the attach guidance this branch adds, and it happened twice this session. Should a build leave a generated contract newer than itself alone?
 3. **Undo of Remove.** It re-opens References and shows the restored row past the five, as any landing does. Keep that, or treat a restore as not news?
 4. **Added in a comment.** This is inferred from which comment links the file rather than recorded at attach time. Is that enough, or should the attach record its comment?
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_67bfa791
+kind: update
+occurred_at: 2026-10-15T13:44:46.576Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: references.ref_0f773116.added
+    to: LC-206-attachments.md
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e95ca6fc
+kind: update
+occurred_at: 2026-10-15T13:44:54.348Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Recorded the spec as a reference with `longclaw ticket reference` (slice 7), so the description names it rather than linking it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b77b88ce
+kind: update
+occurred_at: 2026-10-15T13:47:19.252Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_9a64aab2.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_fef87636.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_54a7f2da.added
+    to: Open item · 'outside project' is decided in the panel from the shape of the stored path (absolute = outside); a hand-written absolute path inside the project would read as outside — Rust should report it, as it does missingReferences
+  - field: checklist.ck_f2d9dd25.added
+    to: Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name'
+  - field: checklist.ck_ba83957e.added
+    to: Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach'
+  - field: checklist.ck_88e6c5a4.added
+    to: Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt)
+  - field: checklist.ck_a411dde4.added
+    to: Open item · extend a11y:audit with a row for the References Add menu
+-->
+### Claude Code updated this ticket
+
+Slice 7 landed in d446412: `longclaw ticket reference`, the agent guide line with a by-hand References fallback, the Add menu (Attach a file… / Add a reference…), doc rows' missing and outside-project states, and Open and Show in Finder on doc rows (which closes the slice-5 open item; whether .html opens is still the open Question). LC-206's own spec is now recorded as a reference. All seven slices are done. Open items from this slice are on the checklist: how 'outside project' is decided, symlinked references, toast refusals from the Add menu, the picker's button label, and an a11y:audit row.
 <!-- /longclaw:event -->
