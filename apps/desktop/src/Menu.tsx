@@ -256,7 +256,7 @@ export function Menu<T extends string>(props: MenuProps<T>) {
  * Decorative: `aria-haspopup` on the trigger is what says the same thing to
  * assistive technology, and it says it better.
  */
-function ChevronGlyph() {
+export function ChevronGlyph() {
   return (
     <svg
       className="menu-chevron"

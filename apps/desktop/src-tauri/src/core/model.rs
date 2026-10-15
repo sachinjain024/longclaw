@@ -202,6 +202,22 @@ impl TicketRow {
     }
 }
 
+/// A file in a ticket's `attachments/` that no record names — what a removal
+/// leaves, or an interrupted attach. The References section lists it as _not
+/// attached_ with what it is and how big (LC-206), so it is described here
+/// rather than only named.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrphanAttachment {
+    /// `attachments/<name>`, as a record's `file` would say it.
+    pub file: String,
+    pub size: u64,
+    /// Sniffed from the bytes, as an attach would. Absent when the file is not
+    /// an image, text or video, or is over the attachment limit and so unread.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_type: Option<String>,
+}
+
 /// Everything the ticket panel needs, including the file as it is on disk so an
 /// unreadable ticket can still be inspected.
 #[derive(Debug, Clone, Serialize)]
@@ -221,7 +237,7 @@ pub struct TicketDetail {
     /// Registry entries whose bytes are gone. Their metadata is preserved.
     pub missing_attachments: Vec<String>,
     /// Files with no registry entry. Recoverable, never deleted.
-    pub orphan_attachments: Vec<String>,
+    pub orphan_attachments: Vec<OrphanAttachment>,
     /// References whose path does not resolve, by id (LC-206). The record is
     /// kept: the doc may come back, and the row says it is missing meanwhile.
     pub missing_references: Vec<String>,

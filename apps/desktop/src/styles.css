@@ -4217,6 +4217,183 @@ button:disabled {
   box-shadow: var(--lc-shadow-modal);
 }
 
+/* ---- the References section (LC-206, stories 18-20, 26, 29, 31-33)
+
+   Files the ticket holds and docs it points at, in one list. Collapsed by
+   default: the heading is the toggle, with the count beside it, so a ticket
+   with references costs the panel one line until it is asked for. */
+.references-toggle {
+  display: inline-flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  padding: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.references-toggle .menu-chevron {
+  transition: transform var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.references-toggle[aria-expanded="true"] .menu-chevron {
+  transform: rotate(90deg);
+}
+
+.references-toggle:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+.attachments {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One line per reference, and one control per line: the ⋮ is always visible
+   at the row's right end (review 1, E4), so nothing a row can do is hidden
+   behind a hover. */
+.attachment-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  gap: var(--lc-space-2);
+  align-items: center;
+  border-radius: var(--lc-radius-control);
+  padding: 4px var(--lc-space-1) 4px 4px;
+}
+
+.attachment-row:hover,
+.attachment-row:focus-within {
+  background: var(--lc-wash);
+}
+
+.attachment-thumb {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-ink-3);
+  background: var(--lc-bg);
+}
+
+/* The picture itself, cropped to the square — not a generated thumbnail, which
+   the spec keeps out of the project. */
+.attachment-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-text {
+  display: grid;
+  min-width: 0;
+}
+
+.attachment-name {
+  display: flex;
+  min-width: 0;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+}
+
+.attachment-text strong {
+  overflow: hidden;
+  color: var(--lc-ink);
+  font-size: var(--lc-type-small-size);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-text .meta {
+  overflow: hidden;
+  color: var(--lc-ink-3);
+  font: 400 11px var(--lc-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Where a file came in, when it was a comment (review 1, C2). A link-styled
+   button: pressing it moves the record to that comment and marks it. */
+.attachment-source {
+  flex: none;
+  border: 0;
+  padding: 0;
+  color: var(--lc-accent-human-text);
+  background: none;
+  font: 500 11px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.attachment-source:hover {
+  text-decoration: underline;
+}
+
+.attachment-source:focus-visible {
+  border-radius: var(--lc-radius-control);
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* The comment a source link led to, for a moment. */
+.timeline-entry.reference-target {
+  border-radius: var(--lc-radius-card);
+  background: var(--lc-accent-human-wash);
+  box-shadow: 0 0 0 6px var(--lc-accent-human-wash);
+}
+
+/* missing and not attached: warn, not danger — nothing failed just now. */
+.attachment-state {
+  border-radius: var(--lc-radius-full);
+  padding: 1px 7px;
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+  font: 500 10.5px var(--lc-font-mono);
+  white-space: nowrap;
+}
+
+.attachment-row.missing strong,
+.attachment-row.orphan strong {
+  color: var(--lc-ink-2);
+}
+
+/* A file an external write added wears that write's accent, as a ticked row
+   does, and for as long as the acknowledgement lasts (story 35). The agent's
+   is the rail a card and a comment get. */
+.attachment-row.acknowledged.acknowledged-agent {
+  box-shadow: inset 2px 0 0 var(--lc-accent-agent-rail);
+  background: var(--lc-accent-agent-wash);
+}
+
+.attachment-row.acknowledged.acknowledged-human {
+  background: var(--lc-accent-human-wash);
+}
+
+.attachment-row.acknowledged.acknowledged-unknown {
+  background: var(--lc-warn-surface);
+}
+
+.attachments-empty {
+  margin: 0;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
+/* Five rows, then this (review 1, E3), under the names rather than the thumbs. */
+.references-more {
+  justify-self: start;
+  margin: var(--lc-space-1) 0 0 calc(28px + var(--lc-space-2) + 4px);
+}
+
 .checklist {
   display: grid;
   gap: var(--lc-space-1);

@@ -299,7 +299,26 @@ export async function openAttachment(
   return invoke("open_attachment", { projectId, ticketKey, file });
 }
 
-/** Shows one attachment selected in Finder (LC-206), by the same proof. */
+/**
+ * Registers a file already in the ticket's `attachments/` — **Re-attach** on a
+ * not-attached row (LC-206). Carries the hash the panel read, so a ticket that
+ * moved underneath is refused as stale like any other edit.
+ */
+export async function reattachAttachment(
+  projectId: string,
+  ticketKey: string,
+  file: string,
+  expectedHash: string,
+): Promise<WriteResult> {
+  return invoke("reattach_attachment", {
+    projectId,
+    ticketKey,
+    file,
+    expectedHash,
+  });
+}
+
+/** Shows one attachment selected in Finder (LC-206) — registered or not. */
 export async function revealAttachment(
   projectId: string,
   ticketKey: string,

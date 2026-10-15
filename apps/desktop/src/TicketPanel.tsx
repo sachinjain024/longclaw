@@ -28,6 +28,7 @@ import {
   openAttachment,
   openTicketFile,
   readTicket,
+  reattachAttachment,
   revealAttachment,
 } from "./api";
 import type { TicketAttachments } from "./AttachmentView";
@@ -66,6 +67,8 @@ import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PanelResizeHandle } from "./PanelResizeHandle";
+import type { OrphanRow, ReferenceRow } from "./References";
+import { References, referenceRows, rowName } from "./References";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import {
   enabledPropertyFields,
@@ -419,30 +422,61 @@ export function TicketPanel(props: TicketPanelProps) {
   const attachments = useMemo<TicketAttachments | undefined>(() => {
     const record = detail?.ticket;
     if (!detail || !record) return undefined;
-    const reach =
-      (action: typeof openAttachment) => (attachment: Attachment) => {
-        action(projectId, ticketKey, attachment.file).catch(
-          (error: unknown) => {
-            raise({ message: normalizeError(error).message, tone: "danger" });
-          },
-        );
-      };
+    const reach = (action: typeof openAttachment) => (file: string) => {
+      action(projectId, ticketKey, file).catch((error: unknown) => {
+        raise({ message: normalizeError(error).message, tone: "danger" });
+      });
+    };
+    const open = reach(openAttachment);
     return {
       projectId,
       ticketKey,
       index: {
         attachments: record.attachments,
         missing: detail.missingAttachments,
-        orphans: detail.orphanAttachments,
+        orphans: detail.orphanAttachments.map((orphan) => orphan.file),
       },
       onView: setViewing,
-      onOpen: reach(openAttachment),
+      onOpen: (attachment) => open(attachment.file),
       onReveal: reach(revealAttachment),
     };
   }, [detail, projectId, ticketKey, raise]);
+  /**
+   * The References section (LC-206): whether it is open, the row that just
+   * landed, and the rows an external write added. Closed again on another
+   * ticket, which opens collapsed like any other.
+   */
+  const [referencesOpen, setReferencesOpen] = useState(false);
+  const [landedReferences, setLandedReferences] = useState<string[]>([]);
+  const [externallyAttachedIds, setExternallyAttachedIds] = useState<string[]>(
+    [],
+  );
+  /** The comment _Added in a comment_ led to, marked for a moment. */
+  const [markedEvent, setMarkedEvent] = useState<string>();
   // A file name is only unique within its ticket, so the viewer closes when
   // the panel moves to another one rather than finding a namesake there.
-  useEffect(() => setViewing(undefined), [ticketKey]);
+  useEffect(() => {
+    setViewing(undefined);
+    setReferencesOpen(false);
+    setLandedReferences([]);
+    setMarkedEvent(undefined);
+    setExternallyAttachedIds([]);
+  }, [ticketKey]);
+  useEffect(() => {
+    if (markedEvent === undefined) return;
+    const entry = document.querySelector(`[data-event="${markedEvent}"]`);
+    // jsdom has no `scrollIntoView`, and the app's calls are guarded for it.
+    if (entry instanceof HTMLElement && "scrollIntoView" in entry) {
+      entry.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    const unmark = window.setTimeout(() => setMarkedEvent(undefined), 2400);
+    return () => window.clearTimeout(unmark);
+  }, [markedEvent]);
+  /** The section's rows, worked out once per read rather than per render. */
+  const referenceList = useMemo(
+    () => (detail ? referenceRows(detail) : []),
+    [detail],
+  );
   /** Shown only while the read still has it: a removed file closes the viewer. */
   const viewed =
     viewing &&
@@ -486,6 +520,11 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
+  /**
+   * The attachment ids as last read, and for which ticket, so a file that
+   * lands can be told from the ticket's first read — which opens nothing.
+   */
+  const loadedReferences = useRef<{ key: string; ids: string[] }>(undefined);
   /**
    * The file as last read, for `save()` to take its `expectedHash` from.
    *
@@ -558,6 +597,33 @@ export function TicketPanel(props: TicketPanelProps) {
           : [],
       );
       loadedChecklist.current = checklist;
+      // A file that landed opens References and is shown past the five, so
+      // what was just added is on screen; one an external write added also
+      // wears its accent, as a tick does.
+      // A doc is a row as much as a file is, so an agent's `ticket reference`
+      // lands the same way.
+      const rowIds = [
+        ...(next.ticket?.attachments ?? []),
+        ...(next.ticket?.references ?? []),
+      ].map((record) => record.id);
+      const before = loadedReferences.current;
+      const landed =
+        before?.key === ticketKey
+          ? rowIds.filter((id) => !before.ids.includes(id))
+          : [];
+      loadedReferences.current = { key: ticketKey, ids: rowIds };
+      // The panel's own write is not news, but it must not end the
+      // acknowledgement of one that was: those rows keep their accent for as
+      // long as the mark lasts, which `props.mark` decides.
+      setExternallyAttachedIds((current) =>
+        mode === "external"
+          ? landed
+          : current.filter((id) => rowIds.includes(id)),
+      );
+      if (landed.length > 0) {
+        setReferencesOpen(true);
+        setLandedReferences(landed);
+      }
       clearPending();
       setPendingComment(undefined);
       setDetail(next);
@@ -802,6 +868,85 @@ export function TicketPanel(props: TicketPanelProps) {
     if (written) await load("local");
     writing.current = false;
     // Whatever was typed while this was out goes now.
+    void drainNewItems();
+  }
+
+  /**
+   * Remove from a References row (LC-206). No confirmation: a file's bytes
+   * stay as a not-attached row and a doc is not touched, and the toast's Undo
+   * — or ⌘Z — puts the record back where it was, after the one it followed.
+   */
+  async function removeReference(row: ReferenceRow) {
+    const ticketRecord = detail?.ticket;
+    if (!ticketRecord || row.kind === "orphan") return;
+    const name = rowName(row);
+    if (row.kind === "file") {
+      const { attachment } = row;
+      const at = ticketRecord.attachments.findIndex(
+        (candidate) => candidate.id === attachment.id,
+      );
+      await save(
+        { removeAttachment: attachment.id },
+        {
+          toast: `${ticketKey} removed · ${name}`,
+          inverse: {
+            restoreAttachment: {
+              id: attachment.id,
+              file: attachment.file,
+              name: attachment.name,
+              addedAt: attachment.addedAt,
+              addedBy: attachment.addedBy,
+              after: ticketRecord.attachments[at - 1]?.id,
+            },
+          },
+          inverseToast: `${ticketKey} re-attached · ${name}`,
+        },
+      );
+      return;
+    }
+    const { reference } = row;
+    const at = ticketRecord.references.findIndex(
+      (candidate) => candidate.id === reference.id,
+    );
+    await save(
+      { removeReference: reference.id },
+      {
+        toast: `${ticketKey} removed · ${name}`,
+        inverse: {
+          restoreReference: {
+            id: reference.id,
+            path: reference.path,
+            addedAt: reference.addedAt,
+            addedBy: reference.addedBy,
+            after: ticketRecord.references[at - 1]?.id,
+          },
+        },
+      },
+    );
+  }
+
+  /**
+   * Re-attach on a not-attached row: registers the file where it is. Its own
+   * command rather than an edit, because Rust reads the bytes again before it
+   * writes a record — but the same one-write-at-a-time rule and the same hash.
+   */
+  async function reattach(row: OrphanRow) {
+    // The banner holds the panel's writes until the human answers it, and this
+    // is one of them.
+    if (conflict) return;
+    const hash = lastRead.current?.contentHash;
+    if (!hash || writing.current) return;
+    writing.current = true;
+    const written = await mutate({
+      path: lastRead.current?.relativePath,
+      write: () =>
+        reattachAttachment(projectId, ticketKey, row.orphan.file, hash),
+      onWritten: (result) => props.onWrite(result),
+      toast: () => `${ticketKey} re-attached · ${row.name}`,
+    });
+    if (written) await load("local");
+    writing.current = false;
+    // Whatever was typed while this was out goes now, as after a save.
     void drainNewItems();
   }
 
@@ -1723,6 +1868,26 @@ export function TicketPanel(props: TicketPanelProps) {
                 )}
               </section>
 
+              {attachments && (
+                <References
+                  rows={referenceList}
+                  open={referencesOpen}
+                  onToggle={() => setReferencesOpen((open) => !open)}
+                  key={ticketKey}
+                  landed={landedReferences}
+                  acknowledged={props.mark ? externallyAttachedIds : []}
+                  accentClass={accentClass}
+                  now={props.now}
+                  attachments={attachments}
+                  onRemove={removeReference}
+                  onReattach={(row) => void reattach(row)}
+                  onGoToComment={(eventId) => {
+                    setHistoryTab("comments");
+                    setMarkedEvent(eventId);
+                  }}
+                />
+              )}
+
               <section className="panel-section">
                 <h3>
                   Checklist
@@ -1988,6 +2153,7 @@ export function TicketPanel(props: TicketPanelProps) {
                       checklist={ticket.checklist}
                       pendingComment={pendingComment}
                       attachments={attachments}
+                      markedEvent={markedEvent}
                       // Only here, and not on the Activity tab beside it: there a
                       // comment is the one line saying it happened, and its words
                       // are not on screen to be rewritten (LC-241q).

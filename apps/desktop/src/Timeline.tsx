@@ -63,6 +63,11 @@ interface TimelineProps {
   /** The ticket's attachments, so a comment draws the files it links (LC-206). */
   attachments?: TicketAttachments;
   /**
+   * The entry a References row's _Added in a comment_ led to, marked for a
+   * moment so the eye lands on it (LC-206).
+   */
+  markedEvent?: string;
+  /**
    * Whether a comment is drawn as the one line that says it happened rather
    * than with its body (LC-211).
    *
@@ -129,6 +134,7 @@ export function Timeline(props: TimelineProps) {
           now={props.now}
           context={context}
           commentsAsLines={props.commentsAsLines}
+          marked={event.id === props.markedEvent}
           onEdit={props.onEditComment}
           onRemove={props.onRemoveComment}
         />
@@ -149,6 +155,7 @@ function TimelineEntry({
   now,
   context,
   commentsAsLines,
+  marked,
   onEdit,
   onRemove,
 }: {
@@ -160,6 +167,7 @@ function TimelineEntry({
     attachments?: TicketAttachments;
   };
   commentsAsLines?: boolean;
+  marked?: boolean;
   onEdit?: (eventId: string, text: string) => void;
   onRemove?: (eventId: string) => void;
 }) {
@@ -199,6 +207,7 @@ function TimelineEntry({
     shape,
     actorType === "agent" ? "agent" : "",
     actorType === "unknown" ? "unattributed" : "",
+    marked ? "reference-target" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -223,7 +232,7 @@ function TimelineEntry({
 
   if (shape === "message") {
     return (
-      <li className={className}>
+      <li className={className} data-event={event.id}>
         <div className="entry-heading">
           <span
             className={
@@ -268,7 +277,7 @@ function TimelineEntry({
 
   const lines = changeLines(event, context);
   return (
-    <li className={className}>
+    <li className={className} data-event={event.id}>
       <ul className="entry-changes">
         {lines.map((line, index) => (
           <li key={index} className={line.warn ? "warn" : undefined}>

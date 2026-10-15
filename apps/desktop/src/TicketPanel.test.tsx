@@ -16,6 +16,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExternalMark } from "./acknowledgement";
@@ -28,8 +29,10 @@ import type {
   Attachment,
   ChecklistItem,
   Label,
+  OrphanAttachment,
   PropertiesConfig,
   TicketDetail,
+  TicketReference,
   WriteResult,
 } from "./types";
 
@@ -39,6 +42,7 @@ vi.mock("./api", () => ({
   openTicketFile: vi.fn(),
   openAttachment: vi.fn(),
   revealAttachment: vi.fn(),
+  reattachAttachment: vi.fn(),
 }));
 
 const {
@@ -46,6 +50,7 @@ const {
   openAttachment,
   openTicketFile,
   readTicket,
+  reattachAttachment,
   revealAttachment,
 } = await import("./api");
 const readTicketMock = vi.mocked(readTicket);
@@ -53,6 +58,7 @@ const editTicketMock = vi.mocked(editTicket);
 const openTicketFileMock = vi.mocked(openTicketFile);
 const openAttachmentMock = vi.mocked(openAttachment);
 const revealAttachmentMock = vi.mocked(revealAttachment);
+const reattachAttachmentMock = vi.mocked(reattachAttachment);
 
 const NOW = Date.parse("2026-07-30T12:00:00Z");
 
@@ -104,7 +110,8 @@ function detail(options?: {
   /** The registry, and the two broken states the read reports (LC-206). */
   attachments?: Attachment[];
   missingAttachments?: string[];
-  orphanAttachments?: string[];
+  orphanAttachments?: OrphanAttachment[];
+  references?: TicketReference[];
   /** The four opt-in properties, as raw as a ticket carries them (LC-227). */
   properties?: Partial<
     Pick<TicketDetail["ticket"] & object, "type" | "due" | "start" | "estimate">
@@ -139,7 +146,7 @@ function detail(options?: {
         { id: "ck_2", text: "Review what it changed", checked: false },
       ],
       attachments: options?.attachments ?? [],
-      references: [],
+      references: options?.references ?? [],
       activity: options?.activity ?? [humanEvent()],
       historyIncomplete: false,
       unknownKeys: [],
@@ -3580,28 +3587,30 @@ describe("the panel's width", () => {
   });
 });
 
+/** A registered attachment, as the registry holds one (LC-206). */
+function attachment(
+  id: string,
+  name: string,
+  mediaType: string,
+  size: number,
+): Attachment {
+  return {
+    id,
+    file: `attachments/${id}-${name}`,
+    name,
+    mediaType,
+    size,
+    addedAt: "2026-07-30T11:00:00Z",
+    addedBy: { type: "human", id: "local" },
+  };
+}
+
 /**
  * LC-206, slice 4: a link into the ticket's own `attachments/` renders as the
  * file it names, in the description and in a comment. Which node a link
  * becomes is `markdown.test.ts`; this is what each one does on screen.
  */
 describe("attachments where the text links them (LC-206)", () => {
-  function attachment(
-    id: string,
-    name: string,
-    mediaType: string,
-    size: number,
-  ): Attachment {
-    return {
-      id,
-      file: `attachments/${id}-${name}`,
-      name,
-      mediaType,
-      size,
-      addedAt: "2026-07-30T11:00:00Z",
-      addedBy: { type: "human", id: "local" },
-    };
-  }
   const SHOT = attachment(
     "att_8e31",
     "failure-state.png",
@@ -3623,7 +3632,13 @@ describe("attachments where the text links them (LC-206)", () => {
       activity,
       attachments: [SHOT, FILM, LOG, GONE],
       missingAttachments: [GONE.id],
-      orphanAttachments: ["attachments/att_9a10-notes.txt"],
+      orphanAttachments: [
+        {
+          file: "attachments/att_9a10-notes.txt",
+          size: 3000,
+          mediaType: "text/plain",
+        },
+      ],
     });
   }
 
@@ -3741,5 +3756,327 @@ describe("attachments where the text links them (LC-206)", () => {
       }),
     );
     screen.getByRole("dialog", { name: "failure-state.png" });
+  });
+});
+
+/**
+ * LC-206, slice 5: the References section, between Description and Checklist.
+ * Collapsed until asked for or until a file lands; five rows, then View all;
+ * one ⋮ per row with every action the row has.
+ */
+describe("the References section (LC-206)", () => {
+  const SHOT = attachment(
+    "att_8e31",
+    "failure-state.png",
+    "image/png",
+    2_400_000,
+  );
+  const LOG = {
+    ...attachment("att_7d2a", "console.log", "text/plain", 48_000),
+    addedBy: { type: "agent" as const, id: "claude-code", name: "Claude Code" },
+  };
+  const GONE = attachment("att_42bf", "before.png", "image/png", 1_100_000);
+  const SPEC: TicketReference = {
+    id: "ref_1a2b",
+    path: "docs/specs/LC-1-round-trip.md",
+    addedAt: "2026-07-30T10:00:00Z",
+    addedBy: { type: "agent", id: "claude-code", name: "Claude Code" },
+  };
+  /** A removal the activity recorded, which is what made the orphan below. */
+  const REMOVAL: ActivityEvent = {
+    id: "evt_removed",
+    kind: "update",
+    occurredAt: "2026-07-30T11:30:00Z",
+    actor: { type: "human", id: "local" },
+    changes: [{ field: "attachments.att_9a10.removed", from: "notes.txt" }],
+    body: "### You updated this ticket",
+  };
+
+  function withFiles(options?: Parameters<typeof detail>[0]) {
+    return detail({
+      attachments: [SHOT, LOG, GONE],
+      missingAttachments: [GONE.id],
+      orphanAttachments: [
+        {
+          file: "attachments/att_9a10-notes.txt",
+          size: 3000,
+          mediaType: "text/plain",
+        },
+      ],
+      references: [SPEC],
+      activity: [humanEvent(), REMOVAL],
+      ...options,
+    });
+  }
+
+  function toggle() {
+    return screen.getByRole("button", { name: /^References/ });
+  }
+
+  function rowMenu(name: string) {
+    fireEvent.click(
+      screen.getByRole("button", { name: `Actions for ${name}` }),
+    );
+    return screen.getByRole("menu", { name: `Actions for ${name}` });
+  }
+
+  it("sits collapsed between Description and Checklist, with its count", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+
+    const headings = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    const at = headings.findIndex((text) => text?.startsWith("References"));
+    expect(headings[at - 1]).toMatch(/^Description/);
+    expect(headings[at + 1]).toMatch(/^Checklist/);
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(toggle().textContent).toBe("References5");
+    expect(screen.queryByText("failure-state.png")).toBeNull();
+  });
+
+  it("lists files, then the not-attached, then docs, each with its facts", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    const rows = screen
+      .getAllByRole("listitem")
+      .filter((row) => row.classList.contains("attachment-row"));
+    expect(rows.map((row) => row.querySelector("strong")?.textContent)).toEqual(
+      [
+        "failure-state.png",
+        "console.log",
+        "before.png",
+        "notes.txt",
+        "LC-1-round-trip.md",
+      ],
+    );
+    expect(rows[0].textContent).toContain("image/png · 2.4 MB · You · 1h");
+    expect(rows[1].textContent).toContain(
+      "text/plain · 48 KB · Claude Code · 1h",
+    );
+    expect(rows[2].textContent).toContain("missing");
+    expect(rows[2].textContent).toContain(
+      "File not found · image/png · You · 1h",
+    );
+    expect(rows[3].textContent).toContain("not attached");
+    expect(rows[3].textContent).toContain(
+      "Removed 30m — file kept · text/plain · 3 KB",
+    );
+    expect(rows[4].textContent).toContain("docs/specs/ · Claude Code · 2h");
+  });
+
+  it("says what belongs there when there is nothing", async () => {
+    render(surface());
+    await ready();
+    expect(toggle().textContent).toBe("References0");
+    fireEvent.click(toggle());
+    screen.getByText(/^Nothing here yet\. Paste or drop a file/);
+  });
+
+  it("shows five rows, then View all, then Show fewer", async () => {
+    const many = Array.from({ length: 7 }, (_, index) =>
+      attachment(`att_${index}0`, `shot-${index}.png`, "image/png", 1000),
+    );
+    readTicketMock.mockResolvedValue(
+      detail({ attachments: many, activity: [humanEvent()] }),
+    );
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    const rowCount = () => document.querySelectorAll(".attachment-row").length;
+    expect(rowCount()).toBe(5);
+    fireEvent.click(screen.getByRole("button", { name: "View all 7" }));
+    expect(rowCount()).toBe(7);
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
+    expect(rowCount()).toBe(5);
+  });
+
+  it("opens by itself when a file lands, and shows it past the five", async () => {
+    const five = Array.from({ length: 5 }, (_, index) =>
+      attachment(`att_${index}0`, `shot-${index}.png`, "image/png", 1000),
+    );
+    const landed = attachment("att_ff", "new.png", "image/png", 1000);
+    readTicketMock
+      .mockResolvedValueOnce(detail({ attachments: five }))
+      .mockResolvedValueOnce(detail({ attachments: [...five, landed] }));
+    const { rerender } = render(surface());
+    await ready();
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+
+    rerender(surface({ reloadSignal: 1 }));
+    await screen.findByText("new.png");
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelectorAll(".attachment-row").length).toBe(6);
+  });
+
+  it("gives each kind of row the menu it has", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    const labels = (menu: HTMLElement) =>
+      Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+        (row) => row.textContent,
+      );
+    expect(labels(rowMenu("failure-state.png"))).toEqual([
+      "View",
+      "Show in Finder",
+      "RemoveFile kept",
+    ]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("console.log"))).toEqual([
+      "Open",
+      "Show in Finder",
+      "RemoveFile kept",
+    ]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("before.png"))).toEqual(["RemoveFile kept"]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("notes.txt"))).toEqual([
+      "Show in Finder",
+      "Re-attach",
+    ]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("LC-1-round-trip.md"))).toEqual(["Remove"]);
+  });
+
+  it("views an image and reveals a file from its menu", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("failure-state.png")).getByRole("menuitem", {
+        name: "View",
+      }),
+    );
+    screen.getByRole("dialog", { name: "failure-state.png" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    fireEvent.click(
+      within(rowMenu("notes.txt")).getByRole("menuitem", {
+        name: "Show in Finder",
+      }),
+    );
+    expect(revealAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "attachments/att_9a10-notes.txt",
+    );
+  });
+
+  it("removes without asking, and Undo puts the record back where it was", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("console.log")).getByRole("menuitem", { name: /^Remove/ }),
+    );
+    await screen.findByText("LC-1 removed · console.log");
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      expectedHash: "hash-1",
+      edit: { removeAttachment: "att_7d2a" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({
+      restoreAttachment: {
+        id: "att_7d2a",
+        file: LOG.file,
+        name: "console.log",
+        addedAt: LOG.addedAt,
+        addedBy: LOG.addedBy,
+        after: "att_8e31",
+      },
+    });
+  });
+
+  it("removes a doc reference the same way", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("LC-1-round-trip.md")).getByRole("menuitem", {
+        name: /^Remove/,
+      }),
+    );
+    await screen.findByText("LC-1 removed · LC-1-round-trip.md");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({
+      restoreReference: {
+        id: SPEC.id,
+        path: SPEC.path,
+        addedAt: SPEC.addedAt,
+        addedBy: SPEC.addedBy,
+      },
+    });
+  });
+
+  it("re-attaches a file that is not attached", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    reattachAttachmentMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("notes.txt")).getByRole("menuitem", { name: "Re-attach" }),
+    );
+    await screen.findByText("LC-1 re-attached · notes.txt");
+    expect(reattachAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "attachments/att_9a10-notes.txt",
+      "hash-1",
+    );
+  });
+
+  it("takes a file that came in through a comment to that comment", async () => {
+    const comment: ActivityEvent = {
+      ...humanEvent(),
+      id: "evt_with_log",
+      body: "### You commented\n\nConsole: [console.log](./attachments/att_7d2a-console.log)",
+    };
+    readTicketMock.mockResolvedValue(withFiles({ activity: [comment] }));
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /^Activity/ }));
+    fireEvent.click(toggle());
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Go to the comment that added failure-state.png",
+      }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Go to the comment that added console.log",
+      }),
+    );
+    expect(
+      screen
+        .getByRole("tab", { name: /^Comments/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      document
+        .querySelector('[data-event="evt_with_log"]')
+        ?.classList.contains("reference-target"),
+    ).toBe(true);
   });
 });

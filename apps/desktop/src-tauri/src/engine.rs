@@ -38,7 +38,7 @@ use crate::core::storage::{
     self, atomic_write, content_hash, directory_key, prepare_new_ticket, prepare_ticket_edit,
     read_project, reconcile_agent_instructions, ticket_file_path, NewTicket,
 };
-use crate::core::ticket::TicketEdit;
+use crate::core::ticket::{Actor, TicketEdit};
 use crate::core::{
     AppError, AppResult, ErrorCode, EventSource, ProjectEvent, ProjectReference, ProjectSnapshot,
     RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex, TicketRow, WriteResult,
@@ -441,12 +441,12 @@ impl ProjectEngine {
         storage::resolve_ticket_path(&self.root, key)
     }
 
-    /// A registered attachment's file, proven inside its ticket's folder, for
-    /// **Show in Finder** (LC-206). The webview names the record's `file`, which
-    /// is checked against the registry rather than joined onto a path.
+    /// A file in a ticket's `attachments/`, proven inside it, for **Show in
+    /// Finder** (LC-206) — an orphan as much as a registered one, since Finder
+    /// only selects it. The webview names the `file`; it is never joined onto
+    /// a path unchecked.
     pub fn attachment_to_reveal(&self, key: &str, file: &str) -> AppResult<PathBuf> {
-        attachments::registered_attachment(&self.root, &self.project().key, key, file)
-            .map(|(path, _)| path)
+        attachments::attachment_in_folder(&self.root, key, file)
     }
 
     /// The same, for opening in the default app, which also refuses a name
@@ -473,6 +473,27 @@ impl ProjectEngine {
         let write =
             prepare_ticket_edit(&self.root, &project.key, key, edit, expected_hash, &now())?;
         self.commit(write, false)
+    }
+
+    /// Registers a file already in the ticket's `attachments/` — an orphan —
+    /// without copying it again (LC-206, **Re-attach**). Attributed to the
+    /// human at the keyboard, and refused as stale like any other edit.
+    pub fn reattach_attachment(
+        &self,
+        key: &str,
+        file: &str,
+        expected_hash: &str,
+    ) -> AppResult<WriteResult> {
+        let prepared = attachments::prepare_reattachment(
+            &self.root,
+            &self.project().key,
+            key,
+            file,
+            expected_hash,
+            &now(),
+            &Actor::local_human(),
+        )?;
+        self.commit(prepared.write, false)
     }
 
     pub fn create_ticket(&self, request: &NewTicket) -> AppResult<WriteResult> {

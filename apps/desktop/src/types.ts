@@ -344,6 +344,17 @@ export interface DegradedTicket {
 
 export type TicketRow = IndexedTicket | DegradedTicket;
 
+/**
+ * A file in `attachments/` that no record names — what a removal leaves, or an
+ * interrupted attach (LC-206). `mediaType` is sniffed from its bytes, and
+ * absent when it is none the format attaches or too big to have been read.
+ */
+export interface OrphanAttachment {
+  file: string;
+  size: number;
+  mediaType?: string;
+}
+
 /** The full record behind the ticket panel, read fresh from disk. */
 export interface TicketDetail {
   key: string;
@@ -359,7 +370,7 @@ export interface TicketDetail {
   /** Registry entries whose bytes are gone; their metadata is preserved. */
   missingAttachments: string[];
   /** Files with no registry entry. Recoverable, never deleted. */
-  orphanAttachments: string[];
+  orphanAttachments: OrphanAttachment[];
   /** References whose path does not resolve, by id. The record is kept. */
   missingReferences: string[];
 }

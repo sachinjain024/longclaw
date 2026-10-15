@@ -36,8 +36,8 @@ export interface TicketAttachments {
   onView: (attachment: Attachment) => void;
   /** The default macOS app, for anything. */
   onOpen: (attachment: Attachment) => void;
-  /** Finder, with the file selected. */
-  onReveal: (attachment: Attachment) => void;
+  /** Finder, with the file selected — by `file`, so an orphan has it too. */
+  onReveal: (file: string) => void;
 }
 
 /**
@@ -52,7 +52,7 @@ export function describeSize(bytes: number): string {
 }
 
 /** `render.chip.meta`: `{type} · {size}`. */
-function metaOf(attachment: Attachment): string {
+export function metaOf(attachment: Attachment): string {
   return `${attachment.mediaType} · ${describeSize(attachment.size)}`;
 }
 
@@ -207,7 +207,7 @@ export function AttachmentViewer({
           type="button"
           tabIndex={0}
           className="secondary small"
-          onClick={() => scope.onReveal(attachment)}
+          onClick={() => scope.onReveal(attachment.file)}
         >
           Show in Finder
         </button>
@@ -230,7 +230,7 @@ export function AttachmentViewer({
   );
 }
 
-function DocGlyph() {
+export function DocGlyph() {
   return (
     <svg
       width="13"
@@ -248,7 +248,7 @@ function DocGlyph() {
   );
 }
 
-function WarnGlyph() {
+export function WarnGlyph() {
   return (
     <svg
       width="13"
@@ -262,6 +262,45 @@ function WarnGlyph() {
     >
       <path d="M7 1.8 12.6 11.8H1.4z" />
       <path d="M7 5.6v3M7 10.2v.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function FilmGlyph() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="1.5" y="3" width="11" height="8" rx="1.2" />
+      <path d="m6 5.4 2.8 1.6L6 8.6z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** A doc the ticket points at where it is: the page with an arrow out. */
+export function LinkedDocGlyph() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3.5 1.5h4.6l2.4 2.4v8.6h-7z" />
+      <path d="M8 1.5V4h2.5" />
+      <path d="m5.6 9.4 3-3M6.4 6.4h2.2v2.2" />
     </svg>
   );
 }

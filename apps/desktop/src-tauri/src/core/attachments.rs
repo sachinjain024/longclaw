@@ -14,10 +14,11 @@
 //! `TicketDocument` only ever sees `ticket.md` and cannot check either.
 
 use std::fs;
+use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
 use super::error::{AppError, AppResult, ErrorCode};
-use super::model::TicketWrite;
+use super::model::{OrphanAttachment, TicketWrite};
 use super::storage::{self, prepare_ticket_edit_as};
 use super::ticket::{self, Actor, Attachment, AttachmentRegistration, RecordSlot, TicketEdit};
 
@@ -282,6 +283,58 @@ pub fn registered_attachment(
         .cloned()
         .ok_or_else(|| not_found(format!("{file} is not registered in {key}")))?;
     Ok((path, attachment))
+}
+
+/// Any regular file directly inside the ticket's `attachments/`, registered or
+/// not, for **Show in Finder** (LC-206). Finder only selects it, so an orphan
+/// qualifies — the not-attached row offers it — and only containment is asked:
+/// no way out, no link, no folder.
+pub fn attachment_in_folder(project_root: &Path, key: &str, file: &str) -> AppResult<PathBuf> {
+    let ticket_path = storage::resolve_ticket_path(project_root, key)?;
+    existing_attachment(&ticket_path, file)
+}
+
+/// How much of an orphan is read to say what it is: enough for every signature
+/// `media_type` knows and for a fair look at whether it is text.
+const SNIFF_PREFIX: usize = 64 * 1024;
+
+/// What a file no record names is, for the References row that lists it
+/// (LC-206): its size, and its type sniffed the way an attach sniffs one.
+///
+/// Read through [`existing_attachment`], so a link or a way out of the folder
+/// is described as nothing rather than followed, and only the first
+/// [`SNIFF_PREFIX`] bytes are read — this runs on every detail read, external
+/// writes included, and a stray film must not be read whole each time. A
+/// prefix that ends inside a character is cut back to the last whole one.
+pub(crate) fn describe_orphan(ticket_path: &Path, file: &str) -> OrphanAttachment {
+    let described = existing_attachment(ticket_path, file)
+        .ok()
+        .and_then(|path| {
+            let size = fs::metadata(&path).ok()?.len();
+            let mut prefix = Vec::with_capacity(SNIFF_PREFIX.min(size as usize));
+            fs::File::open(&path)
+                .ok()?
+                .take(SNIFF_PREFIX as u64)
+                .read_to_end(&mut prefix)
+                .ok()?;
+            if (prefix.len() as u64) < size {
+                if let Err(error) = std::str::from_utf8(&prefix) {
+                    if error.error_len().is_none() {
+                        prefix.truncate(error.valid_up_to());
+                    }
+                }
+            }
+            Some((
+                size,
+                media_type(&prefix, file_name(file)).map(str::to_owned),
+            ))
+        });
+    let (size, media_type) = described.unwrap_or((0, None));
+    OrphanAttachment {
+        file: file.to_owned(),
+        size,
+        media_type,
+    }
 }
 
 /// The extensions a registered file may carry and still be opened in its

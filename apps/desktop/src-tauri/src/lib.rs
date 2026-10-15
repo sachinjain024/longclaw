@@ -440,7 +440,8 @@ fn file_name_of(file: &str) -> &str {
     file.rsplit('/').next().unwrap_or(file)
 }
 
-/// Shows one attachment selected in Finder (LC-206), by the same proof.
+/// Shows one attachment selected in Finder (LC-206) — registered or an orphan,
+/// proven inside the ticket's folder.
 #[tauri::command]
 fn reveal_attachment(
     project_id: String,
@@ -655,6 +656,23 @@ fn edit_ticket(
     state
         .engine(&request.project_id, tauri_sink(&app))?
         .edit_ticket(&request.ticket_key, &request.edit, &request.expected_hash)
+}
+
+/// **Re-attach** on a not-attached row (LC-206): registers an orphan in place.
+/// The webview names the file and the hash it read; Rust proves the file is in
+/// the ticket's folder and judges its bytes again before writing a record.
+#[tauri::command]
+fn reattach_attachment(
+    project_id: String,
+    ticket_key: String,
+    file: String,
+    expected_hash: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<WriteResult> {
+    state
+        .engine(&project_id, tauri_sink(&app))?
+        .reattach_attachment(&ticket_key, &file, &expected_hash)
 }
 
 #[tauri::command]
@@ -917,6 +935,7 @@ pub fn run() {
             open_ticket_file,
             open_attachment,
             reveal_attachment,
+            reattach_attachment,
             command_line_status,
             install_command_line,
             edit_ticket,

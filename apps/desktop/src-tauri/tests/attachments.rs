@@ -142,6 +142,15 @@ fn commit(write: &TicketWrite) {
     .expect("ticket.md should be written");
 }
 
+/// The orphans' files, which is what most cases ask about them.
+fn orphans(detail: &TicketDetail) -> Vec<String> {
+    detail
+        .orphan_attachments
+        .iter()
+        .map(|orphan| orphan.file.clone())
+        .collect()
+}
+
 fn registered(detail: &TicketDetail) -> Vec<(String, String, String, u64)> {
     detail
         .ticket
@@ -321,7 +330,7 @@ fn an_interrupted_registration_leaves_an_orphan_and_never_a_dangling_record() {
     let detail = project.detail();
     assert!(registered(&detail).is_empty());
     assert!(detail.missing_attachments.is_empty());
-    assert_eq!(detail.orphan_attachments, vec![prepared.attachment.file]);
+    assert_eq!(orphans(&detail), vec![prepared.attachment.file]);
 }
 
 #[test]
@@ -368,9 +377,11 @@ fn removal_unregisters_and_leaves_the_bytes_as_an_orphan() {
     let detail = project.detail();
     assert_eq!(registered(&detail).len(), 1);
     assert_eq!(registered(&detail)[0].0, second.attachment.file);
+    assert_eq!(orphans(&detail), vec![first.attachment.file.clone()]);
+    assert_eq!(detail.orphan_attachments[0].size, PNG.len() as u64);
     assert_eq!(
-        detail.orphan_attachments,
-        vec![first.attachment.file.clone()]
+        detail.orphan_attachments[0].media_type.as_deref(),
+        Some("image/png")
     );
     assert_eq!(
         fs::read(project.ticket_dir().join(&first.attachment.file)).unwrap(),
@@ -887,4 +898,29 @@ fn a_registered_file_opens_only_when_macos_would_show_it_rather_than_run_it() {
     )
     .expect_err("a way out is not opened");
     assert_eq!(escape.code, ErrorCode::PermissionDenied);
+}
+
+#[test]
+fn any_file_in_the_folder_can_be_shown_in_finder_and_nothing_outside_it() {
+    let project = Project::new();
+    let shot = project.attached(PNG, "shot.png");
+    fs::write(
+        project.ticket_dir().join("attachments/dropped.txt"),
+        "stray",
+    )
+    .unwrap();
+    for file in [shot.attachment.file.as_str(), "attachments/dropped.txt"] {
+        let path = attachments::attachment_in_folder(&project.root, &project.key, file)
+            .expect("a registered file and an orphan are both in the folder");
+        assert_eq!(
+            path,
+            project.ticket_dir().join(file).canonicalize().unwrap()
+        );
+    }
+    for file in ["attachments/../ticket.md", "attachments/", "ticket.md"] {
+        assert!(
+            attachments::attachment_in_folder(&project.root, &project.key, file).is_err(),
+            "{file}"
+        );
+    }
 }

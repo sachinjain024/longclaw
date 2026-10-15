@@ -29,7 +29,8 @@ use walkdir::WalkDir;
 use super::attachments;
 use super::error::{AppError, AppResult, Diagnostic, ErrorCode};
 use super::model::{
-    ActivitySummary, DegradedRow, IndexedRow, TicketDetail, TicketRow, TicketWrite,
+    ActivitySummary, DegradedRow, IndexedRow, OrphanAttachment, TicketDetail, TicketRow,
+    TicketWrite,
 };
 use super::project::{
     is_project_key, is_project_name, is_theme_id, render_agent_contract, render_claude_pointer,
@@ -568,7 +569,7 @@ pub fn read_ticket_detail(
 /// Registry entries whose bytes are gone, and bytes with no registry entry.
 /// Neither is repaired here: a missing file keeps its metadata and an orphan file
 /// is surfaced for recovery, never deleted.
-fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<String>) {
+fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<OrphanAttachment>) {
     let directory = match ticket_path.parent() {
         Some(parent) => parent.join(ATTACHMENTS_DIRECTORY),
         None => return (Vec::new(), Vec::new()),
@@ -594,7 +595,10 @@ fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<St
         .filter(|attachment| !on_disk.contains(&attachment.file))
         .map(|attachment| attachment.id.clone())
         .collect();
-    let orphans = on_disk.difference(&registered).cloned().collect();
+    let orphans = on_disk
+        .difference(&registered)
+        .map(|file| attachments::describe_orphan(ticket_path, file))
+        .collect();
     (missing, orphans)
 }
 
@@ -2550,7 +2554,11 @@ mod tests {
         assert_eq!(detail.missing_attachments, vec!["att_gone".to_owned()]);
         assert_eq!(
             detail.orphan_attachments,
-            vec!["attachments/stray.txt".to_owned()]
+            vec![crate::core::OrphanAttachment {
+                file: "attachments/stray.txt".to_owned(),
+                size: 5,
+                media_type: Some("text/plain".to_owned()),
+            }]
         );
         assert!(directory.join("attachments/stray.txt").is_file());
         assert!(!detail.raw_truncated);
