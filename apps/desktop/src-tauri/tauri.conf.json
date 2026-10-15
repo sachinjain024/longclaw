@@ -12,7 +12,7 @@
   "app": {
     "security": {
       "capabilities": ["main"],
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'",
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost longclaw-attachment: http://longclaw-attachment.localhost; media-src longclaw-attachment: http://longclaw-attachment.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'",
       "freezePrototype": true
     },
     "windows": [

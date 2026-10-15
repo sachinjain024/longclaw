@@ -40,6 +40,13 @@ impl AppState {
         self.registry.list()
     }
 
+    /// One registered project by id: where it lives and what its key is. The
+    /// attachment scheme asks this of every request, so a URL can only ever
+    /// reach a folder the person registered.
+    pub fn find_project(&self, project_id: &str) -> AppResult<ProjectReference> {
+        self.registry.find(project_id)
+    }
+
     pub fn register_project(&self, root: PathBuf) -> AppResult<ProjectReference> {
         self.registry.register(&root)
     }

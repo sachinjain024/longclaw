@@ -11,11 +11,12 @@ pub mod update;
 mod update_plugin;
 mod zoom;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use app_state::AppState;
+use core::attachment_scheme::{self, ATTACHMENT_SCHEME};
 use core::project::{EstimateSystem, DEFAULT_LABEL_COLOR};
 use core::ticket::Property;
 use core::{
@@ -727,12 +728,71 @@ fn report_visible_ui(probe: VisibleUiProbe, app: AppHandle) -> AppResult<()> {
     Ok(())
 }
 
+/// One attachment request, answered (LC-206). Everything that decides the
+/// answer is `core::attachment_scheme`; this finds the project the URL names in
+/// the registry, so a URL can reach no folder the person did not register.
+fn attachment_response(
+    app: &AppHandle,
+    method: &tauri::http::Method,
+    path: &str,
+    range: Option<&str>,
+) -> tauri::http::Response<Vec<u8>> {
+    let served = if method != tauri::http::Method::GET {
+        attachment_scheme::method_not_allowed()
+    } else {
+        match attachment_scheme::parse_request(path) {
+            None => attachment_scheme::malformed(),
+            Some(request) => match app
+                .try_state::<AppState>()
+                .and_then(|state| state.find_project(&request.project_id).ok())
+            {
+                None => attachment_scheme::unknown_project(),
+                Some(project) => attachment_scheme::serve(
+                    Path::new(&project.root_path),
+                    &project.key,
+                    &request,
+                    range,
+                ),
+            },
+        }
+    };
+    let mut response = tauri::http::Response::builder().status(served.status);
+    for (name, value) in served.headers {
+        response = response.header(name, value);
+    }
+    response.body(served.body).unwrap_or_else(|_| {
+        tauri::http::Response::builder()
+            .status(500)
+            .body(Vec::new())
+            .expect("an empty 500 is always a valid response")
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = PROCESS_STARTED.set(Instant::now());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .register_asynchronous_uri_scheme_protocol(
+            ATTACHMENT_SCHEME,
+            |context, request, responder| {
+                let app = context.app_handle().clone();
+                let method = request.method().clone();
+                let path = request.uri().path().to_owned();
+                let range = request
+                    .headers()
+                    .get("range")
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::to_owned);
+                // The blocking pool every other file read uses, so a video's
+                // run of range requests queues there instead of starting a
+                // thread each.
+                tauri::async_runtime::spawn_blocking(move || {
+                    responder.respond(attachment_response(&app, &method, &path, range.as_deref()));
+                });
+            },
+        )
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
             let state = AppState::new(&app_data_dir)?;

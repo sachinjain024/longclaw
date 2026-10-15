@@ -254,6 +254,36 @@ pub(crate) fn settle(
     Ok(Some(settled))
 }
 
+/// The file a registered attachment's bytes live in, and its record — the one
+/// question serving a file to the webview asks (LC-206). `file` must be a
+/// registered record's own `file`, and it must still be a regular file inside
+/// the ticket's `attachments/` folder: a link, a folder, an orphan and a path
+/// with a way out are all refused before anything is opened.
+pub fn registered_attachment(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+    file: &str,
+) -> AppResult<(PathBuf, Attachment)> {
+    let ticket_path = storage::resolve_ticket_path(project_root, key)?;
+    let path = existing_attachment(&ticket_path, file)?;
+    let ticket_file = storage::read_ticket_file(&ticket_path, project_key)?;
+    let document = ticket_file.parsed.map_err(|diagnostic| {
+        not_found(format!(
+            "{key} cannot be read, so none of its attachments are served: {}",
+            diagnostic.message
+        ))
+    })?;
+    let attachment = document
+        .ticket()
+        .attachments
+        .iter()
+        .find(|attachment| attachment.file == file)
+        .cloned()
+        .ok_or_else(|| not_found(format!("{file} is not registered in {key}")))?;
+    Ok((path, attachment))
+}
+
 /// The reference ids whose path does not resolve, for the detail read.
 pub(crate) fn missing_references(project_root: &Path, ticket: &ticket::Ticket) -> Vec<String> {
     ticket

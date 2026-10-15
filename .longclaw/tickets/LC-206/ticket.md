@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T09:52:02.373Z
+updated_at: 2026-10-15T10:12:47.206Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -135,7 +135,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 
 - [x] 1 · Core: attach, remove and restore an attachment, and the reference record (add, remove, restore), with the ADR superseding 0005's UI half, the file_format.md changes (References section; git-size bullet removed) and format fixtures — no blockers <!-- longclaw:item=ck_b5b81061 -->
 - [x] 2 · CLI: `longclaw ticket attach` as a thin wrapper over the core operation, plus the agent guide — after 1 <!-- longclaw:item=ck_a74fb95d -->
-- [ ] 3 · Serving: the attachment URI scheme and the CSP change, so the webview loads a ticket's own files and nothing else — after 1 <!-- longclaw:item=ck_2bf48f8c -->
+- [x] 3 · Serving: the attachment URI scheme and the CSP change, so the webview loads a ticket's own files and nothing else — after 1 <!-- longclaw:item=ck_2bf48f8c -->
 - [ ] 4 · Rendering: full-width images, videos that never autoplay, file chips, Removed/Unavailable chips and the in-app viewer, in the description and in comments — after 3 <!-- longclaw:item=ck_e0ee20a9 -->
 - [ ] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
 - [ ] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
@@ -382,4 +382,22 @@ changes:
 ### Claude Code updated this ticket
 
 Slice 2 landed: longclaw ticket attach <KEY> <FILE> [--name] wraps the core attach (a new path-reading prepare_attachment_file the app's picker will reuse), prints the record and the link form always, and refuses in the deck's words. The generated AGENTS.md names the command before the hand-written procedure.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5408526c
+kind: update
+occurred_at: 2026-10-15T10:12:47.206Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_2bf48f8c.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Slice 3 landed: the longclaw-attachment URI scheme serves a registered image or video from its ticket's attachments/ folder with the record's media type and byte ranges (open ranges in 2 MB chunks); paths out, links and orphans are refused before a read. CSP img-src and a new media-src name the scheme, and the release audit holds both to an allow-list. Owed before release: npm run audit:network on a bundle.
 <!-- /longclaw:event -->

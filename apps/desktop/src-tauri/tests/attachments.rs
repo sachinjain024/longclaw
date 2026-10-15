@@ -692,3 +692,126 @@ fn removing_a_reference_never_touches_the_file_and_restore_round_trips() {
     });
     assert_eq!(project.detail().ticket.unwrap().references, vec![reference]);
 }
+
+// ------------------------------------------------------------ serving (slice 3)
+
+use longclaw_desktop_lib::core::attachment_scheme::{self, AttachmentRequest, Served};
+
+fn serve(project: &Project, file: &str, range: Option<&str>) -> Served {
+    attachment_scheme::serve(
+        &project.root,
+        "AT",
+        &AttachmentRequest {
+            project_id: "ignored-here".to_owned(),
+            ticket_key: project.key.clone(),
+            file: file.to_owned(),
+        },
+        range,
+    )
+}
+
+#[test]
+fn a_registered_image_is_served_with_the_type_its_record_states() {
+    let project = Project::new();
+    // Named .txt, registered as a PNG: the record's word is the one served.
+    let image = project.attached(PNG, "looks-like-text.txt");
+    let served = serve(&project, &image.attachment.file, None);
+    assert_eq!(served.status, 200);
+    assert_eq!(served.body, PNG);
+    assert_eq!(served.header("Content-Type"), Some("image/png"));
+    assert_eq!(
+        served.header("Content-Length"),
+        Some(PNG.len().to_string().as_str())
+    );
+    assert_eq!(served.header("Accept-Ranges"), Some("bytes"));
+    assert_eq!(served.header("X-Content-Type-Options"), Some("nosniff"));
+    assert!(served
+        .header("Content-Security-Policy")
+        .is_some_and(|policy| policy.contains("sandbox")));
+}
+
+#[test]
+fn a_video_seeks_by_byte_range() {
+    let project = Project::new();
+    let video = project.attached(MP4, "clip.mp4");
+    let file = &video.attachment.file;
+
+    let part = serve(&project, file, Some("bytes=4-11"));
+    assert_eq!(part.status, 206);
+    assert_eq!(part.body, &MP4[4..12]);
+    assert_eq!(
+        part.header("Content-Range"),
+        Some(format!("bytes 4-11/{}", MP4.len()).as_str())
+    );
+    assert_eq!(part.header("Content-Type"), Some("video/mp4"));
+
+    let tail = serve(&project, file, Some("bytes=-4"));
+    assert_eq!(tail.body, &MP4[MP4.len() - 4..]);
+
+    let past = serve(&project, file, Some(&format!("bytes={}-", MP4.len())));
+    assert_eq!(past.status, 416);
+    assert_eq!(
+        past.header("Content-Range"),
+        Some(format!("bytes */{}", MP4.len()).as_str())
+    );
+    assert!(past.body.is_empty());
+}
+
+#[test]
+fn only_a_registered_image_or_video_is_ever_served() {
+    let project = Project::new();
+    let text = project.attached(b"secret notes\n", "notes.txt");
+    let image = project.attached(PNG, "shot.png");
+
+    // Text is never inlined, so it is never served.
+    assert_eq!(serve(&project, &text.attachment.file, None).status, 415);
+    // An orphan is not registered.
+    project.edited(TicketEdit {
+        remove_attachment: Some(image.attachment.id.clone()),
+        ..TicketEdit::default()
+    });
+    assert_eq!(serve(&project, &image.attachment.file, None).status, 404);
+    // Nor is a file nobody attached, or a ticket that does not exist.
+    fs::write(project.ticket_dir().join("attachments/dropped.png"), PNG).unwrap();
+    assert_eq!(serve(&project, "attachments/dropped.png", None).status, 404);
+    let mut elsewhere = AttachmentRequest {
+        project_id: String::new(),
+        ticket_key: "AT-999z".to_owned(),
+        file: image.attachment.file.clone(),
+    };
+    assert_eq!(
+        attachment_scheme::serve(&project.root, "AT", &elsewhere, None).status,
+        404
+    );
+    elsewhere.ticket_key = "../AT".to_owned();
+    assert_ne!(
+        attachment_scheme::serve(&project.root, "AT", &elsewhere, None).status,
+        200
+    );
+}
+
+#[test]
+fn a_path_out_of_the_folder_is_forbidden_before_anything_is_read() {
+    let project = Project::new();
+    project.attached(PNG, "inside.png");
+    let outside = project.root.join("outside.png");
+    fs::write(&outside, PNG).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, project.ticket_dir().join("attachments/link.png"))
+        .unwrap();
+    for file in [
+        "attachments/../ticket.md",
+        "attachments/../../../outside.png",
+        "attachments/link.png",
+        "attachments/",
+    ] {
+        let served = serve(&project, file, None);
+        assert_eq!(
+            served.status,
+            403,
+            "{file}: {}",
+            String::from_utf8_lossy(&served.body)
+        );
+        assert_ne!(served.body, PNG);
+    }
+}
