@@ -154,3 +154,17 @@ actor:
 
 Prototype review 2 (2026-10-15) applied: specs, prototypes and other docs written for a ticket become recorded references in References (after the files), added with a new 'longclaw ticket reference' verb, not links in the description: a format change, and AGENTS.md's spec-linking rule changes with it. Undo is back on Remove (toast and ⌘Z). 'Attached' stays until the next re-render. Viewer, five-row count and comment-source behaviour settled. Open: how a human adds a doc in the app, and whether a moved doc reads 'missing'.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5e1638ba
+kind: comment
+occurred_at: 2026-10-15T08:31:15.377Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype review 3 (2026-10-15) applied: Remove and Show in Finder settled. A human can add a reference by hand: the References button is now Add, with 'Attach a file… (Copied into the ticket)' and 'Add a reference… (Linked where it is)'. New scene K: pick, name, added with Undo, a file outside the project (chip), and a moved doc (missing). Open: allow outside-project paths?, should dropping onto References add a reference?, is naming worth the step?
+<!-- /longclaw:event -->
