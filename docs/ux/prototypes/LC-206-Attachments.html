@@ -16,17 +16,16 @@
 
 <!-- ====================================================================
      PROPOSED — the additions LC-206 would ask of
-     `apps/desktop/src/styles.css`. Tokens only. One set, except the three
-     `.attach-variant-*` placements in scene J, which are alternatives and at
-     most one of them ships.
+     `apps/desktop/src/styles.css`. Tokens only. One set: review 1 settled the
+     one open alternative (where the Attach control goes).
      ==================================================================== -->
 <style id="proposed">
 /* ---- the Attach control (LC-206 stories 5, 6)
 
-   Scene J's variant 1, which every other scene draws: a seventh button in the
-   formatting toolbar, after a hairline, so it rides the group's roving tabindex
-   and costs the surface no extra Tab stop (`keyboard-focus-map.md:65`). The rule
-   is the toolbar's own `button` rule; this only adds the separator. */
+   Settled in review 1: a seventh button in the formatting toolbar, after a
+   hairline, so it rides the group's roving tabindex and costs the surface no
+   extra Tab stop (`keyboard-focus-map.md:65`). The rule is the toolbar's own
+   `button` rule; this only adds the separator. */
 .toolbar-sep {
   width: 1px;
   align-self: stretch;
@@ -38,24 +37,13 @@
   flex: none;
 }
 
-/* Variant 2: a labelled button at the strip's far end, with its own Tab stop.
-   An alternative to the rule above, not an addition to it. */
-.editor-toolbar .attach-variant-labelled {
-  display: inline-flex;
-  width: auto;
-  align-items: center;
-  gap: var(--lc-space-1);
-  margin-left: auto;
-  padding: 0 var(--lc-space-2);
-  font-size: 12px;
-}
-
 /* ---- the field while files arrive (stories 3, 4, 10, 11, 21-23, 51)
 
-   One row per file in flight or refused, under the field and above the footer,
-   so the reader's eye is on the text and the news is one line below it. The row
-   list is the live region: a screen reader hears each file start, land or be
-   refused. Pending is ink-3 (it is not news yet), refused is the danger pair. */
+   One row per file in flight, landed or refused, under the field and above the
+   footer. The list is the live region. Pending and landed rows are transient:
+   a landed row says so for a moment and goes, and neither survives a re-render
+   of the panel — they are news about a gesture, not state of the ticket.
+   Refused rows stay until dismissed (review 1, G3). */
 .attach-status {
   display: grid;
   gap: 2px;
@@ -76,14 +64,13 @@
   line-height: 1.45;
 }
 
+.attach-status li.done {
+  color: var(--lc-ink-2);
+}
+
 .attach-status li.refused {
   color: var(--lc-danger);
   background: var(--lc-danger-surface);
-}
-
-.attach-status li.warn {
-  color: var(--lc-warn-ink);
-  background: var(--lc-warn-surface);
 }
 
 .attach-status li > span:first-of-type {
@@ -149,37 +136,37 @@
 
 /* ---- attachments where they are written about (stories 12-17, 30, 50)
 
-   An image is as wide as the column and never wider, keeps its ratio, and is a
-   button: pressing it opens the viewer (story 14). The hairline is what tells a
-   pale screenshot from the panel behind it. */
+   Review 1, A2: an image takes the full column, in a padded frame, so a
+   screenshot reads as an exhibit set into the text rather than as text. The
+   picture keeps its ratio and is never scaled past its own size; the frame is
+   what spans. A button: pressing it opens the viewer (story 14). */
 .md-attachment-image {
   display: block;
-  width: fit-content;
-  max-width: 100%;
-  margin: var(--lc-space-2) 0;
+  box-sizing: border-box;
+  width: 100%;
+  margin: var(--lc-space-3) 0;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-card);
-  padding: 0;
-  overflow: hidden;
+  padding: var(--lc-space-3);
   background: var(--lc-bg);
   cursor: zoom-in;
 }
 
-/* At its own size, and never past the column (story 13). The stand-in is
-   drawn at 520px, the width a 2x screenshot of a panel comes to. */
 .md-attachment-image svg {
   display: block;
   max-width: 100%;
   height: auto;
+  margin: 0 auto;
 }
 
 /* The tile surface, because it is dark in both appearances: a player is
-   black around its picture whatever the app is wearing. */
+   black around its picture whatever the app is wearing. Never autoplays
+   (review 1, D3). */
 .md-attachment-video {
   display: block;
   width: fit-content;
   max-width: 100%;
-  margin: var(--lc-space-2) 0;
+  margin: var(--lc-space-3) 0;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-card);
   overflow: hidden;
@@ -193,7 +180,8 @@
 }
 
 /* A file chip: glyph, name, then the facts a reader needs before opening it.
-   A button, because it does something (opens the default app), not a link. */
+   A button, because it does something (opens the default app), not a link. A
+   linked doc (a spec, a prototype) is the same chip. */
 .attachment-chip {
   display: inline-flex;
   max-width: 100%;
@@ -221,9 +209,11 @@
   font: 400 11px var(--lc-font-mono);
 }
 
-/* Unavailable: the link is kept and says so, rather than vanishing (story 30).
-   Not a button — there is nothing to open. Warn, not danger: nothing failed
-   just now, a reference is stale. */
+/* Removed / Unavailable: the link is kept and says which, rather than
+   vanishing (story 30). Not a button — there is nothing to open. Warn, not
+   danger: nothing failed just now, a reference went stale. The file's name is
+   in the title and the accessible name; the chip itself is one word (review 1,
+   D2). */
 .attachment-chip.unavailable {
   border-style: dashed;
   border-color: var(--lc-warn-border);
@@ -234,8 +224,9 @@
 
 /* ---- the viewer (story 14)
 
-   The app's scrim, and a header on the panel's own surface, so it reads the
-   same in both appearances; the image is the only thing at full strength. */
+   In the app, opened from an image wherever it is — the description or a
+   comment (review 1, D1). The app's scrim, and a header on the panel's own
+   surface, so it reads the same in both appearances. */
 .attachment-viewer {
   position: fixed;
   z-index: var(--lc-z-modal);
@@ -280,11 +271,38 @@
   box-shadow: var(--lc-shadow-modal);
 }
 
-/* ---- the Attachments section (stories 18-20, 26, 29, 31-33)
+/* ---- the References section (stories 18-20, 26, 29, 31-33; review 1, A1-A2)
 
-   The checklist's row grammar: one line per file, controls faded in on hover
-   and on focus (`.row-actions`), so the section reads as a list of files and
-   not as a toolbar. */
+   Files attached to the ticket and docs its text links to, in one list.
+   Collapsed by default: the heading is the toggle, with the count beside it,
+   so a ticket with references costs the panel one line until it is asked for.
+   It opens by itself when a file lands, so the thing just added is on screen. */
+.references-toggle {
+  display: inline-flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  padding: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.references-toggle .menu-chevron {
+  transition: transform var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.references-toggle[aria-expanded="true"] .menu-chevron {
+  transform: rotate(90deg);
+}
+
+.references-toggle:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
 .attachments {
   display: grid;
   gap: 2px;
@@ -293,28 +311,22 @@
   list-style: none;
 }
 
-/* The actions float over the row's right end rather than holding a column of
-   their own: a column reserved for three faded buttons would cut every row's
-   meta short — who added it and when are the facts that went first. */
+/* One line per reference, and one control per line: the ⋮ is always visible
+   at the row's right end (review 1, E4), so nothing a row can do is hidden
+   behind a hover. */
 .attachment-row {
   position: relative;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
   gap: var(--lc-space-2);
   align-items: center;
   border-radius: var(--lc-radius-control);
-  padding: 4px var(--lc-space-2) 4px 4px;
+  padding: 4px var(--lc-space-1) 4px 4px;
 }
 
 .attachment-row:hover,
 .attachment-row:focus-within {
   background: var(--lc-wash);
-}
-
-.attachment-row:hover .row-actions,
-.attachment-row:focus-within .row-actions,
-.attachments.h-force-focus .attachment-row:first-child .row-actions {
-  opacity: 1;
 }
 
 .attachment-thumb {
@@ -339,6 +351,13 @@
   min-width: 0;
 }
 
+.attachment-name {
+  display: flex;
+  min-width: 0;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+}
+
 .attachment-text strong {
   overflow: hidden;
   color: var(--lc-ink);
@@ -348,12 +367,35 @@
   white-space: nowrap;
 }
 
-.attachment-text span {
+.attachment-text .meta {
   overflow: hidden;
   color: var(--lc-ink-3);
   font: 400 11px var(--lc-font-mono);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Where a file came in, when it was a comment (review 1, C2). A link-styled
+   button: pressing it scrolls the record to that comment and marks it. */
+.attachment-source {
+  flex: none;
+  border: 0;
+  padding: 0;
+  color: var(--lc-accent-human-text);
+  background: none;
+  font: 500 11px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.attachment-source:hover {
+  text-decoration: underline;
+}
+
+/* The comment a source link led to, for a moment. */
+.timeline-entry.reference-target {
+  border-radius: var(--lc-radius-card);
+  background: var(--lc-accent-human-wash);
+  box-shadow: 0 0 0 6px var(--lc-accent-human-wash);
 }
 
 .attachment-state {
@@ -377,41 +419,13 @@
   background: var(--lc-accent-agent-wash);
 }
 
-.attachment-row .row-actions {
+/* The row's menu hangs from its ⋮, right-aligned to the row. In the app this
+   is `Menu`'s own placement; the popover and its rows are the app's. */
+.attachment-row .menu-popover {
   position: absolute;
-  top: 50%;
-  right: var(--lc-space-1);
-  transform: translateY(-50%);
-  border-radius: var(--lc-radius-control);
-  padding-left: var(--lc-space-3);
-  background: linear-gradient(to right, transparent, var(--lc-wash) var(--lc-space-3));
-}
-
-.attachment-row .row-actions button {
-  display: inline-flex;
-  height: var(--lc-size-control-sm);
-  align-items: center;
-  border: 0;
-  border-radius: var(--lc-radius-control);
-  padding: 0 6px;
-  color: var(--lc-ink-2);
-  background: transparent;
-  font: 500 11.5px var(--lc-font-ui);
-}
-
-.attachment-row .row-actions button:hover {
-  color: var(--lc-ink);
-  background: var(--lc-surface);
-}
-
-/* Harness: what keyboard focus on a row's first action looks like, for the
-   scene E toggle. In the app this is :focus-visible on that button. */
-.attachments.h-force-focus .attachment-row:first-child {
-  background: var(--lc-wash);
-}
-
-.attachments.h-force-focus .attachment-row:first-child .row-actions button:first-child {
-  box-shadow: var(--lc-focus-ring);
+  z-index: 2;
+  top: calc(100% - 2px);
+  right: 0;
 }
 
 .attachments-empty {
@@ -421,13 +435,19 @@
 }
 
 /* The section's Attach sits where Description's Edit does, but is always
-   visible: Edit can hide because the text under it is the affordance; an
-   empty file list has nothing under it to hover. */
+   visible: Edit can hide because the text under it is the affordance; a
+   collapsed list has nothing under it to hover. */
 .attachments-add {
   display: inline-flex;
   gap: var(--lc-space-1);
   align-items: center;
   margin-left: auto;
+}
+
+/* Five rows, then this (review 1, E3). */
+.references-more {
+  justify-self: start;
+  margin: var(--lc-space-1) 0 0 calc(28px + var(--lc-space-2) + 4px);
 }
 
 /* ---- create (story 40)
@@ -592,6 +612,10 @@ body {
 .h-window .modal-scrim { padding-top: 80px; }
 .h-window .quick-create-modal { width: min(620px, 92%); }
 .h-window .board-sizer { position: relative; }
+/* What keyboard focus on a row's ⋮ looks like, for scene E's toggle. In the
+   app this is the ⋮'s own :focus-visible ring (`.row-menu-button`). */
+.attachments.h-force-focus .attachment-row:first-child { background: var(--lc-wash); }
+.attachments.h-force-focus .attachment-row:first-child .row-menu-button { box-shadow: var(--lc-focus-ring); }
 
 /* A panel-width box for scenes that look at one surface rather than the whole
    window. The panel's own surface and padding. */
@@ -679,41 +703,42 @@ body {
 <body>
 
 <div class="h-head">
-  <p class="h-eyebrow">LC-206 · ux prototype</p>
+  <p class="h-eyebrow">LC-206 · ux prototype · review 2</p>
   <h1>Attachments: adding, showing and removing a ticket's files</h1>
   <p>
     A human can attach a screenshot, a recording or a log to a ticket wherever
-    they write about it: paste it, drop it, or press <em>Attach</em> in the
-    description editor or the comment composer. It shows up where it was written
-    about: an image inline, a video as a player, a text file as a chip. Every file
-    on the ticket is listed in a new <em>Attachments</em> section of the panel.
-    Removing a file unregisters it and keeps the file. Agents get
+    they write about it: paste it (<kbd>⌘V</kbd>), drop it, or press the
+    paperclip in the description editor or the comment composer. It shows up
+    where it was written about: an image inline, a video as a player, a text
+    file as a chip. Every file on the ticket, and every doc its description
+    links to, is listed in a new collapsible <em>References</em> section of the
+    panel. Removing a file unregisters it and keeps the file. Agents get
     <code>longclaw ticket attach</code>. Spec:
     <code>docs/specs/LC-206-attachments.md</code>.
   </p>
   <p>
-    <strong>Settled by the spec, not up for review here:</strong> image, text and
-    video only; 10 MB per file; the file is copied first and registered second;
-    removal never deletes the file; the CLI and the app share one operation.
-    <strong>What this page asks you to decide</strong> is where the controls go,
-    what the states look like, and every sentence a person reads, including the
-    refusals and the wording for missing files, orphans and unavailable links.
+    <strong>Review 1 (2026-10-15) is applied.</strong> Attachments became
+    <em>References</em>, collapsed by default, five rows then <em>View all</em>,
+    one ⋮ menu per row; files from a comment link back to it; the toast became a
+    transient <em>Attached</em> row; no Undo; stale links say <em>Removed</em> or
+    <em>Unavailable</em>; the Git LFS warning is gone; the CLI prints the link
+    form; the Attach control is settled. Each scene opens with what changed, and
+    the deck marks every rewritten row <em>review 1</em>. The asks left are the
+    questions your answers opened — the biggest is scene A’s first.
   </p>
   <p>
-    <strong>Not drawn, on purpose:</strong> the macOS file picker and the default
-    app opening a file, which are the operating system's (their strings are in
-    the deck); Git LFS setup, which LongClaw never does; and permanent deletion,
-    which is LC-276x. Every user-facing story in the spec is drawn by some scene.
-    The CLI stories (43–47) are in scene H.
+    <strong>Spec changes this implies</strong>, to make once the review settles:
+    References and derived doc rows (new); story 25 and the format's git-size
+    warning dropped; story 28 (undo with ⌘Z) dropped; paste with ⌘V,
+    comment-source links, the five-row cap and the collapsed default added.
   </p>
   <p>
     <strong>How to review.</strong> Walk the scenes in order; <kbd>←</kbd>
-    <kbd>→</kbd> step through them. Buttons inside the app windows work: they
-    are stubbed, so nothing is written anywhere. Try both appearances and the
-    760 window. Write under <em>Your feedback</em> on any scene, or against a
-    row in the copy deck; the <em>Feedback</em> scene gathers everything into
-    one Markdown note to paste into the ticket. Notes stay in this browser until
-    you clear them.
+    <kbd>→</kbd> step through them. Buttons inside the app windows work, and
+    <kbd>⌘V</kbd> works in the fields that take files; it is all stubbed, so
+    nothing is written anywhere. Your review-1 notes are still in the boxes if
+    you wrote them in this browser — <em>Clear all feedback</em> on the Feedback
+    scene starts round two clean.
   </p>
 </div>
 
@@ -724,7 +749,8 @@ body {
 /* ------------------------------------------------------------------ the copy
  * The one object the scenes and the deck both render from. Reply with an id to
  * change a row (`refuse.too_large → …`). `{name}` placeholders are filled from
- * COPY.vars, or from the values a scene passes to T().
+ * COPY.vars, or from the values a scene passes to T(). `r1: true` marks a row
+ * added or rewritten in review 1 (2026-10-15).
  */
 const KEY = "LC-206";
 const COPY = {
@@ -737,14 +763,13 @@ const COPY = {
     /* ---- the Attach control */
     { id: "attach.button.aria", kind: "aria-label", where: "the paperclip button in the description editor's and the composer's toolbar", text: "Attach files", status: "new",
       note: "Plural, because the picker takes several. Not “Attach file”, which promises one, and not “Upload”: nothing leaves the Mac." },
-    { id: "attach.button.title", kind: "title", where: "hover on the same button", text: "Attach files — or paste or drop them into the field", status: "new",
-      note: "The only place the two quieter gestures are taught. A title is shown on hover only, so the keyboard user learns them from attach.drop.hint instead." },
-    { id: "attach.button.label", kind: "button", where: "scene J variant 2 only — a labelled button at the strip's end", text: "Attach", status: "new" },
+    { id: "attach.button.title", kind: "title", where: "hover on the same button", text: "Attach files - Paste or Drag & Drop into the field", status: "new", r1: true,
+      note: "Review 1 wording. The only place the two quieter gestures are taught; a title shows on hover only, so the keyboard user learns them from attach.drop.hint." },
     { id: "attach.picker.title", kind: "file picker title", where: "the macOS open panel the button raises (not drawn)", text: "Attach to {key}", status: "new",
-      note: "The panel is the OS's; this is the one string LongClaw hands it. Naming the ticket is what stops a file going to the wrong one when two panels are open in a row." },
+      note: "The panel is the OS's; this is the one string LongClaw hands it. Naming the ticket stops a file going to the wrong one when two panels are open in a row." },
     { id: "attach.picker.prompt", kind: "button (OS)", where: "the open panel's confirm button (not drawn)", text: "Attach", status: "new" },
 
-    /* ---- dropping */
+    /* ---- dropping and pasting */
     { id: "attach.drop.label", kind: "drop overlay", where: "inside the field while files are dragged over it", text: "Drop to attach to {key}", status: "new" },
     { id: "attach.drop.hint", kind: "note", where: "under attach.drop.label", text: "Images, text and video, up to {limit} each", status: "new",
       note: "Said before the drop rather than after a refusal: the cheapest refusal is the one nobody has to read." },
@@ -755,13 +780,13 @@ const COPY = {
     { id: "attach.placeholder.file", kind: "placeholder (in the Markdown)", where: "at the caret while any other file copies", text: "[Attaching {name}…]()", status: "new" },
     { id: "attach.link.image", kind: "inserted Markdown", where: "replaces the placeholder when an image lands", text: "![{name}](./attachments/{file})", status: "new",
       note: "The original name is the alt text and the link text (story 9). The path is the one the format already documents, so a hand-edited ticket and an app-written one look the same." },
-    { id: "attach.link.file", kind: "inserted Markdown", where: "replaces the placeholder when any other file lands", text: "[{name}](./attachments/{file})", status: "new" },
+    { id: "attach.link.file", kind: "inserted Markdown", where: "replaces the placeholder when any other file lands — and what the CLI prints", text: "[{name}](./attachments/{file})", status: "new" },
 
     /* ---- while it copies, and after */
     { id: "attach.status.pending", kind: "write feedback (live region)", where: "a row under the field while a file copies", text: "Attaching {name} · {size}…", status: "new",
-      note: "The size is there because it is what explains the wait. A screen reader hears this once, when the row appears." },
-    { id: "attach.toast.done", kind: "toast", where: "bottom of the window when a file lands", text: "{key} attached · {name}", status: "new",
-      note: "The existing toast grammar — key, verb, object (see toast.checked). The pending row disappears at the same moment." },
+      note: "The size is there because it is what explains the wait." },
+    { id: "attach.status.done", kind: "write feedback (live region)", where: "the same row, for a moment, when the file lands", text: "Attached {name}", status: "new", r1: true,
+      note: "Review 1, B3: replaces the toast. The row says it, then goes; it is not restored by a re-render or a reopen of the panel, because it is news about a gesture and not a fact about the ticket." },
     { id: "attach.status.dismiss.aria", kind: "aria-label", where: "the ✕ on a refused row", text: "Dismiss", status: "new" },
     { id: "attach.status.summary", kind: "live region", where: "announced once when a multi-file drop settles", text: "{ok} of {total} files attached. {refused} could not be.", status: "new",
       note: "One sentence for the batch, so five files is not five interruptions. The per-file rows still say which one and why." },
@@ -770,59 +795,69 @@ const COPY = {
     { id: "refuse.too_large", kind: "refusal", where: "a row under the field — and the CLI's error message", text: "{name} is {size}. Attachments can be up to {limit}.", status: "new",
       note: "The fact, then the rule. No “sorry”, no “failed”: nothing broke, the file is over a line." },
     { id: "refuse.too_large.hint", kind: "refusal hint", where: "second line of the same row", text: "Trim or compress it, or put it somewhere else and link to it.", status: "new" },
-    { id: "refuse.unsupported", kind: "refusal", where: "a row under the field — and the CLI's error message", text: "{name} can’t be attached. Only images, text files and videos can.", status: "new" },
+    { id: "refuse.unsupported", kind: "refusal", where: "a row under the field — and the CLI's error message", text: "{name} can’t be attached. Only images, text files and videos are supported.", status: "new", r1: true,
+      note: "Review 1 wording." },
     { id: "refuse.unsupported.hint", kind: "refusal hint", where: "second line of the same row", text: "LongClaw checks what a file contains, not just its name.", status: "new",
       note: "Earns its line for the renamed file (story 24): trace.png that is really a zip is refused, and without this the refusal reads as a bug." },
     { id: "refuse.stale", kind: "refusal", where: "a row under the field when ticket.md changed between the copy and the registration", text: "{key} changed on disk before {name} could be added.", status: "new",
-      note: "The one refusal that leaves something behind: the bytes were already copied, so the file is now an orphan. The hint says where it went, because the alternative is a person attaching it again and getting two." },
-    { id: "refuse.stale.hint", kind: "refusal hint", where: "second line of the same row", text: "The file is kept — re-attach it from Attachments.", status: "new" },
-    { id: "warn.git", kind: "note (warn)", where: "a row under the field when an attached file is 5 MB or more", text: "{name} is {size}. Files this size make a repository slow to clone; Git LFS may suit this project better.", status: "new",
-      note: "Rule, not wording: warn at 5 MB and above — half the limit. LongClaw never changes git configuration, so this is the whole of the feature (story 25). Shown once, when the file lands; not repeated on the section's row." },
+      note: "The one refusal that leaves something behind: the bytes were already copied, so the file is now not attached. The hint says where it went." },
+    { id: "refuse.stale.hint", kind: "refusal hint", where: "second line of the same row", text: "The file stays on disk. You can re-attach it from References later.", status: "new", r1: true,
+      note: "Review 1 wording, with “attachments” read as the section — which review 1 also renamed to References." },
 
     /* ---- rendered */
     { id: "render.image.aria", kind: "aria-label", where: "an inline image (the button around it)", text: "{alt}, image. Open full size", status: "new",
-      note: "The alt text the Markdown carries, then what pressing does. Alt is the author's words, which is why the inserted link uses the file name: it is never empty." },
+      note: "The alt text the Markdown carries, then what pressing does." },
     { id: "render.video.aria", kind: "aria-label", where: "an inline video player", text: "{name}, video", status: "new" },
     { id: "render.chip.meta", kind: "chip meta", where: "after a file chip's name", text: "{type} · {size}", status: "new" },
     { id: "render.chip.aria", kind: "aria-label", where: "a file chip", text: "{name}, {type}, {size}. Opens in its default app", status: "new" },
     { id: "render.chip.title", kind: "title", where: "hover on a file chip", text: "Open in the default app", status: "new" },
-    { id: "render.unavailable", kind: "chip text", where: "a link to an attachment that was removed or whose file is missing", text: "{name} · unavailable", status: "new",
-      note: "Dashed and in warn ink so it reads as a reference that went stale, not as a file that is fine. The Markdown is untouched — undo or re-attach brings the image back where it was." },
-    { id: "render.unavailable.title", kind: "title", where: "hover on an unavailable chip", text: "Not attached to this ticket any more, or its file is missing", status: "new" },
+    { id: "render.removed", kind: "chip text", where: "a link to a file that was removed from the ticket but is still in attachments/", text: "Removed", status: "new", r1: true,
+      note: "Review 1, F: answers “should we show (Removed) there?” — yes. The app can tell the two cases apart: the link's file still exists unregistered (removed) or does not exist at all (unavailable)." },
+    { id: "render.removed.aria", kind: "aria-label", where: "the same chip", text: "{name}, removed from this ticket", status: "new", r1: true },
+    { id: "render.unavailable", kind: "chip text", where: "a link to an attachment whose file is missing", text: "Unavailable", status: "new", r1: true,
+      note: "Review 1, D2: one word, with the warning glyph. The name moves to the title and the accessible name." },
+    { id: "render.unavailable.aria", kind: "aria-label", where: "the same chip", text: "{name}, unavailable", status: "new", r1: true },
+    { id: "render.unavailable.title", kind: "title", where: "hover on a Removed or Unavailable chip", text: "{name} — not attached to this ticket, or its file is missing", status: "new", r1: true },
 
     /* ---- the viewer */
-    { id: "viewer.open", kind: "button", where: "the full-size viewer's header", text: "Open", status: "new", note: "In the default app — Preview, for an image." },
-    { id: "viewer.reveal", kind: "button", where: "the full-size viewer's header, and each section row", text: "Show in Finder", status: "new",
-      note: "macOS's own words for it. “Reveal” is the API's word, not the reader's." },
+    { id: "viewer.open", kind: "button", where: "the viewer's header", text: "Open", status: "new", note: "In the default app — Preview, for an image." },
+    { id: "viewer.reveal", kind: "button / menu row", where: "the viewer's header, and each References row's menu", text: "Show in Finder", status: "new",
+      note: "macOS's own words for it. Review 1 wrote “Open in Finder”; kept as Show in Finder because Finder's own menu says Show, and “Open” is already the default-app action two rows up. Rewrite here if you still want Open." },
     { id: "viewer.close.aria", kind: "aria-label", where: "the viewer's ✕ (Esc also closes)", text: "Close", status: "new" },
 
     /* ---- the section */
-    { id: "section.heading", kind: "section heading", where: "ticket panel, between Description and Checklist", text: "Attachments", status: "new" },
+    { id: "section.heading", kind: "section heading (toggle)", where: "ticket panel, between Description and Checklist", text: "References", status: "new", r1: true,
+      note: "Review 1, A1: files and the docs the ticket links to, in one list. The heading is the collapse toggle." },
     { id: "section.add", kind: "button", where: "the section heading's right end", text: "Attach", status: "new" },
-    { id: "section.empty", kind: "empty state", where: "the section when the ticket has no files", text: "No files. Paste or drop one into the description or a comment, or press Attach.", status: "new",
-      note: "Teaches all three gestures, once, in the one place they all lead." },
+    { id: "section.empty", kind: "empty state", where: "the section, expanded, when the ticket has none", text: "Nothing here yet. Paste or drop a file into the description or a comment, or press Attach. Docs the description links to are listed here too.", status: "new", r1: true },
+    { id: "section.more", kind: "button", where: "under the fifth row, when there are more", text: "View all {count}", status: "new", r1: true, note: "Review 1, E3." },
+    { id: "section.less", kind: "button", where: "the same place, expanded", text: "Show fewer", status: "new", r1: true },
     { id: "row.meta", kind: "row meta", where: "under each file's name", text: "{type} · {size} · {who} · {age}", status: "new",
-      note: "Story 20's five facts in one line. Who comes before when because the who is the more surprising fact." },
-    { id: "row.open.aria", kind: "aria-label", where: "a row's Open", text: "Open {name}", status: "new" },
-    { id: "row.reveal.aria", kind: "aria-label", where: "a row's Show in Finder", text: "Show {name} in Finder", status: "new" },
-    { id: "row.remove", kind: "button", where: "a registered row's last action", text: "Remove", status: "new" },
-    { id: "row.remove.title", kind: "title", where: "hover on Remove", text: "Remove from the ticket. The file is kept.", status: "new",
-      note: "The second sentence is the safety story in five words, said where the hand is." },
-    { id: "row.remove.aria", kind: "aria-label", where: "a row's Remove", text: "Remove {name} from {key}", status: "new" },
+      note: "Story 20's five facts in one line." },
+    { id: "row.source.comment", kind: "link", where: "beside a file's name, when it came in through a comment", text: "Added in a comment", status: "new", r1: true,
+      note: "Review 1, C2. Pressing it scrolls the record to that comment and marks it." },
+    { id: "row.source.comment.aria", kind: "aria-label", where: "the same link", text: "Go to the comment that added {name}", status: "new", r1: true },
+    { id: "doc.meta", kind: "row meta", where: "under a linked doc's name", text: "{path} · linked in the description", status: "new", r1: true },
+    { id: "doc.label.spec", kind: "row name (sample)", where: "a linked doc's name is its link text", text: "Product spec", status: "new", r1: true,
+      note: "Not a string the app writes — the link text the author wrote. Here so the review can see what a doc row reads like." },
+    { id: "row.menu.aria", kind: "aria-label", where: "the ⋮ at a row's right end", text: "Actions for {name}", status: "new", r1: true },
+    { id: "menu.view", kind: "menu row", where: "an image's menu", text: "View", status: "new", r1: true, note: "Opens the in-app viewer." },
+    { id: "menu.open", kind: "menu row", where: "a video's, text file's or doc's menu", text: "Open", status: "new", r1: true, note: "In the default app." },
+    { id: "row.remove", kind: "menu row", where: "a registered file's menu, last", text: "Remove", status: "new",
+      note: "Review 1 wrote “Delete”; kept as Remove because nothing is deleted — the file stays on disk (review 1, F) and permanent deletion is LC-276x. “Delete” would promise the opposite of what happens. Rewrite here if you still want it." },
+    { id: "row.remove.hint", kind: "menu hint", where: "right of Remove", text: "File kept", status: "new", r1: true,
+      note: "The safety story in two words, where the hand is." },
     { id: "state.missing", kind: "state chip", where: "a registered row whose file is gone", text: "missing", status: "new" },
-    { id: "state.missing.meta", kind: "row meta", where: "under a missing file's name, replacing row.meta's size", text: "File not found · {type} · {who} · {age}", status: "new",
-      note: "What is wrong first, then who added it (story 31) — a row this narrow cuts the end, so the end is where the least-needed fact goes. The path is in state.missing.title. The repair is Remove, which drops the record; there is nothing to open." },
+    { id: "state.missing.meta", kind: "row meta", where: "under a missing file's name", text: "File not found · {type} · {who} · {age}", status: "new" },
     { id: "state.missing.title", kind: "title", where: "hover on a missing file's meta", text: "Looked for attachments/{file}", status: "new" },
-    { id: "state.orphan", kind: "state chip", where: "a file in attachments/ that no record names", text: "not attached", status: "new",
-      note: "Not “orphan”: the format's word, not the reader's. Says what is true from the ticket's side." },
-    { id: "state.orphan.meta", kind: "row meta", where: "under an orphan's name", text: "Found in attachments/ · {type} · {size}", status: "new",
-      note: "The chip already says it is not attached; the meta says where it was found, which is the half the chip cannot." },
+    { id: "state.orphan", kind: "state chip", where: "a file in attachments/ that no record names", text: "not attached", status: "new" },
+    { id: "state.orphan.meta", kind: "row meta", where: "under a not-attached file's name", text: "Found in attachments/ · {type} · {size}", status: "new" },
     { id: "state.removed.meta", kind: "row meta", where: "under a file removed in this session", text: "Removed {age} — file kept · {type} · {size}", status: "new" },
-    { id: "row.reattach", kind: "button", where: "an orphan row's action", text: "Re-attach", status: "new" },
-    { id: "row.reattach.aria", kind: "aria-label", where: "an orphan row's Re-attach", text: "Re-attach {name} to {key}", status: "new" },
+    { id: "row.reattach", kind: "menu row", where: "a not-attached file's menu", text: "Re-attach", status: "new" },
 
-    /* ---- remove, undo, re-attach */
-    { id: "toast.removed", kind: "toast", where: "after Remove", text: "{key} removed · {name}", status: "new" },
+    /* ---- remove, re-attach */
+    { id: "toast.removed", kind: "toast", where: "after Remove", text: "{key} removed · {name}", status: "new", r1: true,
+      note: "Review 1, F1: no Undo. The toast stays, without the action, because the description's Removed chip may be off screen." },
     { id: "toast.reattached", kind: "toast", where: "after Re-attach", text: "{key} re-attached · {name}", status: "new" },
     { id: "activity.attached", kind: "activity entry", where: "the Activity tab", text: "attached {name}", status: "new" },
     { id: "activity.removed", kind: "activity entry", where: "the Activity tab", text: "removed {name}", status: "new",
@@ -830,24 +865,22 @@ const COPY = {
     { id: "activity.reattached", kind: "activity entry", where: "the Activity tab", text: "re-attached {name}", status: "new" },
 
     /* ---- create */
-    { id: "create.held", kind: "note", where: "quick create and the full create panel, under the description", text: "Attached when the ticket is created:", status: "new",
-      note: "The ticket has no folder yet. Holding the files and attaching them right after Create is this prototype's answer — see scene I's ask." },
+    { id: "create.held", kind: "note", where: "quick create and the full create panel, under the description", text: "Attached when the ticket is created:", status: "new" },
     { id: "create.held.remove.aria", kind: "aria-label", where: "the ✕ on a held file", text: "Don’t attach {name}", status: "new" },
 
     /* ---- agents */
     { id: "cli.attach.usage", kind: "CLI help", where: "longclaw ticket attach, with no arguments", text: "Usage: longclaw ticket attach <KEY> <FILE> [--name <NAME>] --agent-id <ID> [--agent-name <NAME>]", status: "new" },
-    { id: "cli.attach.markdown", kind: "CLI output (JSON field)", where: "the attach command's result, key markdown", text: "![{name}](./attachments/{file})", status: "new",
-      note: "The same string attach.link.image inserts, so an agent pasting it and a human pasting one are the same bytes (story 48)." },
+    { id: "cli.attach.markdown", kind: "CLI output (JSON field)", where: "the attach command's result, key markdown", text: "[{name}](./attachments/{file})", status: "new", r1: true,
+      note: "Review 1, H2: always the link form, for every kind of file. An agent that wants an inline image adds the !." },
     { id: "agents.guide", kind: "agent guide line", where: ".longclaw/AGENTS.md, Attachments", text: "Attach a file with `longclaw ticket attach <KEY> <file> --agent-id <id>`. It copies, checks and registers the file and prints the Markdown link to paste. Write an attachment record by hand only when the CLI is not installed.", status: "new" },
 
     /* ---- the neighbours, for tone */
     { id: "description.edit", kind: "button", where: "Description heading", text: "Edit", status: "existing" },
     { id: "editor.footer", kind: "note", where: "under the description editor", text: "writes to ticket.md on save", status: "existing",
-      note: "Now half true: an attachment is written the moment it lands, not on save. The neighbouring sentence this ticket most needs to be read against — see scene B's ask." },
+      note: "Now half true: an attachment is written the moment it lands, not on save. Review 1 accepted that (B1)." },
     { id: "composer.placeholder", kind: "placeholder", where: "the comment composer", text: "Leave a comment… ⌘↵ to post", status: "existing" },
     { id: "toast.checked", kind: "toast", where: "after ticking a checklist item", text: "{key} checked · Reproduce in Manual order", status: "existing",
-      note: "The toast shape the attach and remove toasts copy." },
-    { id: "toast.undo", kind: "toast action", where: "every reversible toast", text: "Undo", status: "existing" },
+      note: "The toast shape the remove and re-attach toasts copy." },
     { id: "conflict.title", kind: "banner", where: "the panel, when a draft's file changed on disk", text: "⚠ Changed on disk while you were editing", status: "existing" },
     { id: "ack.agent", kind: "banner", where: "the panel, after an agent's change", text: "❯ updated by {agent} · just now · via file edit", status: "existing" },
     { id: "format.link", kind: "aria-label", where: "the toolbar button the paperclip sits beside", text: "Link", status: "existing" },
@@ -865,14 +898,15 @@ function T(id, v) {
   if (!ROW[id]) { console.error("copy id not in the deck:", id); return "⟦" + id + "⟧"; }
   return esc(fill(ROW[id].text, v));
 }
+const raw = (id, v) => fill(ROW[id].text, v);
 
 /* ------------------------------------------------------------------ the data
- * One ticket, LC-312, with the files a real bug report carries. Sizes are the
- * reader's units; the record stores bytes.
+ * One ticket, LC-312, with the files and docs a real bug report carries. Sizes
+ * are the reader's units; the record stores bytes.
  */
 const F = {
   shot:   { name: "failure-state.png", file: "att_8e31-failure-state.png", type: "image/png", size: "2.4 MB", who: "You", age: "2d", kind: "image" },
-  video:  { name: "drag-repro.mov", file: "att_1c07-drag-repro.mov", type: "video/quicktime", size: "8.7 MB", who: "You", age: "2d", kind: "video" },
+  video:  { name: "drag-repro.mov", file: "att_1c07-drag-repro.mov", type: "video/quicktime", size: "8.7 MB", who: "You", age: "2d", kind: "video", source: "c-video" },
   log:    { name: "webkit-console.log", file: "att_7d2a-webkit-console.log", type: "text/plain", size: "48 KB", who: "Claude Code", age: "1d", kind: "text" },
   before: { name: "before-the-drop.png", file: "att_42bf-before-the-drop.png", type: "image/png", size: "1.1 MB", who: "You", age: "3d", kind: "image", state: "missing" },
   notes:  { name: "drag-notes.txt", file: "att_9a10-drag-notes.txt", type: "text/plain", size: "3 KB", kind: "text", state: "orphan" },
@@ -880,8 +914,14 @@ const F = {
   build:  { name: "rank-trace.log", file: "att_c4d1-rank-trace.log", type: "text/plain", size: "112 KB", who: "Claude Code", age: "just now", kind: "text" },
   big:    { name: "full-session.mov", type: "video/quicktime", size: "23.6 MB", kind: "video" },
   zip:    { name: "trace.png", type: "application/zip", size: "640 KB", kind: "other" },
-  long:   { name: "Screenshot 2026-10-12 at 14.31.07 — board, Manual order, column scrolled three rows.png", file: "att_77e0-screenshot-2026-10-12.png", type: "image/png", size: "3.1 MB", who: "You", age: "5h", kind: "image" },
+  long:   { name: "Screenshot 2026-10-12 at 14.31.07 — board, Manual order, column scrolled three rows.png", file: "att_77e0-screenshot-2026-10-12.png", type: "image/png", size: "3.1 MB", who: "You", age: "just now", kind: "image" },
 };
+/* Docs the description links to. Their rows are derived from the links, not
+   registered — see scene A's first ask. */
+const DOCS = [
+  { name: "Product spec", path: "docs/specs/LC-312-drop-index.md", kind: "doc" },
+  { name: "UX prototype", path: "docs/ux/prototypes/LC-312-Drop-Target.html", kind: "doc" },
+];
 
 /* ----------------------------------------------------------------- the state */
 const app = {
@@ -889,12 +929,16 @@ const app = {
   appearance: "light",
   theme: "indigo",
   width: 1180,
+  refsOpen: false,       // the References toggle
+  showAll: false,        // View all
+  menu: null,            // which row's ⋮ is open
+  viewer: false,         // the in-app viewer, from any image
+  flash: false,          // the transient "Attached" row
+  target: null,          // the comment a source link led to
   /* B — the description flow */
   desc: "view",          // view · edit · drag · pending · done · saved
   /* C — the comment flow */
   com: "idle",           // idle · drag · pending · ready · posted
-  /* D — the viewer */
-  viewer: false,
   /* E — the section */
   files: "several",      // empty · one · several · broken · forty
   longNames: false,
@@ -903,11 +947,9 @@ const app = {
   rm: "listed",          // listed · removed · reattached
   record: "comments",    // comments · activity
   /* G — refusals */
-  refusal: "too_large",  // too_large · unsupported · multi · stale · git
+  refusal: "too_large",  // too_large · unsupported · multi · stale
   /* I — create */
   held: true,
-  /* J — placement */
-  placement: "all",
 };
 let timer = null;
 
@@ -920,8 +962,10 @@ const G = {
   clip: '<svg class="formatting-glyph attach-glyph" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11.3 6.6-4.6 4.6a2.6 2.6 0 0 1-3.7-3.7l4.9-4.9a1.7 1.7 0 0 1 2.4 2.4L5.6 9.7a.8.8 0 0 1-1.1-1.1l4.2-4.2"></path></svg>',
   clipSm: '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11.3 6.6-4.6 4.6a2.6 2.6 0 0 1-3.7-3.7l4.9-4.9a1.7 1.7 0 0 1 2.4 2.4L5.6 9.7a.8.8 0 0 1-1.1-1.1l4.2-4.2"></path></svg>',
   doc: '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 1.5h4.6l2.4 2.4v8.6h-7z"></path><path d="M8 1.5V4h2.5M5 7h4M5 9.2h4"></path></svg>',
+  link: '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 1.5h4.6l2.4 2.4v8.6h-7z"></path><path d="M8 1.5V4h2.5"></path><path d="m5.6 9.4 3-3M6.4 6.4h2.2v2.2"></path></svg>',
   film: '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="3" width="11" height="8" rx="1.2"></rect><path d="m6 5.4 2.8 1.6L6 8.6z" fill="currentColor"></path></svg>',
   warn: '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M7 1.8 12.6 11.8H1.4z"></path><path d="M7 5.6v3M7 10.2v.01" stroke-linecap="round"></path></svg>',
+  check: '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 7.4 2.6 2.6L11 4.4"></path></svg>',
   folder: '<svg class="folder-glyph" width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z" fill="none" stroke="currentColor" stroke-width="1.3"></path></svg>',
   chevron: '<svg class="menu-chevron" width="11" height="11" viewBox="0 0 14 14" aria-hidden="true"><path d="M4.5 2.5 L9.5 7 L4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
   inProgress: '<svg class="status-dot status-in-progress" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><path d="M7 2 A5 5 0 0 1 7 12 Z" fill="currentColor"></path></svg>',
@@ -982,10 +1026,10 @@ function thumbSvg() {
 }
 
 /* ---------------------------------------------------- the app, as captured */
-function formatButtons(attach) {
+function formatButtons(attachAct) {
   return FORMAT.map(([label, path], i) =>
     '<button type="button" aria-label="' + label + '" tabindex="' + (i === 0 ? 0 : -1) + '"><svg class="formatting-glyph" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + "</svg></button>").join("") +
-    (attach === "roving" ? '<span class="toolbar-sep" aria-hidden="true"></span><button type="button" tabindex="-1" aria-label="' + T("attach.button.aria") + '" title="' + T("attach.button.title") + '" data-act="ATTACH">' + G.clip + "</button>" : "");
+    '<span class="toolbar-sep" aria-hidden="true"></span><button type="button" tabindex="-1" aria-label="' + T("attach.button.aria") + '" title="' + T("attach.button.title") + '"' + (attachAct ? ' data-act="' + attachAct + '"' : "") + ">" + G.clip + "</button>";
 }
 
 function sidePanel() {
@@ -1013,48 +1057,59 @@ function statusBar() {
   return '<div class="app-statusbar"><span class="ver">LongClaw 0.3.1</span></div>';
 }
 
+function viewerOverlay(f) {
+  return '<div class="attachment-viewer" role="dialog" aria-label="' + esc(f.name) + '"><header><strong>' + esc(f.name) + '</strong><span class="meta">' + T("render.chip.meta", { type: f.type, size: f.size }) + '</span><button tabindex="0" class="secondary small">' + T("viewer.open") + '</button><button tabindex="0" class="secondary small">' + T("viewer.reveal") + '</button><button tabindex="0" class="secondary small" aria-label="' + T("viewer.close.aria") + '" data-act="viewer-close">✕</button></header><figure>' + shotSvg(f.name, 900, 450) + "</figure></div>";
+}
+
 function win(panel, extra) {
   return '<div class="h-window" style="width:' + app.width + "px;--ticket-panel-width-drawn:" + Math.max(560, Math.min(720, Math.round(app.width * 0.88))) + 'px">' +
     '<div class="app-frame"><main class="app-shell">' + sidePanel() + board() + (extra && extra.modal ? extra.modal : "") + "</main>" + statusBar() + "</div>" +
-    (panel || "") + (extra && extra.toast ? toast(extra.toast) : "") + (extra && extra.overlay ? extra.overlay : "") + "</div>";
+    (panel || "") + (extra && extra.toast ? toast(extra.toast) : "") + (app.viewer ? viewerOverlay(F.shot) : "") + "</div>";
 }
 
-function toast(message, undo = true) {
-  return '<div class="toast-stack" role="status" aria-live="polite"><div class="toast"><span class="toast-message">' + message + "</span>" +
-    (undo ? '<button tabindex="0" class="toast-action" data-act="undo">' + T("toast.undo") + " <kbd>⌘Z</kbd></button>" : "") + "</div></div>";
+/* No Undo on any toast this ticket adds (review 1, F1). */
+function toast(message) {
+  return '<div class="toast-stack" role="status" aria-live="polite"><div class="toast"><span class="toast-message">' + message + "</span></div></div>";
 }
 
 /* -------------------------------------------------------------- the panel */
 const DESC_LEAD = "Dragging a card down a column drops it one row above where the mouse is released. Only in Manual order, and only once the column has scrolled.";
 
-function imageNode(f, opts = {}) {
+function imageNode(f) {
   return '<button type="button" tabindex="0" class="md-attachment-image" aria-label="' + T("render.image.aria", { alt: f.name }) + '" data-act="viewer">' + shotSvg(f.name) + "</button>";
 }
 function videoNode(f) {
   return '<div class="md-attachment-video" aria-label="' + T("render.video.aria", { name: f.name }) + '">' + videoSvg(f.name) + "</div>";
 }
 function chipNode(f) {
+  if (f.kind === "doc") {
+    return '<button type="button" tabindex="0" class="attachment-chip" title="' + esc(f.path) + '">' + G.link + '<span class="name">' + esc(f.name) + "</span></button>";
+  }
   return '<button type="button" tabindex="0" class="attachment-chip" aria-label="' + T("render.chip.aria", { name: f.name, type: f.type, size: f.size }) + '" title="' + T("render.chip.title") + '">' + (f.kind === "video" ? G.film : G.doc) +
     '<span class="name">' + esc(f.name) + '</span><span class="meta">' + T("render.chip.meta", { type: f.type, size: f.size }) + "</span></button>";
 }
-function unavailableNode(f) {
-  return '<span class="attachment-chip unavailable" title="' + T("render.unavailable.title") + '">' + G.warn +
-    '<span class="name">' + T("render.unavailable", { name: f.name }) + "</span></span>";
+/* `removed`: the link's file is still in attachments/, unregistered. Otherwise
+   it is missing, and the link is unavailable. */
+function staleNode(f, removed) {
+  return '<span class="attachment-chip unavailable" role="img" aria-label="' + T(removed ? "render.removed.aria" : "render.unavailable.aria", { name: f.name }) + '" title="' + T("render.unavailable.title", { name: f.name }) + '">' + G.warn +
+    '<span class="name">' + T(removed ? "render.removed" : "render.unavailable") + "</span></span>";
 }
 
 /* The rendered description. `o.shotGone` draws the screenshot's link as
-   unavailable (scene F), `o.withDrop` adds the image attached in scene B. */
+   removed (scene F), `o.withDrop` adds the image attached in scene B. */
 function descView(o = {}) {
   return '<div class="description-view"><div class="markdown"><p><span>' + DESC_LEAD + "</span></p>" +
-    (o.shotGone ? "<p>" + unavailableNode(F.shot) + "</p>" : imageNode(F.shot)) +
+    (o.shotGone ? "<p>" + staleNode(F.shot, true) + "</p>" : imageNode(F.shot)) +
     (o.withDrop ? "<p><span>Where it should have gone:</span></p>" + imageNode(F.drop) : "") +
-    "<p><span>Console from the drop, with the computed rank: </span>" + chipNode(F.log) + "</p></div></div>";
+    "<p><span>Console from the drop, with the computed rank: </span>" + chipNode(F.log) + "</p>" +
+    "<p><span>Spec: </span>" + chipNode(DOCS[0]) + "<span> · Prototype: </span>" + chipNode(DOCS[1]) + "</p></div></div>";
 }
 
 function descSource(insert) {
-  return DESC_LEAD + "\n\n" + T("attach.link.image", { name: F.shot.name, file: F.shot.file }) +
+  return DESC_LEAD + "\n\n" + raw("attach.link.image", { name: F.shot.name, file: F.shot.file }) +
     "\n\nWhere it should have gone:\n\n" + (insert || "") +
-    "\n\nConsole from the drop, with the computed rank: " + T("attach.link.file", { name: F.log.name, file: F.log.file });
+    "\n\nConsole from the drop, with the computed rank: " + raw("attach.link.file", { name: F.log.name, file: F.log.file }) +
+    "\n\nSpec: [" + DOCS[0].name + "](../../../" + DOCS[0].path + ") · Prototype: [" + DOCS[1].name + "](../../../" + DOCS[1].path + ")";
 }
 
 function descEditor(o) {
@@ -1062,9 +1117,9 @@ function descEditor(o) {
     ? '<div class="drop-label">' + G.clipSm + "<span>" + T("attach.drop.label") + " <small>" + T("attach.drop.hint") + "</small></span></div>"
     : "";
   return '<section class="panel-section description-block"><h3>Description</h3><div class="description-editor' + (o.drag ? " drop-active" : "") + '"><div class="editor-tabstrip"><div role="tablist" aria-label="Description view"><button type="button" role="tab" aria-selected="true" tabindex="0" class="editor-tab active">Write</button><button type="button" role="tab" aria-selected="false" tabindex="-1" class="editor-tab">Preview</button></div><div class="editor-toolbar" role="toolbar" aria-label="Formatting">' +
-    formatButtons("roving").replace('data-act="ATTACH"', 'data-act="attach-desc"') + "</div></div>" +
+    formatButtons("attach-desc") + "</div></div>" +
     drop +
-    '<div role="tabpanel"><textarea rows="10" aria-label="Description" tabindex="0">' + o.source + "</textarea></div>" +
+    '<div role="tabpanel"><textarea rows="10" aria-label="Description" tabindex="0" data-paste="desc">' + esc(o.source) + "</textarea></div>" +
     (o.status ? '<ul class="attach-status" role="status" aria-live="polite">' + o.status + "</ul>" : "") +
     '<div class="editor-footer"><code>' + T("editor.footer") + '</code><button tabindex="0" class="ghost" type="button" data-act="desc-cancel">Cancel <kbd aria-hidden="true">Esc</kbd></button><button tabindex="0" class="primary" type="button" data-act="desc-save"' + (o.canSave ? "" : " disabled") + '>Save <kbd aria-hidden="true">⌘↵</kbd></button></div></div></section>';
 }
@@ -1072,36 +1127,62 @@ function descEditor(o) {
 function pendingRow(f) {
   return '<li><i class="attach-spinner" aria-hidden="true"></i><span>' + T("attach.status.pending", { name: f.name, size: f.size }) + "</span></li>";
 }
+function doneRow(f) {
+  return '<li class="done">' + G.check + "<span>" + T("attach.status.done", { name: f.name }) + "</span></li>";
+}
 function refusedRow(msgId, hintId, v) {
   return '<li class="refused">' + G.warn + "<span>" + T(msgId, v) + (hintId ? '<span class="hint">' + T(hintId, v) + "</span>" : "") +
     '</span><button type="button" tabindex="0" aria-label="' + T("attach.status.dismiss.aria") + '">✕</button></li>';
 }
-function warnRow(v) {
-  return '<li class="warn">' + G.warn + "<span>" + T("warn.git", v) + '</span><button type="button" tabindex="0" aria-label="' + T("attach.status.dismiss.aria") + '">✕</button></li>';
-}
 
-function attachmentRow(f, o = {}) {
+/* One References row. `o.menu` opens its ⋮; `o.acts` names the stubbed
+   actions its menu rows run. */
+function refRow(f, o = {}) {
   const state = o.state || f.state;
-  const glyph = f.kind === "image" && state !== "missing" ? thumbSvg() : f.kind === "video" ? G.film : state === "missing" ? G.warn : G.doc;
+  const isDoc = f.kind === "doc";
+  const glyph = isDoc ? G.link : f.kind === "image" && state !== "missing" ? thumbSvg() : f.kind === "video" ? G.film : state === "missing" ? G.warn : G.doc;
   let meta;
-  if (state === "missing") meta = T("state.missing.meta", { type: f.type, who: f.who, age: f.age });
+  if (isDoc) meta = T("doc.meta", { path: f.path });
+  else if (state === "missing") meta = T("state.missing.meta", { type: f.type, who: f.who, age: f.age });
   else if (state === "orphan" && o.removed) meta = T("state.removed.meta", { age: "just now", type: f.type, size: f.size });
   else if (state === "orphan") meta = T("state.orphan.meta", { type: f.type, size: f.size });
   else meta = T("row.meta", { type: f.type, size: f.size, who: f.who, age: f.age });
-  const btn = (label, aria, act, title) =>
-    '<button type="button" tabindex="0"' + (aria ? ' aria-label="' + aria + '"' : "") + (title ? ' title="' + title + '"' : "") + (act ? ' data-act="' + act + '"' : "") + ">" + label + "</button>";
-  let actions;
-  if (state === "orphan") actions = btn(T("viewer.reveal"), T("row.reveal.aria", { name: f.name })) + btn(T("row.reattach"), T("row.reattach.aria", { name: f.name }), o.reattachAct);
-  else if (state === "missing") actions = btn(T("row.remove"), T("row.remove.aria", { name: f.name }), null, T("row.remove.title"));
-  else actions = btn(T("viewer.open"), T("row.open.aria", { name: f.name })) + btn(T("viewer.reveal"), T("row.reveal.aria", { name: f.name })) + btn(T("row.remove"), T("row.remove.aria", { name: f.name }), o.removeAct, T("row.remove.title"));
-  return '<li class="attachment-row' + (state ? " " + state : "") + (o.fresh ? " fresh" : "") + '"><span class="attachment-thumb">' + glyph + '</span><span class="attachment-text"><strong title="' + esc(f.name) + '">' + esc(f.name) + "</strong><span title=\"" + (state === "missing" ? T("state.missing.title", { file: f.file }) : meta) + "\">" + meta + "</span></span>" +
-    (state ? '<span class="attachment-state">' + T("state." + state) + "</span>" : "") + '<span class="row-actions">' + actions + "</span></li>";
+  const metaTitle = state === "missing" ? T("state.missing.title", { file: f.file }) : meta;
+  const source = f.source && !state && o.showSource !== false
+    ? '<button type="button" tabindex="0" class="attachment-source" aria-label="' + T("row.source.comment.aria", { name: f.name }) + '" data-act="goto" data-target="' + f.source + '">' + T("row.source.comment") + "</button>"
+    : "";
+  const acts = o.acts || {};
+  const item = (label, act, hint) =>
+    '<button type="button" class="menu-row" role="menuitem" tabindex="-1"' + (act ? ' data-act="' + act + '"' : "") + '><span class="menu-label">' + label + "</span>" + (hint ? '<span class="menu-hint">' + hint + "</span>" : "") + "</button>";
+  let items;
+  if (isDoc) items = item(T("menu.open")) + item(T("viewer.reveal"));
+  else if (state === "orphan") items = item(T("viewer.reveal")) + item(T("row.reattach"), acts.reattach);
+  else if (state === "missing") items = item(T("row.remove"), acts.remove, T("row.remove.hint"));
+  else items = item(f.kind === "image" ? T("menu.view") : T("menu.open"), f.kind === "image" ? "viewer" : null) + item(T("viewer.reveal")) + '<hr class="menu-rule">' + item(T("row.remove"), acts.remove, T("row.remove.hint"));
+  const id = o.id || f.name;
+  const open = app.menu === id;
+  return '<li class="attachment-row' + (state ? " " + state : "") + (o.fresh ? " fresh" : "") + '"><span class="attachment-thumb">' + glyph + "</span>" +
+    '<span class="attachment-text"><span class="attachment-name"><strong title="' + esc(f.name) + '">' + esc(f.name) + "</strong>" + source + '</span><span class="meta" title="' + metaTitle + '">' + meta + "</span></span>" +
+    (state ? '<span class="attachment-state">' + T("state." + state) + "</span>" : "<span></span>") +
+    '<button type="button" tabindex="0" class="row-menu-button' + (open ? " open" : "") + '" aria-haspopup="menu" aria-expanded="' + open + '" aria-label="' + T("row.menu.aria", { name: f.name }) + '" data-act="menu" data-row="' + esc(id) + '">' + G.dots + "</button>" +
+    (open ? '<div class="menu-popover" role="menu" aria-label="' + T("row.menu.aria", { name: f.name }) + '">' + items + "</div>" : "") + "</li>";
 }
 
+/* The section. `rows` is an array of row HTML; `count` is what the heading
+   says. Collapsed unless app.refsOpen; five rows unless app.showAll. */
 function section(rows, count) {
-  return '<section class="panel-section"><h3>' + T("section.heading") + '<span class="section-count">' + count + '</span><button tabindex="0" type="button" class="ghost small attachments-add" data-act="attach-section">' + G.clipSm + T("section.add") + "</button></h3>" +
-    (rows ? '<ul class="attachments' + (app.focus && app.scene === "e" ? " h-force-focus" : "") + '">' + rows + "</ul>" : '<p class="attachments-empty">' + T("section.empty") + "</p>") + "</section>";
+  const open = app.refsOpen;
+  const shown = app.showAll ? rows : rows.slice(0, 5);
+  const more = rows.length > 5
+    ? '<button type="button" tabindex="0" class="ghost small references-more" data-act="more">' + (app.showAll ? T("section.less") : T("section.more", { count: rows.length })) + "</button>"
+    : "";
+  return '<section class="panel-section"><h3><button type="button" tabindex="0" class="references-toggle" aria-expanded="' + open + '" data-act="refs">' + G.chevron + T("section.heading") + '<span class="section-count">' + count + "</span></button>" +
+    '<button tabindex="0" type="button" class="ghost small attachments-add" data-act="attach-section">' + G.clipSm + T("section.add") + "</button></h3>" +
+    (!open ? "" : rows.length ? '<ul class="attachments' + (app.focus && app.scene === "e" ? " h-force-focus" : "") + '">' + shown.join("") + "</ul>" + more : '<p class="attachments-empty">' + T("section.empty") + "</p>") + "</section>";
 }
+
+const DOC_ROWS = () => DOCS.map((d) => refRow(d));
+const BASE_ROWS = () => [refRow(F.shot), refRow(F.video), refRow(F.log)].concat(DOC_ROWS());
 
 function checklist() {
   return '<section class="panel-section"><h3>Checklist<span class="section-count">1/3</span><span class="progress panel-progress" aria-hidden="true"><i style="width:33%"></i></span></h3><ul class="checklist">' +
@@ -1110,37 +1191,39 @@ function checklist() {
     '</ul><form class="checklist-add"><input class="ghost-box" disabled readonly aria-hidden="true" tabindex="-1" type="checkbox"><input class="checklist-add-field" placeholder="Add a checklist item" aria-label="Add a checklist item" tabindex="0"></form></section>';
 }
 
-function comment(who, agent, age, body) {
-  return '<li class="timeline-entry message' + (agent ? " agent" : "") + '"><div class="entry-heading"><span class="actor-tile ' + (agent ? "agent" : "human-1") + '" aria-hidden="true">' + (agent ? "❯" : "•") + "</span><strong>" + who + "</strong>" +
+function comment(id, who, agent, age, body) {
+  return '<li class="timeline-entry message' + (agent ? " agent" : "") + (app.target === id ? " reference-target" : "") + '" data-comment="' + id + '"><div class="entry-heading"><span class="actor-tile ' + (agent ? "agent" : "human-1") + '" aria-hidden="true">' + (agent ? "❯" : "•") + "</span><strong>" + who + "</strong>" +
     (agent ? '<span class="agent-badge">AGENT</span>' : "") + '<span class="entry-meta">' + age + '</span></div><div class="markdown entry-body">' + body + "</div></li>";
 }
 
-function change(who, agent, text, age, clip) {
-  return '<li class="timeline-entry change' + (agent ? " agent" : "") + '"><ul class="entry-changes"><li><span class="change-glyph" aria-hidden="true">' + (clip ? G.clipSm : "❝") + '</span><strong class="change-actor">' + who + "</strong>" +
+function change(who, agent, text, age) {
+  return '<li class="timeline-entry change' + (agent ? " agent" : "") + '"><ul class="entry-changes"><li><span class="change-glyph" aria-hidden="true">' + G.clipSm + '</span><strong class="change-actor">' + who + "</strong>" +
     (agent ? '<span class="agent-badge">AGENT</span>' : "") + "<span>" + text + '</span></li></ul><p class="entry-meta change-meta">' + age + "</p></li>";
 }
 
 function composer(o = {}) {
-  return '<form class="composer' + (o.drag ? " drop-active" : "") + '"><span class="actor-tile" aria-hidden="true">•</span><textarea rows="' + (o.value ? 3 : 1) + '" placeholder="' + T("composer.placeholder") + '" aria-label="Comment" tabindex="0">' + (o.value || "") + "</textarea>" +
+  return '<form class="composer' + (o.drag ? " drop-active" : "") + '"><span class="actor-tile" aria-hidden="true">•</span><textarea rows="' + (o.value ? 4 : 1) + '" placeholder="' + T("composer.placeholder") + '" aria-label="Comment" tabindex="0" data-paste="comment">' + esc(o.value || "") + "</textarea>" +
     (o.drag ? '<div class="drop-label" style="grid-column:2">' + G.clipSm + "<span>" + T("attach.drop.label") + " <small>" + T("attach.drop.hint") + "</small></span></div>" : "") +
     (o.status ? '<ul class="attach-status" role="status" aria-live="polite" style="grid-column:2">' + o.status + "</ul>" : "") +
-    '<div class="composer-actions"><div class="composer-toolbar" role="toolbar" aria-label="Formatting"' + (o.active ? ' style="opacity:1"' : "") + ">" + formatButtons("roving").replace('data-act="ATTACH"', 'data-act="attach-comment"') + "</div>" +
+    '<div class="composer-actions"><div class="composer-toolbar" role="toolbar" aria-label="Formatting"' + (o.active ? ' style="opacity:1"' : "") + ">" + formatButtons(app.scene === "c" ? "attach-comment" : null) + "</div>" +
     (o.value ? '<button tabindex="0" class="secondary small" type="button" data-act="post">Comment</button>' : "") + "</div></form>";
 }
 
+const BASE_COMMENTS = () => [
+  comment("c-video", "You", false, "2d", "<p><span>Recording of it on 0.3.1:</span></p>" + videoNode(F.video)),
+  comment("c-log", "Claude Code", true, "1d · via file edit", "<p><span>Reproduced. The drop index is read before the scroll offset is added. Console attached: </span>" + chipNode(F.log) + "</p>"),
+];
+
 function record(o = {}) {
-  const tab = o.tab || "comments";
-  const comments = o.comments || [
-    comment("You", false, "2d", "<p><span>Recording of it on 0.3.1:</span></p>" + videoNode(F.video)),
-    comment("Claude Code", true, "1d · via file edit", "<p><span>Reproduced. The drop index is read before the scroll offset is added. Console attached: </span>" + chipNode(F.log) + "</p>"),
-  ];
+  const tab = o.tab || app.record;
+  const comments = o.comments || BASE_COMMENTS();
   const activity = o.activity || [];
   return '<section class="panel-section"><div class="panel-tabs" role="tablist" aria-label="Ticket record"><button type="button" role="tab" class="panel-tab' + (tab === "activity" ? " selected" : "") + '" aria-selected="' + (tab === "activity") + '" tabindex="' + (tab === "activity" ? 0 : -1) + '" data-act="tab-activity">Activity<span class="section-count">' + (6 + activity.length) + '</span></button><button type="button" role="tab" class="panel-tab' + (tab === "comments" ? " selected" : "") + '" aria-selected="' + (tab === "comments") + '" tabindex="' + (tab === "comments" ? 0 : -1) + '" data-act="tab-comments">Comments<span class="section-count">' + comments.length + "</span></button></div>" +
     '<div role="tabpanel"><ol class="timeline">' +
     (tab === "comments" ? comments.join("") : activity.concat([
-      change("Claude Code", true, T("activity.attached", { name: F.log.name }), "1d · via file edit", true),
-      change("You", false, T("activity.attached", { name: F.video.name }), "2d", true),
-      change("You", false, T("activity.attached", { name: F.shot.name }), "2d", true),
+      change("Claude Code", true, T("activity.attached", { name: F.log.name }), "1d · via file edit"),
+      change("You", false, T("activity.attached", { name: F.video.name }), "2d"),
+      change("You", false, T("activity.attached", { name: F.shot.name }), "2d"),
     ]).join("")) +
     "</ol></div>" + (o.composer || composer()) + "</section>";
 }
@@ -1156,7 +1239,7 @@ function panel(o = {}) {
     '<div class="rail-row"><span class="rail-label">Labels</span><div><div class="meta-labels"><span class="label-chip"><span class="label-dot label-blue" aria-hidden="true"></span>board</span><button tabindex="0" type="button" class="label-chip addable" aria-label="Labels: board">' + G.plus + "add</button></div></div></div>" +
     '</div><div class="panel-main">' +
     (o.desc || '<section class="panel-section description-block"><h3>Description<button tabindex="0" class="ghost small description-edit" aria-label="Edit description" data-act="desc-edit">' + G.pencil + T("description.edit") + "</button></h3>" + descView(o.view) + "</section>") +
-    (o.section === undefined ? section(attachmentRow(F.shot) + attachmentRow(F.video) + attachmentRow(F.log), 3) : o.section) +
+    (o.section === undefined ? section(BASE_ROWS(), 5) : o.section) +
     checklist() + (o.record || record()) + "</div></div></aside>";
 }
 
@@ -1167,21 +1250,19 @@ function sceneA() {
 
 function sceneB() {
   const s = app.desc;
+  const landed = s === "done" || s === "saved";
+  const rows = BASE_ROWS().slice(0, 3).concat(landed ? [refRow(F.drop)] : [], DOC_ROWS());
   if (s === "view" || s === "saved") {
-    return win(panel({
-      view: { withDrop: s === "saved" },
-      section: s === "saved" ? section(attachmentRow(F.shot) + attachmentRow(F.video) + attachmentRow(F.log) + attachmentRow(F.drop), 4) : undefined,
-    }));
+    return win(panel({ view: { withDrop: s === "saved" }, section: section(rows, rows.length) }));
   }
-  const insert = s === "pending" ? T("attach.placeholder.image", { name: F.drop.name }) : s === "done" ? T("attach.link.image", { name: F.drop.name, file: F.drop.file }) : "";
+  const insert = s === "pending" ? raw("attach.placeholder.image", { name: F.drop.name }) : s === "done" ? raw("attach.link.image", { name: F.drop.name, file: F.drop.file }) : "";
   const desc = descEditor({
-    source: esc(descSource()).replace("Where it should have gone:\n\n", "Where it should have gone:\n\n" + insert),
+    source: descSource(insert),
     drag: s === "drag",
-    status: s === "pending" ? pendingRow(F.drop) : "",
+    status: s === "pending" ? pendingRow(F.drop) : s === "done" && app.flash ? doneRow(F.drop) : "",
     canSave: s === "done",
   });
-  const rows = attachmentRow(F.shot) + attachmentRow(F.video) + attachmentRow(F.log) + (s === "done" ? attachmentRow(F.drop) : "");
-  return win(panel({ desc, section: section(rows, s === "done" ? 4 : 3) }), s === "done" ? { toast: T("attach.toast.done", { name: F.drop.name }) } : undefined);
+  return win(panel({ desc, section: section(rows, rows.length) }));
 }
 
 function sceneC() {
@@ -1190,95 +1271,87 @@ function sceneC() {
   const comp = composer({
     active: s !== "posted",
     drag: s === "drag",
-    value: s === "posted" ? "" : s === "pending" ? val + "\n\n" + T("attach.placeholder.image", { name: F.long.name }) : s === "ready" ? val + "\n\n" + T("attach.link.image", { name: F.long.name, file: F.long.file }) : val,
-    status: s === "pending" ? pendingRow(F.long) : "",
+    value: s === "posted" ? "" : s === "pending" ? val + "\n\n" + raw("attach.placeholder.image", { name: F.long.name }) : s === "ready" ? val + "\n\n" + raw("attach.link.image", { name: F.long.name, file: F.long.file }) : val,
+    status: s === "pending" ? pendingRow(F.long) : s === "ready" && app.flash ? doneRow(F.long) : "",
   });
-  const comments = [
-    comment("You", false, "2d", "<p><span>Recording of it on 0.3.1:</span></p>" + videoNode(F.video)),
-    comment("Claude Code", true, "1d · via file edit", "<p><span>Reproduced. The drop index is read before the scroll offset is added. Console attached: </span>" + chipNode(F.log) + "</p>"),
-  ];
-  if (s === "posted") comments.push(comment("You", false, "just now", "<p><span>" + val + "</span></p>" + imageNode(F.long)));
+  const comments = BASE_COMMENTS();
+  if (s === "posted") comments.push(comment("c-long", "You", false, "just now", "<p><span>" + val + "</span></p>" + imageNode(F.long)));
   const landed = s === "ready" || s === "posted";
-  const rows = attachmentRow(F.shot) + attachmentRow(F.video) + attachmentRow(F.log) + (landed ? attachmentRow(F.long) : "");
-  return win(panel({ section: section(rows, landed ? 4 : 3), record: record({ comments, composer: comp }) }),
-    s === "ready" ? { toast: T("attach.toast.done", { name: F.long.name }) } : undefined);
+  const long = Object.assign({}, F.long, s === "posted" ? { source: "c-long" } : {});
+  const rows = BASE_ROWS().slice(0, 3).concat(landed ? [refRow(long)] : [], DOC_ROWS());
+  return win(panel({ section: section(rows, rows.length), record: record({ tab: "comments", comments, composer: comp }) }));
 }
 
 function sceneD() {
   const box = (cap, html) => '<figure class="h-case"><figcaption>' + cap + '</figcaption><div class="h-panelbox"><div class="markdown">' + html + "</div></div></figure>";
-  const overlay = app.viewer
-    ? '<div class="attachment-viewer" role="dialog" aria-label="' + esc(F.shot.name) + '"><header><strong>' + esc(F.shot.name) + '</strong><span class="meta">' + T("render.chip.meta", { type: F.shot.type, size: F.shot.size }) + '</span><button tabindex="0" class="secondary small">' + T("viewer.open") + '</button><button tabindex="0" class="secondary small">' + T("viewer.reveal") + '</button><button tabindex="0" class="secondary small" aria-label="' + T("viewer.close.aria") + '" data-act="viewer-close">✕</button></header><figure>' + shotSvg(F.shot.name, 900, 450) + "</figure></div>"
-    : "";
   return '<div class="h-rail">' +
     box("an image — press it", "<p><span>Dropped one row high:</span></p>" + imageNode(F.shot)) +
-    box("a video", videoNode(F.video)) +
+    box("a video — still until Play is pressed", videoNode(F.video)) +
     box("a text file, inline in a sentence", "<p><span>Console from the drop: </span>" + chipNode(F.log) + "<span> — the rank is on line 41.</span></p>") +
-    box("a link to a removed or missing file", "<p><span>Before the drop: </span>" + unavailableNode(F.before) + "</p>") +
-    box("a relative link outside attachments/ — unchanged, still refused", "<p><span>[the fixture](../../fixtures/board.json) stays as its own source, as today.</span></p>") +
+    box("a doc the ticket links to", "<p><span>Spec: </span>" + chipNode(DOCS[0]) + "</p>") +
+    box("a link to a removed file, and to a missing one", "<p><span>Before the drop: </span>" + staleNode(F.shot, true) + "</p><p><span>And after: </span>" + staleNode(F.before, false) + "</p>") +
     "</div>" +
-    (app.viewer ? '<div style="margin-top:22px">' + win(panel(), { overlay }) + "</div>" : "");
+    (app.viewer ? '<div style="margin-top:22px">' + win(panel()) + "</div>" : "");
 }
 
 function sceneE() {
-  let rows = "", count = 0;
-  const pick = app.longNames ? F.long : F.shot;
-  if (app.files === "one") { rows = attachmentRow(pick); count = 1; }
-  if (app.files === "several") { rows = attachmentRow(pick) + attachmentRow(F.video) + attachmentRow(F.log); count = 3; }
-  if (app.files === "broken") { rows = attachmentRow(pick) + attachmentRow(F.video) + attachmentRow(F.log) + attachmentRow(F.before) + attachmentRow(F.notes); count = 4; }
+  let rows = [], count = 0;
+  const pick = app.longNames ? Object.assign({}, F.long, { age: "5h" }) : F.shot;
+  if (app.files === "one") rows = [refRow(pick)];
+  if (app.files === "several") rows = [refRow(pick), refRow(F.video), refRow(F.log)].concat(DOC_ROWS());
+  if (app.files === "broken") rows = [refRow(pick), refRow(F.video), refRow(F.log), refRow(F.before)].concat(DOC_ROWS(), [refRow(F.notes)]);
   if (app.files === "forty") {
     for (let i = 1; i <= 40; i++) {
       const n = String(i).padStart(3, "0");
-      rows += attachmentRow({ name: (app.longNames ? "Screenshot 2026-10-12 at 14.31." + n + " — board, Manual order.png" : "frame-" + n + ".png"), file: "att_" + n, type: "image/png", size: (0.4 + (i % 7) / 3).toFixed(1) + " MB", who: i % 3 ? "You" : "Claude Code", age: (i % 5) + 1 + "d", kind: "image" });
+      rows.push(refRow({ name: (app.longNames ? "Screenshot 2026-10-12 at 14.31." + n + " — board, Manual order.png" : "frame-" + n + ".png"), file: "att_" + n, type: "image/png", size: (0.4 + (i % 7) / 3).toFixed(1) + " MB", who: i % 3 ? "You" : "Claude Code", age: (i % 5) + 1 + "d", kind: "image" }));
     }
-    count = 40;
   }
+  count = rows.filter((r) => !r.includes(" orphan")).length;
   return win(panel({ section: section(rows, count) }));
 }
 
 function sceneF() {
   const s = app.rm;
-  const shotRow = s === "removed"
-    ? null
-    : attachmentRow(F.shot, { removeAct: "remove" });
-  const rows = s === "listed" ? shotRow + attachmentRow(F.video) + attachmentRow(F.log)
-    : s === "removed" ? attachmentRow(F.video) + attachmentRow(F.log) + attachmentRow(F.shot, { state: "orphan", removed: true, reattachAct: "reattach" })
-    : attachmentRow(F.video) + attachmentRow(F.log) + attachmentRow(Object.assign({}, F.shot, { age: "just now" }), { removeAct: "remove" });
-  const activity = s === "removed" ? [change("You", false, T("activity.removed", { name: F.shot.name }), "just now", true)]
-    : s === "reattached" ? [change("You", false, T("activity.reattached", { name: F.shot.name }), "just now", true), change("You", false, T("activity.removed", { name: F.shot.name }), "1m", true)]
+  const acts = { remove: "remove", reattach: "reattach" };
+  const shot = s === "reattached" ? Object.assign({}, F.shot, { age: "just now" }) : F.shot;
+  const rows = s === "removed"
+    ? [refRow(F.video), refRow(F.log)].concat(DOC_ROWS(), [refRow(F.shot, { state: "orphan", removed: true, acts })])
+    : s === "reattached"
+      ? [refRow(F.video), refRow(F.log), refRow(shot, { acts })].concat(DOC_ROWS())
+      : [refRow(F.shot, { acts }), refRow(F.video), refRow(F.log)].concat(DOC_ROWS());
+  const activity = s === "removed" ? [change("You", false, T("activity.removed", { name: F.shot.name }), "just now")]
+    : s === "reattached" ? [change("You", false, T("activity.reattached", { name: F.shot.name }), "just now"), change("You", false, T("activity.removed", { name: F.shot.name }), "1m")]
     : [];
   const t = s === "removed" ? T("toast.removed", { name: F.shot.name }) : s === "reattached" ? T("toast.reattached", { name: F.shot.name }) : null;
-  return win(panel({ view: { shotGone: s === "removed" }, section: section(rows, s === "removed" ? 2 : 3), record: record({ tab: app.record, activity }) }), t ? { toast: t } : undefined);
+  return win(panel({ view: { shotGone: s === "removed" }, section: section(rows, s === "removed" ? 4 : 5), record: record({ activity }) }), t ? { toast: t } : undefined);
 }
 
 function sceneG() {
   const r = app.refusal;
-  let status = "", rows = attachmentRow(F.shot) + attachmentRow(F.video) + attachmentRow(F.log), count = 3, banner = "";
+  let status = "", rows = BASE_ROWS().slice(0, 3);
   if (r === "too_large") status = refusedRow("refuse.too_large", "refuse.too_large.hint", { name: F.big.name, size: F.big.size });
   if (r === "unsupported") status = refusedRow("refuse.unsupported", "refuse.unsupported.hint", { name: F.zip.name });
   if (r === "multi") {
-    status = '<li>' + T("attach.status.summary", { ok: 2, total: 4, refused: 2 }) + "</li>" +
+    status = "<li>" + T("attach.status.summary", { ok: 2, total: 4, refused: 2 }) + "</li>" +
       refusedRow("refuse.too_large", "refuse.too_large.hint", { name: F.big.name, size: F.big.size }) +
       refusedRow("refuse.unsupported", "refuse.unsupported.hint", { name: F.zip.name });
-    rows += attachmentRow(F.drop) + attachmentRow(F.build); count = 5;
+    rows = rows.concat([refRow(F.drop), refRow(F.build)]);
   }
   if (r === "stale") {
     status = refusedRow("refuse.stale", "refuse.stale.hint", { name: F.drop.name });
-    rows += attachmentRow(F.drop, { state: "orphan", reattachAct: "noop" });
   }
-  if (r === "git") {
-    status = warnRow({ name: F.video.name, size: F.video.size });
-  }
+  rows = rows.concat(DOC_ROWS(), r === "stale" ? [refRow(F.drop, { state: "orphan" })] : []);
   /* The two that passed are linked at the caret, in the order they were dropped. */
   const landed = r === "multi"
-    ? fill(ROW["attach.link.image"].text, { name: F.drop.name, file: F.drop.file }) + "\n\n" + fill(ROW["attach.link.file"].text, { name: F.build.name, file: F.build.file })
-    : r === "git" ? fill(ROW["attach.link.file"].text, { name: F.video.name, file: F.video.file }) : "";
-  const desc = descEditor({ source: esc(descSource(landed)), status, canSave: r === "multi" || r === "git" });
-  return win(panel({ desc, section: section(rows, count) }), r === "git" ? { toast: T("attach.toast.done", { name: F.video.name }) } : undefined);
+    ? raw("attach.link.image", { name: F.drop.name, file: F.drop.file }) + "\n\n" + raw("attach.link.file", { name: F.build.name, file: F.build.file })
+    : "";
+  const desc = descEditor({ source: descSource(landed), status, canSave: r === "multi" });
+  return win(panel({ desc, section: section(rows, rows.filter((x) => !x.includes(" orphan")).length) }));
 }
 
 function sceneH() {
-  const rows = attachmentRow(F.shot) + attachmentRow(F.video) + attachmentRow(F.log) + attachmentRow(F.build, { fresh: true });
-  const activity = [change("Claude Code", true, T("activity.attached", { name: F.build.name }), "just now · via file edit", true)];
+  const rows = [refRow(F.shot), refRow(F.video), refRow(F.log), refRow(F.build, { fresh: true })].concat(DOC_ROWS());
+  const activity = [change("Claude Code", true, T("activity.attached", { name: F.build.name }), "just now · via file edit")];
   const term =
     '<span class="p">$</span> longclaw ticket attach LC-312 ./rank-trace.log \\\n    --agent-id claude-code --agent-name "Claude Code"\n' +
     "{\n" +
@@ -1289,7 +1362,7 @@ function sceneH() {
     '    "media_type": "text/plain",\n' +
     '    "size": 114688\n' +
     "  },\n" +
-    '  "markdown": "' + T("cli.attach.markdown", { name: F.build.name, file: F.build.file }).replace("![", "[") + '"\n' +
+    '  "markdown": "' + T("cli.attach.markdown", { name: F.build.name, file: F.build.file }) + '"\n' +
     "}\n\n" +
     '<span class="p">$</span> longclaw ticket attach LC-312 ./full-session.mov --agent-id claude-code\n' +
     "{\n" +
@@ -1302,16 +1375,16 @@ function sceneH() {
     '<figure class="h-case"><figcaption>the agent, in its terminal</figcaption><pre class="h-term">' + term + "</pre>" +
     '<figcaption style="margin-top:10px">.longclaw/AGENTS.md, generated</figcaption><div class="h-panelbox"><p style="margin:0;font-size:12.5px;line-height:1.55">' + T("agents.guide") + "</p></div></figure>" +
     '<figure class="h-case"><figcaption>the human, a beat later, with the panel open</figcaption>' +
-    win(panel({ ack: true, section: section(rows, 4), record: record({ tab: "activity", activity }) })) + "</figure></div>";
+    win(panel({ ack: true, section: section(rows, rows.length), record: record({ tab: "activity", activity }) })) + "</figure></div>";
 }
 
 function sceneI() {
   const held = app.held
-    ? '<p class="held-files">' + T("create.held") + ' <span class="attachment-chip">' + thumbSvg().replace('width="28" height="28"', 'width="16" height="16"') + '<span class="name">' + esc(F.shot.name) + '</span><span class="meta">' + F.shot.size + '</span><button type="button" tabindex="0" aria-label="' + T("create.held.remove.aria", { name: F.shot.name }) + '">✕</button></span></p>'
+    ? '<p class="held-files">' + T("create.held") + ' <span class="attachment-chip">' + thumbSvg().replace('width="28" height="28"', 'width="16" height="16"') + '<span class="name">' + esc(F.shot.name) + '</span><span class="meta">' + F.shot.size + '</span><button type="button" tabindex="0" aria-label="' + T("create.held.remove.aria", { name: F.shot.name }) + '" data-act="unhold">✕</button></span></p>'
     : "";
   const modal = '<div class="modal-scrim" role="presentation"><form class="quick-create-modal" aria-label="Create a ticket"><p class="eyebrow quick-create-context"><span class="theme-dot" data-lc-theme="' + app.theme + '" aria-hidden="true"></span>LongClaw · LC-321<button tabindex="-1" class="quick-create-esc" type="button" aria-label="Close">esc</button></p>' +
     '<input class="quick-create-title" aria-label="Title" placeholder="Ticket title" value="Card lands one row high in the List view too" tabindex="0">' +
-    '<textarea class="quick-create-description" rows="3" aria-label="Description" tabindex="0" style="height:96px">Same as LC-312, in the List view.\n\n' + (app.held ? T("attach.placeholder.image", { name: F.shot.name }) : "") + "</textarea>" +
+    '<textarea class="quick-create-description" rows="3" aria-label="Description" tabindex="0" data-paste="create" style="height:96px">Same as LC-312, in the List view.\n\n' + (app.held ? esc(raw("attach.placeholder.image", { name: F.shot.name })) : "") + "</textarea>" +
     held +
     '<div class="quick-create-meta"><button tabindex="0" type="button" class="menu-trigger" aria-label="Status: Todo"><span>Todo</span>' + G.chevron + '</button><button tabindex="0" type="button" class="menu-trigger" aria-label="Priority: P2"><span class="menu-glyph">' + G.p2 + "</span><span>P2</span>" + G.chevron + '</button><div class="meta-labels"><span class="label-chip"><span class="label-dot label-blue" aria-hidden="true"></span>board</span></div></div>' +
     '<div class="editor-footer"><button tabindex="0" class="ghost" type="button">Open full editor →</button><label class="create-more"><input tabindex="0" type="checkbox">Create more</label><button tabindex="0" class="primary" type="submit">Create <kbd aria-hidden="true">⌘↵</kbd></button></div></form></div>';
@@ -1319,90 +1392,77 @@ function sceneI() {
 }
 
 function sceneJ() {
-  const strip = (variant) => {
-    const fmt = formatButtons(variant === 1 ? "roving" : "none").replace('data-act="ATTACH"', "");
-    const extra = variant === 2 ? '<button type="button" tabindex="0" class="ghost small attach-variant-labelled">' + G.clipSm + T("attach.button.label") + "</button>" : "";
-    return '<div class="description-editor"><div class="editor-tabstrip"><div role="tablist" aria-label="Description view"><button type="button" role="tab" aria-selected="true" tabindex="0" class="editor-tab active">Write</button><button type="button" role="tab" aria-selected="false" tabindex="-1" class="editor-tab">Preview</button></div><div class="editor-toolbar" role="toolbar" aria-label="Formatting" style="flex:1">' + fmt + extra + '</div></div><div role="tabpanel"><textarea rows="3" aria-label="Description" tabindex="0">' + esc(DESC_LEAD) + "</textarea></div></div>";
-  };
-  const sec = (variant) => '<div style="margin-top:12px">' + section(attachmentRow(F.shot) + attachmentRow(F.log), 2).replace('class="panel-section"', 'class="panel-section"' + (variant === 3 ? ' style="outline:2px dashed var(--lc-accent-human);outline-offset:4px;border-radius:6px"' : "")) + "</div>";
-  const box = (cap, variant) => '<figure class="h-case"><figcaption>' + cap + '</figcaption><div class="h-panelbox">' + strip(variant) + sec(variant) + "</div></figure>";
-  return '<div class="h-rail">' +
-    box("1 · a 7th toolbar button (drawn everywhere else)", 1) +
-    box("2 · a labelled Attach at the strip's end", 2) +
-    box("3 · no toolbar button: the section's Attach, plus paste and drop", 3) +
-    "</div>";
+  const strip = '<div class="description-editor"><div class="editor-tabstrip"><div role="tablist" aria-label="Description view"><button type="button" role="tab" aria-selected="true" tabindex="0" class="editor-tab active">Write</button><button type="button" role="tab" aria-selected="false" tabindex="-1" class="editor-tab">Preview</button></div><div class="editor-toolbar" role="toolbar" aria-label="Formatting">' + formatButtons(null) + '</div></div><div role="tabpanel"><textarea rows="3" aria-label="Description" tabindex="0">' + esc(DESC_LEAD) + "</textarea></div></div>";
+  return '<div class="h-rail"><figure class="h-case"><figcaption>settled · the 7th toolbar button</figcaption><div class="h-panelbox">' + strip + "</div></figure></div>";
 }
 
-/* One entry per scene, in the order a reviewer should walk them. */
+/* One entry per scene, in the order a reviewer should walk them. `refs` is
+   whether the References section starts expanded in that scene. */
 const SCENES = [
   {
-    id: "a", label: "A · In place",
-    notes: ["LC-312, a real-shaped bug: a screenshot in the description, a log chip inline in a sentence, a recording in a comment, and the new <strong>Attachments</strong> section between Description and Checklist listing all three. Hover a row to see its actions. Press the screenshot to see what happens (scene D has the viewer)."],
+    id: "a", label: "A · In place", refs: false,
+    notes: [
+      "<strong>Review 1:</strong> the section is now <strong>References</strong> — the ticket’s files and the docs its description links to (a spec, a prototype) in one list. It is <strong>collapsed by default</strong>: press the heading to open it, press again to close. The screenshot now spans the column in a padded frame.",
+      "LC-312: a screenshot in the description, a log chip inline in a sentence, links to its spec and prototype, a recording in a comment. Open References to see all five; each row has a ⋮ at its right end. Press the screenshot for the in-app viewer.",
+    ],
     ask: [
-      "Is <em>between Description and Checklist</em> the right place for the section, or should it sit under the record, or collapse when it has rows that are all already shown inline?",
-      "Does an inline screenshot at full column width crowd the description, or is that the point?",
-      "Is the log chip, inline in a sentence, clearly a file and clearly pressable?",
+      "<strong>Where does a doc reference come from?</strong> Drawn: it is <em>derived</em> from links in the description and comments to files in the project (no format change; delete the link and the row goes). The alternative is a registry of links in <code>ticket.md</code>, like attachments — more control, a format change. Which?",
+      "Order: files first, then docs (drawn) — or docs first, since a spec is what a reader opens first?",
+      "Collapsed by default hides the count’s meaning until opened. Is “References 5” enough of a hint?",
     ],
     render: sceneA,
   },
   {
-    id: "b", label: "B · Attach in the description",
+    id: "b", label: "B · Attach in the description", refs: true,
     notes: [
-      "Do it: press <strong>Edit</strong>, then the paperclip at the toolbar's end (it stands in for the file picker and picks <code>drop-position.png</code>). The placeholder lands at the caret, the row under the field says it is copying, and a beat later the link replaces it and the file joins the section. Save shows the result. Or set <code>step</code> to <code>dragging</code> to see the drop target.",
-      "<strong>The file is written when it lands, not on Save.</strong> Copy and registration are one ticket edit of their own, so pressing <em>Cancel</em> after attaching leaves the file on the ticket — listed in the section, linked from nowhere. That is what the spec implies and what <code>editor.footer</code> now half-contradicts.",
+      "<strong>Review 1:</strong> no toast. The row under the field says <em>Attaching…</em>, then <em>Attached</em> for a moment, then goes — and does not come back on a re-render. References opens by itself when the file lands. <strong>⌘V</strong> in the field pastes (stubbed: press ⌘V in the description while editing).",
+      "Do it: press <strong>Edit</strong>, then the paperclip (or ⌘V). Cancel after attaching keeps the file on the ticket — accepted in review 1.",
     ],
     ask: [
-      "Cancel after attaching keeps the file on the ticket. Acceptable, or should Cancel offer to remove what this edit attached?",
-      "Is the paperclip findable at the end of six formatting glyphs, without a label? (Scene J has the alternatives.)",
-      "Is a row under the field the right place for “Attaching…”, or should the progress live only in the placeholder text?",
+      "How long should <em>Attached</em> stand before it goes? Drawn: 2.5 seconds.",
     ],
     controls: [{ key: "desc", label: "step", options: [["view", "reading"], ["edit", "editing"], ["drag", "dragging"], ["pending", "attaching"], ["done", "attached"], ["saved", "saved"]] }],
     render: sceneB,
   },
   {
-    id: "c", label: "C · Attach in a comment",
-    notes: ["The composer gets the same paperclip, the same drop target and the same row. Press the paperclip in the composer (it picks a screenshot with a very long name), then <strong>Comment</strong>. The posted comment renders the image; the file joins the section with the others, because the section lists the ticket’s files, not the description’s."],
+    id: "c", label: "C · Attach in a comment", refs: true,
+    notes: [
+      "<strong>Review 1:</strong> ⌘V pastes here too (press ⌘V in the composer). A file that came in through a comment says <strong>Added in a comment</strong> beside its name; pressing it switches to Comments, scrolls to that comment and marks it. Try it on <code>drag-repro.mov</code>, or post this one first.",
+      "<strong>⌘V of plain text still pastes text.</strong> Only a copied file (an image, a video or a text file copied in Finder or a screenshot tool) becomes an attachment.",
+    ],
     ask: [
-      "The composer’s toolbar is faded until it is in use. Is a faded paperclip discoverable enough for the most common way people will attach — a screenshot into a comment?",
-      "Should a comment’s attachments be listed in the section alongside the description’s, or apart from them?",
+      "Until the comment is posted, the file is attached but in no comment — so it has no source link (drawn). Fine, or should an unposted comment’s files wait like the create flow’s do?",
     ],
     controls: [{ key: "com", label: "step", options: [["idle", "typing"], ["drag", "dragging"], ["pending", "attaching"], ["ready", "attached"], ["posted", "posted"]] }],
     render: sceneC,
   },
   {
-    id: "d", label: "D · How they render",
-    notes: ["Each kind of attachment, where it is written about. An image is a button that opens the viewer — press it, or set <code>viewer</code> to <code>open</code>. A video is the system player (drawn here). A text file is a chip that opens in its default app; text is never inlined. A link to a removed or missing file stays visible and says so. A relative link anywhere else is still refused, exactly as today."],
+    id: "d", label: "D · How they render", refs: false,
+    notes: ["<strong>Review 1:</strong> the viewer opens from an image wherever it is — description or comment. A video never autoplays. A stale link is one word: <strong>Removed</strong> when the file is still in <code>attachments/</code> but no longer on the ticket, <strong>Unavailable</strong> when the file is gone. A linked doc is a chip that opens in its default app."],
     ask: [
-      "Full size: an in-app viewer (drawn), or straight to Preview — one less surface to build and learn?",
-      "Does the unavailable chip read as “this was here and is not now”, without alarming?",
-      "Should a video autoplay muted on hover, or stay still until pressed? (Drawn still.)",
+      "“In-place” read as: the viewer opens from the image’s own place, over the window (drawn). If you meant the image expands inline in the column instead, say so — that caps it at the column’s width.",
     ],
     controls: [{ key: "viewer", label: "viewer", options: [["false", "closed"], ["true", "open"]] }],
     render: sceneD,
   },
   {
-    id: "e", label: "E · The section, every state",
-    notes: ["Empty, one, several, the two broken states the core already detects, and forty. <strong>missing</strong>: the record is there, the bytes are not — metadata kept, the only action is Remove. <strong>not attached</strong>: bytes with no record, offered back with Re-attach. Turn on <code>long names</code> and <code>keyboard focus</code> to see truncation and the focus ring on a row’s first action."],
+    id: "e", label: "E · References, every state", refs: true,
+    notes: ["<strong>Review 1:</strong> every row ends in a ⋮ — press one for <em>View / Open</em>, <em>Show in Finder</em> and <em>Remove</em>. Five rows show; the rest are behind <em>View all</em>. <code>forty</code> shows the cap; <code>missing + not attached</code> shows the two broken states with the docs between them."],
     ask: [
-      "Empty: show the section with its one-line teaching (drawn), or hide it until there is a file?",
-      "Are “missing” and “not attached” the right words, and is it clear what to do about each?",
-      "Forty rows: should the section cap at, say, eight with “Show all”, or is a long list honest?",
-      "Without hovering, can you tell that a row has Remove? (Rows show actions on hover and focus only, like checklist rows.)",
+      "Should <em>not attached</em> and <em>missing</em> rows count toward the five, or always show (drawn: they count, in list order)?",
     ],
     controls: [
-      { key: "files", label: "files", options: [["empty", "none"], ["one", "one"], ["several", "three"], ["broken", "missing + not attached"], ["forty", "forty"]] },
+      { key: "files", label: "references", options: [["empty", "none"], ["one", "one"], ["several", "five"], ["broken", "missing + not attached"], ["forty", "forty"]] },
       { key: "longNames", label: "long names", options: [["false", "off"], ["true", "on"]] },
       { key: "focus", label: "keyboard focus", options: [["false", "off"], ["true", "on"]] },
     ],
     render: sceneE,
   },
   {
-    id: "f", label: "F · Remove, undo, re-attach",
-    notes: ["Do it: hover <code>failure-state.png</code> in the section and press <strong>Remove</strong>. The row moves to the bottom as <em>not attached</em> (the file is kept), the image in the description becomes an unavailable chip, and a toast offers Undo. Press <strong>Undo</strong>, or <strong>Re-attach</strong> on the row. Switch <code>record</code> to <code>activity</code> to see each step attributed."],
+    id: "f", label: "F · Remove and re-attach", refs: true,
+    notes: ["<strong>Review 1:</strong> no Undo, no confirmation. Do it: press ⋮ on <code>failure-state.png</code> → <strong>Remove</strong>. The row moves to the end as <em>not attached</em>, the image in the description becomes a <strong>Removed</strong> chip, and a toast says so (no action on it). ⋮ → <strong>Re-attach</strong> brings it back. Switch <code>record</code> to <code>activity</code> for the attributed entries."],
     ask: [
-      "Remove needs no confirmation because nothing is deleted and Undo is offered. Agreed?",
-      "After the undo window, is Re-attach on a <em>not attached</em> row an obvious enough way back?",
-      "Re-attach puts the file at the end of the list, not where it was. Does that matter?",
+      "With no Undo, ⌘Z after Remove does nothing here. Should ⌘Z still re-attach, as it undoes other ticket edits — or is Re-attach in the menu the only way back?",
     ],
     controls: [
       { key: "rm", label: "step", options: [["listed", "listed"], ["removed", "removed"], ["reattached", "re-attached"]] },
@@ -1411,42 +1471,31 @@ const SCENES = [
     render: sceneF,
   },
   {
-    id: "g", label: "G · Refusals and warnings",
-    notes: ["Every way an attach can be turned down, in the row under the field. <code>several dropped</code> is four files, two refused: the two that pass still land (story 23), and one summary sentence is announced for the batch. <code>stale</code> is the one refusal that leaves a file behind — the copy happened, the registration was refused — so it says where the file went. <code>git size</code> is a warning on a file that did attach."],
+    id: "g", label: "G · Refusals", refs: true,
+    notes: ["<strong>Review 1:</strong> the Git LFS warning is gone. Refusals stay until dismissed. <code>several dropped</code> is four files, two refused: the two that pass still land and are linked; one summary sentence is announced for the batch. <code>stale</code> leaves the file behind as <em>not attached</em> and says so."],
     ask: [
-      "Do the refusals tell you what to do next, in words you would use?",
-      "Is 5 MB the right line for the Git LFS warning, and is the warning worth showing at all?",
-      "Refusal rows stay until dismissed. Should they clear on their own after the next keystroke?",
+      "Nothing new — check the two rewritten sentences (<code>refuse.unsupported</code>, <code>refuse.stale.hint</code>) read the way you wrote them.",
     ],
-    controls: [{ key: "refusal", label: "case", options: [["too_large", "too large"], ["unsupported", "not a supported type"], ["multi", "several dropped"], ["stale", "stale"], ["git", "git size"]] }],
+    controls: [{ key: "refusal", label: "case", options: [["too_large", "too large"], ["unsupported", "not a supported type"], ["multi", "several dropped"], ["stale", "stale"]] }],
     render: sceneG,
   },
   {
-    id: "h", label: "H · When an agent attaches",
-    notes: ["An agent runs <code>longclaw ticket attach</code>; the app sees the write. The panel shows the existing acknowledgement, the new row wears the agent rail like any external change (story 35), and the Activity tab attributes it. The CLI prints the record and the Markdown to paste, and refuses with the same sentence the app shows."],
-    ask: [
-      "Is the agent rail on the new row enough to notice it, or should the section also count “1 new”?",
-      "Should the CLI print the image form <code>![…]()</code> for images and the link form for the rest (drawn: link form for a log)?",
-    ],
+    id: "h", label: "H · When an agent attaches", refs: true,
+    notes: ["<strong>Review 1:</strong> the CLI always prints the link form. Otherwise unchanged: the existing acknowledgement, the agent rail on the new row, and the Activity entry. References opens by itself because a file landed."],
+    ask: ["Nothing new."],
     render: sceneH,
   },
   {
-    id: "i", label: "I · While creating a ticket",
-    notes: ["Quick create, after pasting a screenshot. The ticket does not exist yet, so there is no folder to copy into: this prototype holds the file and attaches it right after <em>Create</em>, and says so in a tray under the field. The full create panel uses the same description editor, so it gets the toolbar’s paperclip as well."],
-    ask: [
-      "Hold-then-attach (drawn), or create the ticket’s folder the moment a file is pasted, at the cost of a folder for a ticket that may never be created?",
-      "Is the tray needed, given the placeholder is already in the text?",
-    ],
+    id: "i", label: "I · While creating a ticket", refs: false,
+    notes: ["<strong>Review 1:</strong> hold-then-attach and the tray, as drawn. ⌘V pastes here too (press ⌘V in the description). The full create panel uses the same editor, so it has the paperclip as well."],
+    ask: ["Nothing new."],
     controls: [{ key: "held", label: "pasted", options: [["false", "nothing yet"], ["true", "a screenshot"]] }],
     render: sceneI,
   },
   {
-    id: "j", label: "J · Open question: the Attach control",
-    notes: ["Three structurally different answers to where the button goes, at most one of which ships. <strong>1</strong>, drawn everywhere else, joins the formatting group: one Tab stop, reached with the arrows, unlabelled. <strong>2</strong> is a labelled button with its own Tab stop at the strip’s end. <strong>3</strong> has no button in the field at all: the section’s <em>Attach</em> is the only button, and the fields take paste and drop."],
-    ask: [
-      "Which of the three? The trade is discoverability (2) against a quieter field (1) against one place to learn (3).",
-      "With 3, where does a file attached from the section get linked — nowhere, or at the end of the description?",
-    ],
+    id: "j", label: "J · Attach control (settled)", refs: false,
+    notes: ["<strong>Settled in review 1:</strong> the seventh toolbar button, after a hairline, inside the formatting group’s roving tab stop. The other two placements are gone from this page."],
+    ask: ["Nothing — settled."],
     render: sceneJ,
   },
 ];
@@ -1481,7 +1530,7 @@ function deck() {
         (r.note ? '<span class="rowhint">' + esc(r.note) + "</span>" : "") +
         '<textarea rows="1" name="copy:' + esc(r.id) + '" data-fb="copy:' + esc(r.id) + '" placeholder="Suggest a rewrite">' + esc(feedback["copy:" + r.id] || "") + "</textarea>" +
       "</td>" +
-      '<td><span class="st st-' + esc(r.status) + '">' + esc(r.status) + "</span></td>" +
+      '<td><span class="st st-' + esc(r.status) + '">' + esc(r.status) + "</span>" + (r.r1 ? '<br><span class="st st-changed">review 1</span>' : "") + "</td>" +
     "</tr>").join("");
   return '<div class="h-deck"><table><thead><tr><th>Id</th><th>Kind</th><th>Where</th><th>Text</th><th>Status</th></tr></thead><tbody>' +
     rows + "</tbody></table></div>";
@@ -1517,7 +1566,6 @@ const ALL = SCENES.concat([
   { id: "deck", label: "Copy deck", notes: ["Every user-facing string this ticket proposes, including the ones no screen shows — aria-labels, titles, live regions, the OS picker’s two strings and the CLI’s. The app chrome these scenes stand in (Archive, Checklist, the rail) is captured verbatim and only its nearest neighbours are listed; the ticket’s text and file names are sample data. The scenes render from this same object, so the deck cannot go stale against them. <code>existing</code> rows are neighbours, here for tone."] },
   { id: "feedback", label: "Feedback", notes: ["Everything written on this page, as one note. Paste it into LC-206 as a comment, or hand it back to the agent that built the prototype."] },
 ]);
-app.scene = ALL[0].id;
 const sceneOf = (id) => ALL.find((s) => s.id === id);
 const THEMES = ["indigo", "clay", "slate", "plum", "graphite"];
 const WIDTHS = [[1440, "1440"], [1180, "1180 · default"], [760, "760 · min"]];
@@ -1564,45 +1612,73 @@ function render() {
   renderStage();
 }
 
-/* The stubbed copy: an attach "takes" a beat, then lands. */
+/* The stubbed copy: an attach "takes" a beat, then lands, says so for a
+   moment, and the References section opens on it. */
+let flashTimer = null;
 function later(fn, ms = 1400) {
   clearTimeout(timer);
   timer = setTimeout(() => { fn(); render(); }, ms);
 }
+function land(fn) {
+  later(() => {
+    fn();
+    app.flash = true;
+    app.refsOpen = true;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { app.flash = false; render(); }, 2500);
+  });
+}
+function enterScene(id) {
+  app.scene = id;
+  const s = sceneOf(id);
+  app.refsOpen = !!(s && s.refs);
+  app.menu = null; app.showAll = false; app.viewer = false; app.target = null; app.flash = false;
+  clearTimeout(timer); clearTimeout(flashTimer);
+}
 
 document.addEventListener("click", (event) => {
+  /* A click anywhere but the open menu closes it, as the app's menus do. */
+  let dirty = false;
+  if (app.menu && !event.target.closest(".menu-popover, [data-act='menu']")) { app.menu = null; dirty = true; }
   const el = event.target.closest("[data-scene], [data-appearance], [data-theme-pick], [data-width], [data-ctl], [data-act]");
-  if (!el) return;
+  if (!el) { if (dirty) render(); return; }
   event.preventDefault();
   const d = el.dataset;
-  if (d.scene) { app.scene = d.scene; clearTimeout(timer); }
+  if (d.scene) enterScene(d.scene);
   else if (d.appearance) app.appearance = d.appearance;
   else if (d.themePick) app.theme = d.themePick;
   else if (d.width) app.width = Number(d.width);
-  else if (d.ctl) { clearTimeout(timer); app[d.ctl] = d.val === "true" ? true : d.val === "false" ? false : d.val; }
+  else if (d.ctl) { clearTimeout(timer); app.menu = null; app[d.ctl] = d.val === "true" ? true : d.val === "false" ? false : d.val; }
   else if (d.act === "copy-md") {
     const done = (msg) => { document.getElementById("h-copied").textContent = msg; };
     navigator.clipboard.writeText(markdown()).then(() => done("Copied."), () => done("Select the text below and copy it."));
     return;
   } else if (d.act === "clear-fb") { feedback = {}; saveFeedback(); }
   /* The feature's own stubbed actions. No network, no disk. */
+  else if (d.act === "refs") app.refsOpen = !app.refsOpen;
+  else if (d.act === "more") app.showAll = !app.showAll;
+  else if (d.act === "menu") app.menu = app.menu === d.row ? null : d.row;
   else if (d.act === "desc-edit") { if (app.scene === "b") app.desc = "edit"; else return; }
-  else if (d.act === "attach-desc" && app.scene === "b") { app.desc = "pending"; later(() => { app.desc = "done"; }); }
+  else if (d.act === "attach-desc" && app.scene === "b") { app.desc = "pending"; land(() => { app.desc = "done"; }); }
   else if (d.act === "desc-save") { if (app.scene === "b") app.desc = "saved"; }
   else if (d.act === "desc-cancel") { if (app.scene === "b") app.desc = "view"; }
-  else if (d.act === "attach-comment" && app.scene === "c") { app.com = "pending"; later(() => { app.com = "ready"; }); }
-  else if (d.act === "post" && app.scene === "c") { app.com = "posted"; }
-  else if (d.act === "viewer") { app.scene = "d"; app.viewer = true; }
+  else if (d.act === "attach-comment" && app.scene === "c") { app.com = "pending"; land(() => { app.com = "ready"; }); }
+  else if (d.act === "post" && app.scene === "c") { app.com = "posted"; app.flash = false; }
+  else if (d.act === "viewer") { app.viewer = true; app.menu = null; }
   else if (d.act === "viewer-close") app.viewer = false;
-  else if (d.act === "remove" && app.scene === "f") app.rm = "removed";
-  else if (d.act === "reattach" && app.scene === "f") app.rm = "reattached";
-  else if (d.act === "undo" && app.scene === "f") app.rm = app.rm === "removed" ? "listed" : app.rm === "reattached" ? "removed" : app.rm;
-  /* Undoing an attach is a removal: the file is unregistered and kept. */
-  else if (d.act === "undo" && app.scene === "b") app.desc = "edit";
-  else if (d.act === "undo" && app.scene === "c") app.com = "idle";
+  else if (d.act === "remove" && app.scene === "f") { app.rm = "removed"; app.menu = null; }
+  else if (d.act === "reattach" && app.scene === "f") { app.rm = "reattached"; app.menu = null; }
+  else if (d.act === "unhold") app.held = false;
   else if (d.act === "tab-activity") app.record = "activity";
   else if (d.act === "tab-comments") app.record = "comments";
-  else return;
+  else if (d.act === "goto") {
+    app.target = d.target; app.record = "comments";
+    render();
+    const c = document.querySelector('#stage [data-comment="' + d.target + '"]');
+    if (c) c.scrollIntoView({ block: "center" });
+    return;
+  }
+  else { if (dirty) render(); return; }
   render();
 });
 
@@ -1615,15 +1691,28 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && app.viewer) { app.viewer = false; render(); return; }
+  if (event.key === "Escape" && (app.viewer || app.menu)) { app.viewer = false; app.menu = null; render(); return; }
+  /* ⌘V in a field that takes files stands in for pasting a copied file
+     (review 1, C1, I1). In the app, plain text on the clipboard still pastes
+     as text; only a file becomes an attachment. */
+  const paste = event.target.dataset && event.target.dataset.paste;
+  if (paste && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v") {
+    event.preventDefault();
+    if (paste === "desc" && app.scene === "b") { app.desc = "pending"; land(() => { app.desc = "done"; }); }
+    else if (paste === "comment" && app.scene === "c") { app.com = "pending"; land(() => { app.com = "ready"; }); }
+    else if (paste === "create") app.held = true;
+    else return;
+    render();
+    return;
+  }
   if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
   if (event.target.closest && event.target.closest("input, textarea, select, [contenteditable]")) return;
   const i = ALL.findIndex((s) => s.id === app.scene);
-  app.scene = ALL[(i + (event.key === "ArrowRight" ? 1 : ALL.length - 1)) % ALL.length].id;
-  clearTimeout(timer);
+  enterScene(ALL[(i + (event.key === "ArrowRight" ? 1 : ALL.length - 1)) % ALL.length].id);
   render();
 });
 
+enterScene(ALL[0].id);
 render();
 </script>
 </body>

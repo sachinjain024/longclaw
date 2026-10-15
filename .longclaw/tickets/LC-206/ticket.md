@@ -126,3 +126,17 @@ changes:
 
 UX prototype for review: docs/ux/prototypes/LC-206-Attachments.html. Ten scenes (in place, attach in the description, attach in a comment, rendering, the section in every state, remove/undo/re-attach, refusals, agent via CLI, while creating, and three placements for the Attach control) plus a 67-row copy deck. The asks that matter most: where the Attach control goes (scene J), whether Cancel after attaching should offer to remove the file (B), the words missing / not attached / unavailable (D, E), and hold-then-attach in the create surfaces (I).
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_723405c8
+kind: comment
+occurred_at: 2026-10-15T08:01:43.983Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype review 1 (2026-10-15) applied to docs/ux/prototypes/LC-206-Attachments.html: Attachments renamed References (files + docs the description links to), collapsed by default and auto-expanding when a file lands; 5 rows then View all; one ⋮ menu per row; 'Added in a comment' links back to the comment; full-width padded images; transient Attaching/Attached row instead of a toast; no Undo; stale links read Removed or Unavailable; Git LFS warning dropped; CLI prints the link form; ⌘V paste in description, comments and create; Attach control settled as the 7th toolbar button. Kept Remove (not Delete) and Show in Finder (not Open in Finder), pending reply. Open: how doc references are recorded (derived from links vs a registry). Spec changes once settled: References, stories 25 and 28 dropped, paste/source/cap/collapse added.
+<!-- /longclaw:event -->
