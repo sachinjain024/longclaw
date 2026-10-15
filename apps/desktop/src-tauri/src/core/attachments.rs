@@ -284,6 +284,55 @@ pub fn registered_attachment(
     Ok((path, attachment))
 }
 
+/// The extensions a registered file may carry and still be opened in its
+/// default app: ones LaunchServices hands to a viewer or an editor.
+///
+/// An allow-list, because the question is what macOS will *do* with the file,
+/// and it decides that by name rather than by the bytes this module sniffed. A
+/// shell script is text by content, and `fix.command` still opens in Terminal,
+/// which runs it — so a chip an agent attached must not be one click from that.
+/// SVG and XML are images and text by content, and are left out for the same
+/// reason: macOS hands them to Safari, where a script inside one runs.
+const OPENABLE_EXTENSIONS: &[&str] = &[
+    // Images.
+    "png", "jpg", "jpeg", "gif", "tif", "tiff", "webp", "avif", "heic", "heif",
+    // Videos.
+    "mp4", "m4v", "mov", "webm", "mkv", "avi", "ogv", "3gp", "3g2",
+    // Text that opens in an editor or a viewer.
+    "txt", "text", "log", "md", "markdown", "csv", "tsv", "json", "yaml", "yml", "diff", "patch",
+    "toml", "ini",
+];
+
+/// The file to hand to its default app, for a chip or a viewer's **Open**
+/// (LC-206). Only a registered attachment, proven inside its folder by
+/// [`registered_attachment`], and only one whose name LaunchServices opens
+/// rather than runs; anything else is refused with **Show in Finder** as the
+/// way round it.
+pub fn attachment_to_open(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+    file: &str,
+) -> AppResult<PathBuf> {
+    let (path, attachment) = registered_attachment(project_root, project_key, key, file)?;
+    let extension = file_name(&attachment.file)
+        .rsplit_once('.')
+        .map(|(_, extension)| extension.to_ascii_lowercase());
+    if extension.is_some_and(|extension| OPENABLE_EXTENSIONS.contains(&extension.as_str())) {
+        return Ok(path);
+    }
+    Err(AppError::new(
+        ErrorCode::UnsupportedMediaType,
+        format!(
+            "{} isn’t opened from LongClaw, because macOS might run a file with that name \
+             rather than show it. Use Show in Finder instead.",
+            attachment.name
+        ),
+        true,
+    )
+    .with_context("file", attachment.file))
+}
+
 /// The reference ids whose path does not resolve, for the detail read.
 pub(crate) fn missing_references(project_root: &Path, ticket: &ticket::Ticket) -> Vec<String> {
     ticket

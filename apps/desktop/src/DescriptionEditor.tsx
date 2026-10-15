@@ -16,6 +16,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import type { TicketAttachments } from "./AttachmentView";
 import { MarkdownView } from "./MarkdownView";
 import { FormattingToolbar } from "./FormattingToolbar";
 import type { ToolbarAction } from "./markdownToolbar";
@@ -38,6 +39,8 @@ type Tab = (typeof TABS)[number]["id"];
 type DescriptionEditorProps = {
   value: string;
   onChange: (value: string) => void;
+  /** The ticket's attachments, so the preview draws what the view will (LC-206). */
+  attachments?: TicketAttachments;
 } & (
   | {
       writeOnly: true;
@@ -217,6 +220,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
               source={props.value}
               headingOffset={3}
               className="markdown description-preview"
+              attachments={props.attachments}
             />
           )}
         </div>

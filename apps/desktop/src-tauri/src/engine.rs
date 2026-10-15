@@ -33,6 +33,7 @@ use chrono::{SecondsFormat, Utc};
 use notify::{Config, Event, PollWatcher, RecursiveMode, Watcher};
 use parking_lot::Mutex;
 
+use crate::core::attachments;
 use crate::core::storage::{
     self, atomic_write, content_hash, directory_key, prepare_new_ticket, prepare_ticket_edit,
     read_project, reconcile_agent_instructions, ticket_file_path, NewTicket,
@@ -438,6 +439,20 @@ impl ProjectEngine {
     /// the grammar and a symlink that leaves the project.
     pub fn canonical_ticket_path(&self, key: &str) -> AppResult<PathBuf> {
         storage::resolve_ticket_path(&self.root, key)
+    }
+
+    /// A registered attachment's file, proven inside its ticket's folder, for
+    /// **Show in Finder** (LC-206). The webview names the record's `file`, which
+    /// is checked against the registry rather than joined onto a path.
+    pub fn attachment_to_reveal(&self, key: &str, file: &str) -> AppResult<PathBuf> {
+        attachments::registered_attachment(&self.root, &self.project().key, key, file)
+            .map(|(path, _)| path)
+    }
+
+    /// The same, for opening in the default app, which also refuses a name
+    /// macOS would run rather than show. See `attachments::attachment_to_open`.
+    pub fn attachment_to_open(&self, key: &str, file: &str) -> AppResult<PathBuf> {
+        attachments::attachment_to_open(&self.root, &self.project().key, key, file)
     }
 
     /// A write is held to what the project configures before it is prepared.

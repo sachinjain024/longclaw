@@ -15,7 +15,7 @@
  *   has no assignee at all (ADR 0001).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // Aliased because the panel also binds `keydown` on `document`, where the type
 // is the DOM's own `KeyboardEvent` and shadowing it would silently retype those.
 import type {
@@ -23,7 +23,15 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
 } from "react";
-import { editTicket, openTicketFile, readTicket } from "./api";
+import {
+  editTicket,
+  openAttachment,
+  openTicketFile,
+  readTicket,
+  revealAttachment,
+} from "./api";
+import type { TicketAttachments } from "./AttachmentView";
+import { AttachmentViewer } from "./AttachmentView";
 import {
   actorGlyph,
   eventProse,
@@ -74,6 +82,7 @@ import { Timeline } from "./Timeline";
 import { isComment } from "./timelineEvents";
 import type {
   AppError,
+  Attachment,
   ChecklistItem,
   HeldConflict,
   Label,
@@ -397,6 +406,49 @@ export function TicketPanel(props: TicketPanelProps) {
     pending: TicketEdit;
   }>();
   const [unavailable, setUnavailable] = useState<AppError>();
+  /** The image the in-app viewer is showing (LC-206). */
+  const [viewing, setViewing] = useState<Attachment>();
+  /**
+   * What the ticket's own text needs to draw its attachments: the registry,
+   * the two broken states the read reports, and what pressing one does. One
+   * object for the description, its preview and every comment, rebuilt only
+   * when a read lands, so the parse each of them memoises on survives a
+   * keystroke. A refused open toasts where it was pressed, as `openInEditor`
+   * does.
+   */
+  const attachments = useMemo<TicketAttachments | undefined>(() => {
+    const record = detail?.ticket;
+    if (!detail || !record) return undefined;
+    const reach =
+      (action: typeof openAttachment) => (attachment: Attachment) => {
+        action(projectId, ticketKey, attachment.file).catch(
+          (error: unknown) => {
+            raise({ message: normalizeError(error).message, tone: "danger" });
+          },
+        );
+      };
+    return {
+      projectId,
+      ticketKey,
+      index: {
+        attachments: record.attachments,
+        missing: detail.missingAttachments,
+        orphans: detail.orphanAttachments,
+      },
+      onView: setViewing,
+      onOpen: reach(openAttachment),
+      onReveal: reach(revealAttachment),
+    };
+  }, [detail, projectId, ticketKey, raise]);
+  // A file name is only unique within its ticket, so the viewer closes when
+  // the panel moves to another one rather than finding a namesake there.
+  useEffect(() => setViewing(undefined), [ticketKey]);
+  /** Shown only while the read still has it: a removed file closes the viewer. */
+  const viewed =
+    viewing &&
+    attachments?.index.attachments.find(
+      (attachment) => attachment.file === viewing.file,
+    );
   /** Checklist ids an external write ticked, for the acknowledgement. */
   const [externallyCheckedIds, setExternallyCheckedIds] = useState<string[]>(
     [],
@@ -1620,6 +1672,7 @@ export function TicketPanel(props: TicketPanelProps) {
                 {editingDescription ? (
                   <DescriptionEditor
                     value={descriptionDraft}
+                    attachments={attachments}
                     // `TicketDocument::apply` refuses an edit that changes nothing.
                     canSave={descriptionDraft.trim() !== ticket.description}
                     onChange={(next) => {
@@ -1655,6 +1708,7 @@ export function TicketPanel(props: TicketPanelProps) {
                       source={ticket.description}
                       headingOffset={3}
                       className="markdown"
+                      attachments={attachments}
                     />
                   </div>
                 ) : (
@@ -1918,6 +1972,7 @@ export function TicketPanel(props: TicketPanelProps) {
                       // not a record yet and a tab counting something the reader
                       // cannot see is the argument LC-109 settled.
                       pendingComment={pendingComment}
+                      attachments={attachments}
                     />
                   </div>
                 ) : (
@@ -1932,6 +1987,7 @@ export function TicketPanel(props: TicketPanelProps) {
                       labels={props.labels}
                       checklist={ticket.checklist}
                       pendingComment={pendingComment}
+                      attachments={attachments}
                       // Only here, and not on the Activity tab beside it: there a
                       // comment is the one line saying it happened, and its words
                       // are not on screen to be rewritten (LC-241q).
@@ -2032,6 +2088,13 @@ export function TicketPanel(props: TicketPanelProps) {
             </div>
           </div>
         </>
+      )}
+      {viewed && attachments && (
+        <AttachmentViewer
+          attachment={viewed}
+          scope={attachments}
+          onClose={() => setViewing(undefined)}
+        />
       )}
     </aside>
   );

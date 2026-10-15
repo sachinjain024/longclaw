@@ -8,12 +8,23 @@
  * could turn it into anything else.
  *
  * The subset and its fallbacks are `markdown.ts`. This file only decides what
- * each node looks like.
+ * each node looks like; an attachment's look is `AttachmentView.tsx`'s.
  */
 
-import { useMemo } from "react";
+import { createContext, useContext, useMemo } from "react";
+import type { TicketAttachments } from "./AttachmentView";
+import {
+  AttachmentNodeView,
+  UnavailableAttachmentView,
+} from "./AttachmentView";
 import type { Block, ColumnAlignment, Inline, TableRow } from "./markdown";
 import { parseMarkdown } from "./markdown";
+
+/**
+ * The ticket an inline node is drawn for, held here rather than passed down
+ * every block, cell and list item to the one leaf that reads it.
+ */
+const AttachmentScope = createContext<TicketAttachments | undefined>(undefined);
 
 /**
  * The delimiter row's colons, as the one class that carries them.
@@ -36,14 +47,26 @@ interface MarkdownViewProps {
    */
   headingOffset?: number;
   className?: string;
+  /**
+   * The ticket this text belongs to (LC-206). With it, a link into the
+   * ticket's own `attachments/` renders as the file; without it, it stays
+   * refused, which is right for anything that is not a ticket's own text.
+   */
+  attachments?: TicketAttachments;
 }
 
 export function MarkdownView(props: MarkdownViewProps) {
-  const blocks = useMemo(() => parseMarkdown(props.source), [props.source]);
+  const index = props.attachments?.index;
+  const blocks = useMemo(
+    () => parseMarkdown(props.source, index),
+    [props.source, index],
+  );
   return (
-    <div className={props.className ?? "markdown"}>
-      <Blocks blocks={blocks} offset={props.headingOffset ?? 0} />
-    </div>
+    <AttachmentScope.Provider value={props.attachments}>
+      <div className={props.className ?? "markdown"}>
+        <Blocks blocks={blocks} offset={props.headingOffset ?? 0} />
+      </div>
+    </AttachmentScope.Provider>
   );
 }
 
@@ -184,6 +207,7 @@ function Cells({
 }
 
 function InlineNodes({ nodes }: { nodes: Inline[] }) {
+  const scope = useContext(AttachmentScope);
   return (
     <>
       {nodes.map((node, index) => {
@@ -221,6 +245,14 @@ function InlineNodes({ nodes }: { nodes: Inline[] }) {
                 <InlineNodes nodes={node.children} />
               </a>
             );
+          case "attachment":
+            // `markdown.ts` makes one only when it was handed a ticket, which
+            // is the same object as `scope`.
+            return scope ? (
+              <AttachmentNodeView key={key} node={node} scope={scope} />
+            ) : null;
+          case "unavailableAttachment":
+            return <UnavailableAttachmentView key={key} node={node} />;
         }
       })}
     </>

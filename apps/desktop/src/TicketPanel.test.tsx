@@ -25,6 +25,7 @@ import { TicketPanel } from "./TicketPanel";
 import { ToastStack } from "./WriteFeedback";
 import type {
   ActivityEvent,
+  Attachment,
   ChecklistItem,
   Label,
   PropertiesConfig,
@@ -36,12 +37,22 @@ vi.mock("./api", () => ({
   readTicket: vi.fn(),
   editTicket: vi.fn(),
   openTicketFile: vi.fn(),
+  openAttachment: vi.fn(),
+  revealAttachment: vi.fn(),
 }));
 
-const { editTicket, openTicketFile, readTicket } = await import("./api");
+const {
+  editTicket,
+  openAttachment,
+  openTicketFile,
+  readTicket,
+  revealAttachment,
+} = await import("./api");
 const readTicketMock = vi.mocked(readTicket);
 const editTicketMock = vi.mocked(editTicket);
 const openTicketFileMock = vi.mocked(openTicketFile);
+const openAttachmentMock = vi.mocked(openAttachment);
+const revealAttachmentMock = vi.mocked(revealAttachment);
 
 const NOW = Date.parse("2026-07-30T12:00:00Z");
 
@@ -90,6 +101,10 @@ function detail(options?: {
   labels?: string[];
   checklist?: ChecklistItem[];
   activity?: ActivityEvent[];
+  /** The registry, and the two broken states the read reports (LC-206). */
+  attachments?: Attachment[];
+  missingAttachments?: string[];
+  orphanAttachments?: string[];
   /** The four opt-in properties, as raw as a ticket carries them (LC-227). */
   properties?: Partial<
     Pick<TicketDetail["ticket"] & object, "type" | "due" | "start" | "estimate">
@@ -104,8 +119,8 @@ function detail(options?: {
     readOnly: false,
     raw: "",
     rawTruncated: false,
-    missingAttachments: [],
-    orphanAttachments: [],
+    missingAttachments: options?.missingAttachments ?? [],
+    orphanAttachments: options?.orphanAttachments ?? [],
     missingReferences: [],
     ticket: {
       id: "019c8c7e",
@@ -123,7 +138,7 @@ function detail(options?: {
         { id: "ck_1", text: "Let an agent read this ticket", checked: false },
         { id: "ck_2", text: "Review what it changed", checked: false },
       ],
-      attachments: [],
+      attachments: options?.attachments ?? [],
       references: [],
       activity: options?.activity ?? [humanEvent()],
       historyIncomplete: false,
@@ -309,6 +324,10 @@ beforeEach(() => {
   editTicketMock.mockReset();
   openTicketFileMock.mockReset();
   openTicketFileMock.mockResolvedValue(undefined);
+  openAttachmentMock.mockReset();
+  openAttachmentMock.mockResolvedValue(undefined);
+  revealAttachmentMock.mockReset();
+  revealAttachmentMock.mockResolvedValue(undefined);
   readTicketMock.mockResolvedValue(detail());
 });
 
@@ -3558,5 +3577,169 @@ describe("the panel's width", () => {
     const handle = screen.getByRole("separator", { name: "Panel width" });
     const panel = handle.closest(".ticket-panel");
     expect(panel?.firstElementChild).toBe(handle);
+  });
+});
+
+/**
+ * LC-206, slice 4: a link into the ticket's own `attachments/` renders as the
+ * file it names, in the description and in a comment. Which node a link
+ * becomes is `markdown.test.ts`; this is what each one does on screen.
+ */
+describe("attachments where the text links them (LC-206)", () => {
+  function attachment(
+    id: string,
+    name: string,
+    mediaType: string,
+    size: number,
+  ): Attachment {
+    return {
+      id,
+      file: `attachments/${id}-${name}`,
+      name,
+      mediaType,
+      size,
+      addedAt: "2026-07-30T11:00:00Z",
+      addedBy: { type: "human", id: "local" },
+    };
+  }
+  const SHOT = attachment(
+    "att_8e31",
+    "failure-state.png",
+    "image/png",
+    2_400_000,
+  );
+  const FILM = attachment(
+    "att_1c07",
+    "drag-repro.mov",
+    "video/quicktime",
+    8_700_000,
+  );
+  const LOG = attachment("att_7d2a", "console.log", "text/plain", 48_000);
+  const GONE = attachment("att_42bf", "before.png", "image/png", 1_100_000);
+
+  function withAttachments(description: string, activity?: ActivityEvent[]) {
+    return detail({
+      description,
+      activity,
+      attachments: [SHOT, FILM, LOG, GONE],
+      missingAttachments: [GONE.id],
+      orphanAttachments: ["attachments/att_9a10-notes.txt"],
+    });
+  }
+
+  const DESCRIPTION = [
+    "![Failure state](./attachments/att_8e31-failure-state.png)",
+    "",
+    "[drag-repro.mov](./attachments/att_1c07-drag-repro.mov)",
+    "",
+    "See [console.log](./attachments/att_7d2a-console.log), [notes](./attachments/att_9a10-notes.txt) and ![before](./attachments/att_42bf-before.png).",
+  ].join("\n");
+
+  it("draws each link as its file, through the scheme Rust owns", async () => {
+    readTicketMock.mockResolvedValue(withAttachments(DESCRIPTION));
+    render(surface());
+    await ready();
+
+    const image = screen.getByRole("button", {
+      name: "Failure state, image. Open full size",
+    });
+    expect(image.querySelector("img")?.getAttribute("src")).toBe(
+      "longclaw-attachment://localhost/project-1/LC-1/attachments/att_8e31-failure-state.png",
+    );
+
+    const video = screen.getByLabelText("drag-repro.mov, video");
+    expect(video.tagName).toBe("VIDEO");
+    expect(video.hasAttribute("controls")).toBe(true);
+    expect(video.hasAttribute("autoplay")).toBe(false);
+
+    const chip = screen.getByRole("button", {
+      name: "console.log, text/plain, 48 KB. Opens in its default app",
+    });
+    expect(chip.textContent).toBe("console.logtext/plain · 48 KB");
+
+    expect(
+      screen.getByRole("img", {
+        name: "att_9a10-notes.txt, removed from this ticket",
+      }).textContent,
+    ).toBe("Removed");
+    expect(
+      screen.getByRole("img", { name: "before.png, unavailable" }).textContent,
+    ).toBe("Unavailable");
+  });
+
+  it("opens an image in the viewer, and Esc puts focus back on it", async () => {
+    readTicketMock.mockResolvedValue(withAttachments(DESCRIPTION));
+    render(surface());
+    await ready();
+
+    const image = screen.getByRole("button", {
+      name: "Failure state, image. Open full size",
+    });
+    image.focus();
+    fireEvent.click(image);
+
+    const viewer = screen.getByRole("dialog", { name: "failure-state.png" });
+    expect(viewer.textContent).toContain("image/png · 2.4 MB");
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Close" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(openAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      SHOT.file,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show in Finder" }));
+    expect(revealAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      SHOT.file,
+    );
+
+    fireEvent.keyDown(viewer, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(image);
+  });
+
+  it("opens a chip in its default app, and says so when macOS will not", async () => {
+    readTicketMock.mockResolvedValue(withAttachments(DESCRIPTION));
+    openAttachmentMock.mockRejectedValueOnce({
+      code: "unsupported_media_type",
+      message: "console.log isn’t opened from LongClaw.",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /^console\.log, text\/plain/ }),
+    );
+    expect(openAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      LOG.file,
+    );
+    await screen.findByText("console.log isn’t opened from LongClaw.");
+  });
+
+  it("draws an image a comment links, and opens the same viewer", async () => {
+    const comment: ActivityEvent = {
+      ...humanEvent(),
+      body: "### You commented\n\n![Failure state](./attachments/att_8e31-failure-state.png)",
+    };
+    readTicketMock.mockResolvedValue(
+      withAttachments("Plain words.", [comment]),
+    );
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /^Comments/ }));
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Failure state, image. Open full size",
+      }),
+    );
+    screen.getByRole("dialog", { name: "failure-state.png" });
   });
 });

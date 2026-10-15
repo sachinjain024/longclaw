@@ -4075,6 +4075,148 @@ button:disabled {
   color: var(--lc-accent-human-text);
 }
 
+/* ---- a ticket's attachments where its text links them (LC-206)
+
+   An image takes the full column in a padded frame, so a screenshot reads as
+   an exhibit set into the text rather than as text (review 1, A2). The picture
+   keeps its ratio and is never scaled past its own size; the frame is what
+   spans. A button, because pressing it opens the viewer (story 14). */
+.md-attachment-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: var(--lc-space-3) 0;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-3);
+  background: var(--lc-bg);
+  cursor: zoom-in;
+}
+
+.md-attachment-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* The tile surface, because it is dark in both appearances: a player is black
+   around its picture whatever the app is wearing. Never autoplays (review 1,
+   D3) — that is the markup's job, and there is no `autoplay` to style. */
+.md-attachment-video {
+  display: block;
+  max-width: 100%;
+  margin: var(--lc-space-3) 0;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  color: var(--lc-tile-ink);
+  background: var(--lc-tile);
+}
+
+/* A file chip: glyph, name, then the facts a reader needs before opening it. A
+   button, because it does something (opens the default app), not a link. */
+.attachment-chip {
+  display: inline-flex;
+  max-width: 100%;
+  gap: var(--lc-space-2);
+  align-items: center;
+  vertical-align: middle;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  padding: 3px var(--lc-space-2);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font: 500 12px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.attachment-chip svg {
+  flex: none;
+}
+
+.attachment-chip .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-chip .meta {
+  flex: none;
+  color: var(--lc-ink-3);
+  font: 400 11px var(--lc-font-mono);
+}
+
+/* Removed / Unavailable: the link is kept and says which, rather than vanishing
+   (story 30). Not a button — there is nothing to open. Warn, not danger:
+   nothing failed just now, a reference went stale. The file's name is in the
+   title and the accessible name; the chip itself is one word (review 1, D2). */
+.attachment-chip.unavailable {
+  border-style: dashed;
+  border-color: var(--lc-warn-border);
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+  cursor: default;
+}
+
+/* The viewer (story 14), opened from an image wherever it is — the description
+   or a comment (review 1, D1). The app's scrim, and a header on the panel's own
+   surface, so it reads the same in both appearances. */
+.attachment-viewer {
+  position: fixed;
+  z-index: var(--lc-z-modal);
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--lc-space-3);
+  padding: var(--lc-space-5);
+  background: var(--lc-scrim);
+}
+
+.attachment-viewer header {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  font-size: var(--lc-type-small-size);
+}
+
+.attachment-viewer header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-viewer header .meta {
+  flex: none;
+  margin-right: auto;
+  color: var(--lc-ink-3);
+  font: 400 11px var(--lc-font-mono);
+}
+
+.attachment-viewer header button {
+  flex: none;
+}
+
+.attachment-viewer figure {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  margin: 0;
+}
+
+.attachment-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--lc-radius-card);
+  box-shadow: var(--lc-shadow-modal);
+}
+
 .checklist {
   display: grid;
   gap: var(--lc-space-1);

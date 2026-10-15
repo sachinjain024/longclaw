@@ -815,3 +815,76 @@ fn a_path_out_of_the_folder_is_forbidden_before_anything_is_read() {
         assert_ne!(served.body, PNG);
     }
 }
+
+// ------------------------------------------------------------- opening one
+
+#[test]
+fn a_registered_file_opens_only_when_macos_would_show_it_rather_than_run_it() {
+    let project = Project::new();
+    let log = project.attached(b"line one\n", "console.log");
+    let image = project.attached(PNG, "shot.png");
+    for prepared in [&log, &image] {
+        let path = attachments::attachment_to_open(
+            &project.root,
+            "AT",
+            &project.key,
+            &prepared.attachment.file,
+        )
+        .expect("a log and a picture open in their default app");
+        assert_eq!(
+            path,
+            project
+                .ticket_dir()
+                .join(&prepared.attachment.file)
+                .canonicalize()
+                .unwrap()
+        );
+    }
+
+    // Text by content, and still a script by name: LaunchServices would hand
+    // it to Terminal, which runs it.
+    let script = project.attached(b"echo hello\n", "fix.command");
+    let refused =
+        attachments::attachment_to_open(&project.root, "AT", &project.key, &script.attachment.file)
+            .expect_err("a file macOS would run is not opened");
+    assert_eq!(refused.code, ErrorCode::UnsupportedMediaType);
+    assert!(refused.recoverable);
+    assert!(
+        refused.message.contains("fix.command"),
+        "{}",
+        refused.message
+    );
+
+    // An image by content, and Safari's by name, where a script inside it runs.
+    let drawing = project.attached(
+        b"<svg xmlns=\"http://www.w3.org/2000/svg\"><script>1</script></svg>\n",
+        "drawing.svg",
+    );
+    assert_eq!(drawing.attachment.media_type, "image/svg+xml");
+    let refused = attachments::attachment_to_open(
+        &project.root,
+        "AT",
+        &project.key,
+        &drawing.attachment.file,
+    )
+    .expect_err("an SVG is not opened");
+    assert_eq!(refused.code, ErrorCode::UnsupportedMediaType);
+
+    // An orphan is not registered, so it is not opened either.
+    project.edited(TicketEdit {
+        remove_attachment: Some(log.attachment.id.clone()),
+        ..TicketEdit::default()
+    });
+    let orphan =
+        attachments::attachment_to_open(&project.root, "AT", &project.key, &log.attachment.file)
+            .expect_err("an orphan is not opened");
+    assert_eq!(orphan.code, ErrorCode::NotFound);
+    let escape = attachments::attachment_to_open(
+        &project.root,
+        "AT",
+        &project.key,
+        "attachments/../ticket.md",
+    )
+    .expect_err("a way out is not opened");
+    assert_eq!(escape.code, ErrorCode::PermissionDenied);
+}

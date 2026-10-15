@@ -29,6 +29,7 @@
  */
 
 import { useState } from "react";
+import type { TicketAttachments } from "./AttachmentView";
 import { actorGlyph, actorName, eventProse } from "./attribution";
 import { describeAge } from "./acknowledgement";
 import { LabelDot } from "./LabelChip";
@@ -59,6 +60,8 @@ interface TimelineProps {
    * is not a record yet, and it says so rather than pretending to be one.
    */
   pendingComment?: string;
+  /** The ticket's attachments, so a comment draws the files it links (LC-206). */
+  attachments?: TicketAttachments;
   /**
    * Whether a comment is drawn as the one line that says it happened rather
    * than with its body (LC-211).
@@ -112,7 +115,11 @@ function humanHue(name: string): "human-1" | "human-2" {
 }
 
 export function Timeline(props: TimelineProps) {
-  const context = { labels: props.labels, checklist: props.checklist };
+  const context = {
+    labels: props.labels,
+    checklist: props.checklist,
+    attachments: props.attachments,
+  };
   return (
     <ol className="timeline">
       {sortActivity(props.events).map((event) => (
@@ -130,6 +137,7 @@ export function Timeline(props: TimelineProps) {
         <PendingComment
           body={props.pendingComment}
           asLine={props.commentsAsLines}
+          attachments={props.attachments}
         />
       )}
     </ol>
@@ -146,7 +154,11 @@ function TimelineEntry({
 }: {
   event: ActivityEvent;
   now: number;
-  context: { labels?: Record<string, Label>; checklist?: ChecklistItem[] };
+  context: {
+    labels?: Record<string, Label>;
+    checklist?: ChecklistItem[];
+    attachments?: TicketAttachments;
+  };
   commentsAsLines?: boolean;
   onEdit?: (eventId: string, text: string) => void;
   onRemove?: (eventId: string) => void;
@@ -196,6 +208,7 @@ function TimelineEntry({
       source={prose}
       headingOffset={3}
       className="markdown entry-body"
+      attachments={context.attachments}
     />
   );
 
@@ -408,7 +421,15 @@ function ChangeGlyphMark({ glyph }: { glyph: ChangeGlyph }) {
   );
 }
 
-function PendingComment({ body, asLine }: { body: string; asLine?: boolean }) {
+function PendingComment({
+  body,
+  asLine,
+  attachments,
+}: {
+  body: string;
+  asLine?: boolean;
+  attachments?: TicketAttachments;
+}) {
   // Under Activity a comment is the line that says one happened, and the one
   // still being written is no exception: drawn with its body here, it would
   // stand full-height among one-liners and then collapse into one the moment
@@ -443,6 +464,7 @@ function PendingComment({ body, asLine }: { body: string; asLine?: boolean }) {
         source={body}
         headingOffset={3}
         className="markdown entry-body"
+        attachments={attachments}
       />
     </li>
   );

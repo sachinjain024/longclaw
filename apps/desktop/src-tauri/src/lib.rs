@@ -401,6 +401,72 @@ fn open_ticket_file(
     .with_context("path", path.display().to_string()))
 }
 
+/// Opens one attachment in its default app, from a file chip or the viewer's
+/// **Open** (LC-206).
+///
+/// The webview names the record's `file`, and Rust holds it to the registry
+/// and to the ticket's folder before the system sees a path — the rule
+/// `open_ticket_file` follows with a ticket key. A name macOS would run
+/// rather than show is refused before it is handed over.
+#[tauri::command]
+fn open_attachment(
+    project_id: String,
+    ticket_key: String,
+    file: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .attachment_to_open(&ticket_key, &file)?;
+    if platform::macos::open_in_default_app(&path) {
+        return Ok(());
+    }
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        format!(
+            "macOS would not open {}. Show it in Finder and open it from there.",
+            file_name_of(&file)
+        ),
+        true,
+    )
+    .with_context("ticketKey", ticket_key)
+    .with_context("path", path.display().to_string()))
+}
+
+/// The name a refusal states: the file's own, never the `attachments/` path,
+/// which is a detail of the format rather than something the human typed.
+fn file_name_of(file: &str) -> &str {
+    file.rsplit('/').next().unwrap_or(file)
+}
+
+/// Shows one attachment selected in Finder (LC-206), by the same proof.
+#[tauri::command]
+fn reveal_attachment(
+    project_id: String,
+    ticket_key: String,
+    file: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .attachment_to_reveal(&ticket_key, &file)?;
+    if platform::macos::reveal_in_finder(&path) {
+        return Ok(());
+    }
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        format!(
+            "Finder would not show {}. Open {ticket_key}'s attachments folder from Finder instead.",
+            file_name_of(&file)
+        ),
+        true,
+    )
+    .with_context("ticketKey", ticket_key)
+    .with_context("path", path.display().to_string()))
+}
+
 /// Whether the `longclaw` command is on `PATH`, and what it points at (LC-233).
 ///
 /// Reads and writes nothing. It is here rather than behind a preference because
@@ -849,6 +915,8 @@ pub fn run() {
             search_tickets,
             read_ticket,
             open_ticket_file,
+            open_attachment,
+            reveal_attachment,
             command_line_status,
             install_command_line,
             edit_ticket,

@@ -286,6 +286,29 @@ export async function openTicketFile(
 }
 
 /**
+ * Opens one attachment in its default app (LC-206), from a file chip or the
+ * viewer's **Open**. The webview names the record's `file` and nothing else;
+ * Rust holds it to the ticket's registry and its `attachments/` folder, and
+ * refuses a name macOS would run rather than show.
+ */
+export async function openAttachment(
+  projectId: string,
+  ticketKey: string,
+  file: string,
+): Promise<void> {
+  return invoke("open_attachment", { projectId, ticketKey, file });
+}
+
+/** Shows one attachment selected in Finder (LC-206), by the same proof. */
+export async function revealAttachment(
+  projectId: string,
+  ticketKey: string,
+  file: string,
+): Promise<void> {
+  return invoke("reveal_attachment", { projectId, ticketKey, file });
+}
+
+/**
  * Saves a change. The request carries the hash the edit started from; a newer
  * file on disk comes back as a `conflict` and is never overwritten.
  */

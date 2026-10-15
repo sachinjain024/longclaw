@@ -57,6 +57,8 @@ vi.mock("./api", () => ({
   openProject: vi.fn(),
   readPreferences: vi.fn(),
   readTicket: vi.fn(),
+  openAttachment: vi.fn(),
+  revealAttachment: vi.fn(),
   rebuildIndex: vi.fn(),
   reconcileProject: vi.fn(),
   registerProject: vi.fn(),
