@@ -30,6 +30,7 @@ import {
   describeSize,
   metaOf,
 } from "./AttachmentView";
+import { PaperclipGlyph } from "./attaching";
 import { classes } from "./classes";
 import { ChevronGlyph } from "./Menu";
 import type { MenuItem } from "./MenuList";
@@ -49,6 +50,9 @@ const SHOWN = 5;
 
 /** How wide a row's menu is, so it can hang right-aligned from its `⋮`. */
 const MENU_WIDTH = 220;
+
+/** The Add menu carries a hint on each row, so it is wider (review 3). */
+const ADD_MENU_WIDTH = 280;
 
 /**
  * One line of the section. Files first, in registry order, with the missing
@@ -76,7 +80,15 @@ export type OrphanRow = {
   removedAt?: string;
 };
 
-type DocRow = { kind: "doc"; key: string; reference: TicketReference };
+type DocRow = {
+  kind: "doc";
+  key: string;
+  reference: TicketReference;
+  /** Its path no longer resolves: moved, renamed or deleted. */
+  missing: boolean;
+  /** Kept by an absolute path, because it is not in the project folder. */
+  outside: boolean;
+};
 
 /** The section's rows, from what one detail read returned. */
 export function referenceRows(detail: TicketDetail): ReferenceRow[] {
@@ -105,6 +117,10 @@ export function referenceRows(detail: TicketDetail): ReferenceRow[] {
     kind: "doc",
     key: reference.id,
     reference,
+    missing: detail.missingReferences.includes(reference.id),
+    // The format stores a path inside the project relative to it, and only
+    // one outside it absolute — so the shape of the path is the answer.
+    outside: reference.path.startsWith("/"),
   }));
   return [...files, ...orphans, ...docs];
 }
@@ -176,8 +192,14 @@ export function References(props: {
   onRemove: (row: ReferenceRow) => Promise<void>;
   onReattach: (row: OrphanRow) => void;
   onGoToComment: (eventId: string) => void;
+  /** The Add menu's two rows: copy a file in, or point at one where it is. */
+  onAttach: () => void;
+  onAddReference: () => void;
+  onOpenReference: (reference: TicketReference) => void;
+  onRevealReference: (reference: TicketReference) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const [addMenu, setAddMenu] = useState<HTMLElement>();
   const toggle = useRef<HTMLButtonElement>(null);
   const [menu, setMenu] = useState<{ key: string; anchor: HTMLElement }>();
   const { rows } = props;
@@ -203,7 +225,49 @@ export function References(props: {
           References
           <span className="section-count">{rows.length}</span>
         </button>
+        {/* Always visible, unlike Description's Edit: a collapsed list has
+            nothing under it to hover (review 3). */}
+        <button
+          type="button"
+          tabIndex={0}
+          className="ghost small references-add"
+          aria-haspopup="menu"
+          aria-expanded={addMenu !== undefined}
+          onClick={(event) => {
+            const anchor = event.currentTarget;
+            setAddMenu((open) => (open ? undefined : anchor));
+          }}
+        >
+          <PlusGlyph />
+          Add
+        </button>
       </h3>
+      {addMenu && (
+        <AnchoredMenu
+          label="Add"
+          anchor={addMenu}
+          width={ADD_MENU_WIDTH}
+          items={[
+            {
+              kind: "action",
+              id: "attach",
+              glyph: <PaperclipGlyph size={12} />,
+              label: "Attach a file…",
+              hint: "Copied into the ticket",
+              run: props.onAttach,
+            },
+            {
+              kind: "action",
+              id: "reference",
+              glyph: <LinkedDocGlyph />,
+              label: "Add a reference…",
+              hint: "Linked where it is",
+              run: props.onAddReference,
+            },
+          ]}
+          onClose={() => setAddMenu(undefined)}
+        />
+      )}
       {props.open &&
         (rows.length === 0 ? (
           <p className="attachments-empty">
@@ -267,6 +331,8 @@ export function References(props: {
             });
           }}
           onReattach={props.onReattach}
+          onOpenReference={props.onOpenReference}
+          onRevealReference={props.onRevealReference}
           onClose={() => setMenu(undefined)}
         />
       )}
@@ -309,17 +375,22 @@ function Row(props: {
       row.removedAt === undefined
         ? `Found in attachments/ · ${facts}`
         : `Removed ${age(row.removedAt)} — file kept · ${facts}`;
+  } else if (row.missing) {
+    state = "missing";
+    meta = `File not found · ${row.reference.path}`;
   } else {
     const { path, addedBy, addedAt } = row.reference;
     const dir = path.slice(0, path.lastIndexOf("/") + 1);
     meta = [dir, actorLabel(addedBy), age(addedAt)].filter(Boolean).join(" · ");
   }
+  // Allowed, and said: an agent or another machine may not find it there.
+  const outside = row.kind === "doc" && row.outside && !row.missing;
 
   return (
     <li
       className={classes(
         "attachment-row",
-        row.kind === "file" && row.missing && "missing",
+        (row.kind === "file" || row.kind === "doc") && row.missing && "missing",
         row.kind === "orphan" && "orphan",
         props.acknowledged && "acknowledged",
         props.acknowledged,
@@ -347,7 +418,18 @@ function Row(props: {
           {meta}
         </span>
       </span>
-      {state ? <span className="attachment-state">{state}</span> : <span />}
+      {state ? (
+        <span className="attachment-state">{state}</span>
+      ) : outside ? (
+        <span
+          className="attachment-state"
+          title="This file is not in the project folder, so agents and other machines may not find it."
+        >
+          outside project
+        </span>
+      ) : (
+        <span />
+      )}
       <button
         type="button"
         tabIndex={0}
@@ -386,23 +468,17 @@ function Thumb({
   return mediaType?.startsWith("video/") ? <FilmGlyph /> : <DocGlyph />;
 }
 
-/**
- * One row's `⋮` menu, with every action the row has (story 55).
- *
- * Portalled to the document for the reason the viewer is: the panel is a size
- * container, and a popover placed in viewport coordinates inside it would be
- * placed against the panel instead.
- */
+/** One row's `⋮` menu, with every action the row has (story 55). */
 function RowMenu(props: {
   row: ReferenceRow;
   anchor: HTMLElement;
   scope: TicketAttachments;
   onRemove: (row: ReferenceRow) => void;
   onReattach: (row: OrphanRow) => void;
+  onOpenReference: (reference: TicketReference) => void;
+  onRevealReference: (reference: TicketReference) => void;
   onClose: () => void;
 }) {
-  useFocusReturn(props.anchor);
-  const position = usePopoverPlacement(props.anchor, MENU_WIDTH);
   const { row, scope } = props;
   const name = rowName(row);
   const remove: MenuItem = {
@@ -456,19 +532,76 @@ function RowMenu(props: {
       { kind: "rule", id: "remove-rule" },
       remove,
     ];
+  } else if (row.kind === "doc" && !row.missing) {
+    const { reference } = row;
+    items = [
+      {
+        kind: "action",
+        id: "open",
+        label: "Open",
+        run: () => props.onOpenReference(reference),
+      },
+      {
+        kind: "action",
+        id: "reveal",
+        label: "Show in Finder",
+        run: () => props.onRevealReference(reference),
+      },
+      { kind: "rule", id: "remove-rule" },
+      remove,
+    ];
   } else {
-    // A missing file has nothing to open or show. A doc's Open and Show in
-    // Finder arrive with doc references (slice 7).
+    // A missing file, or a doc that moved: nothing to open or show.
     items = [remove];
   }
-  return createPortal(
-    <MenuList
+  return (
+    <AnchoredMenu
       label={`Actions for ${name}`}
       items={items}
+      anchor={props.anchor}
+      width={MENU_WIDTH}
+      onClose={props.onClose}
+    />
+  );
+}
+
+/**
+ * A menu hung from the control that opened it, right-aligned to it.
+ *
+ * Portalled to the document for the reason the viewer is: the panel is a size
+ * container, and a popover placed in viewport coordinates inside it would be
+ * placed against the panel instead.
+ */
+function AnchoredMenu(props: {
+  label: string;
+  items: MenuItem[];
+  anchor: HTMLElement;
+  width: number;
+  onClose: () => void;
+}) {
+  useFocusReturn(props.anchor);
+  const position = usePopoverPlacement(props.anchor, props.width);
+  return createPortal(
+    <MenuList
+      label={props.label}
+      items={props.items}
       position={position}
       anchor={props.anchor}
       onDismiss={props.onClose}
     />,
     document.body,
+  );
+}
+
+function PlusGlyph() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">
+      <path
+        d="M7 2.5 V11.5 M2.5 7 H11.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

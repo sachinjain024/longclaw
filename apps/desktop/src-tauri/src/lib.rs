@@ -709,27 +709,24 @@ struct ChosenFile {
     size: u64,
 }
 
-/// The open panel the toolbar's Attach button raises (LC-206): files, several
-/// at once, titled for the ticket they will land in.
-///
-/// Raised here rather than by the webview, so the paths stay here: the webview
-/// gets a token per file and can attach only what the human picked
-/// (ADR 0009). Async, because the panel blocks until the human answers and
-/// must not do it on the main thread. An empty list is a cancelled panel.
-#[tauri::command]
-async fn choose_files_to_attach(
-    ticket_key: String,
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> AppResult<Vec<ChosenFile>> {
+/// Raises the system open panel and keeps what it answers with (LC-206):
+/// the paths stay here, and the webview is handed a token per file with the
+/// name and size its rows say (ADR 0009). Blocking until the human answers,
+/// which is why the commands that call it are async and off the main thread.
+fn choose_files(
+    app: &AppHandle,
+    state: &AppState,
+    title: String,
+    multiple: bool,
+) -> Vec<ChosenFile> {
     use tauri_plugin_dialog::DialogExt;
-    let picked = app
-        .dialog()
-        .file()
-        .set_title(format!("Attach to {ticket_key}"))
-        .blocking_pick_files()
-        .unwrap_or_default();
-    Ok(picked
+    let panel = app.dialog().file().set_title(title);
+    let picked = if multiple {
+        panel.blocking_pick_files().unwrap_or_default()
+    } else {
+        panel.blocking_pick_file().into_iter().collect()
+    };
+    picked
         .into_iter()
         .filter_map(|file| file.into_path().ok())
         .map(|path| {
@@ -745,7 +742,116 @@ async fn choose_files_to_attach(
                 size,
             }
         })
-        .collect())
+        .collect()
+}
+
+/// The open panel the toolbar's Attach button raises (LC-206): files, several
+/// at once, titled for the ticket they will land in. An empty list is a
+/// cancelled panel.
+#[tauri::command]
+async fn choose_files_to_attach(
+    ticket_key: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<ChosenFile>> {
+    Ok(choose_files(
+        &app,
+        &state,
+        format!("Attach to {ticket_key}"),
+        true,
+    ))
+}
+
+/// The open panel **Add a reference…** raises (LC-206): one file, titled
+/// for the ticket (`reference.picker.title`). Empty when cancelled.
+#[tauri::command]
+async fn choose_reference(
+    ticket_key: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<ChosenFile>> {
+    Ok(choose_files(
+        &app,
+        &state,
+        format!("Add a reference to {ticket_key}"),
+        false,
+    ))
+}
+
+/// Records the file a token names as a doc reference: pointed at where it
+/// is, never copied or read.
+#[tauri::command]
+fn add_chosen_reference(
+    project_id: String,
+    ticket_key: String,
+    token: String,
+    expected_hash: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<WriteResult> {
+    let path = chosen(&state, &token)?;
+    state
+        .engine(&project_id, tauri_sink(&app))?
+        .add_reference(&ticket_key, &path, &expected_hash)
+}
+
+/// The path a token names, once.
+fn chosen(state: &AppState, token: &str) -> AppResult<PathBuf> {
+    state.take_chosen_file(token).ok_or_else(|| {
+        core::AppError::new(
+            core::ErrorCode::NotFound,
+            "That file is no longer chosen. Choose it again.",
+            true,
+        )
+    })
+}
+
+/// Opens a doc reference in its default app (LC-206), by the reference's id,
+/// held to the rule a file chip is.
+#[tauri::command]
+fn open_reference(
+    project_id: String,
+    ticket_key: String,
+    reference_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .reference_to_open(&ticket_key, &reference_id)?;
+    hand_to_macos(platform::macos::open_in_default_app(&path), "open", &path)
+}
+
+/// Shows a doc reference selected in Finder (LC-206), by the reference's id.
+#[tauri::command]
+fn reveal_reference(
+    project_id: String,
+    ticket_key: String,
+    reference_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .reference_to_reveal(&ticket_key, &reference_id)?;
+    hand_to_macos(platform::macos::reveal_in_finder(&path), "show", &path)
+}
+
+/// What a doc reference's Open and Show in Finder say when macOS declines.
+fn hand_to_macos(accepted: bool, verb: &str, path: &Path) -> AppResult<()> {
+    if accepted {
+        return Ok(());
+    }
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        format!("macOS would not {verb} {name}."),
+        true,
+    )
+    .with_context("path", path.display().to_string()))
 }
 
 /// Attaches one file the open panel answered with, by its token. Read from
@@ -759,13 +865,7 @@ fn attach_chosen(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> AppResult<core::AttachedFile> {
-    let path = state.take_chosen_file(&token).ok_or_else(|| {
-        core::AppError::new(
-            core::ErrorCode::NotFound,
-            "That file is no longer chosen. Press Attach and choose it again.",
-            true,
-        )
-    })?;
+    let path = chosen(&state, &token)?;
     state
         .engine(&project_id, tauri_sink(&app))?
         .attach_path(&ticket_key, &path, &expected_hash)
@@ -1052,6 +1152,10 @@ pub fn run() {
             attach_bytes,
             choose_files_to_attach,
             attach_chosen,
+            choose_reference,
+            add_chosen_reference,
+            open_reference,
+            reveal_reference,
             command_line_status,
             install_command_line,
             edit_ticket,

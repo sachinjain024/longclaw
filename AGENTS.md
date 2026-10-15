@@ -11,12 +11,12 @@ rather than as a Markdown file under `docs/plans/`.
 **A ticket's spec (PRD) is a file, and the ticket links to it.** When a ticket
 gets a spec — `/to-spec`, or any product brief written for it — write it to
 `docs/specs/<KEY>-<slug>.md` with `ticket: <KEY>` in its frontmatter, then edit
-the ticket so its description keeps the problem in a paragraph and links the
-spec (`**Spec:** [docs/specs/…](../../../docs/specs/…)`), and label it
+the ticket so its description keeps the problem in a paragraph, record the spec
+as a reference with `longclaw ticket reference <KEY> docs/specs/<KEY>-<slug>.md`
+(LC-206) rather than linking it in the description, and label it
 `ready-for-agent`. Do not paste the spec into `ticket.md` or file a second
-ticket for it. `LC-256a` and `LC-206` are the pattern.
-Once `longclaw ticket reference` ships (LC-206), record the spec as a reference
-with it instead of linking it in the description; until then, link it.
+ticket for it. `LC-206` is the pattern. An installed `longclaw` older than
+LC-206 has no `ticket reference`; build one, as below.
 
 **A key minted from 2026-08-25 carries a trailing letter** — `LC-233` was the
 last of the old shape, and the next one looks like `LC-234x`. Keys are allocated

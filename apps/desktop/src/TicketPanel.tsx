@@ -24,14 +24,18 @@ import type {
   ReactNode,
 } from "react";
 import {
+  addChosenReference,
   attachSource,
   chooseFilesToAttach,
+  chooseReference,
+  openReference,
   editTicket,
   openAttachment,
   openTicketFile,
   readTicket,
   reattachAttachment,
   revealAttachment,
+  revealReference,
 } from "./api";
 import type { TicketAttachments } from "./AttachmentView";
 import { AttachmentViewer } from "./AttachmentView";
@@ -97,6 +101,7 @@ import type {
   TicketDetail,
   TicketEdit,
   TicketPriority,
+  TicketReference,
   TicketStatus,
   WriteResult,
 } from "./types";
@@ -989,24 +994,88 @@ export function TicketPanel(props: TicketPanelProps) {
    * command rather than an edit, because Rust reads the bytes again before it
    * writes a record — but the same one-write-at-a-time rule and the same hash.
    */
-  async function reattach(row: OrphanRow) {
-    // The banner holds the panel's writes until the human answers it, and this
-    // is one of them.
+  function reattach(row: OrphanRow) {
+    return writeOwn(
+      (hash) => reattachAttachment(projectId, ticketKey, row.orphan.file, hash),
+      `${ticketKey} re-attached · ${row.name}`,
+    );
+  }
+
+  /**
+   * A write of the panel's own that is not a `TicketEdit` — Re-attach, Add a
+   * reference — because Rust has to read a file before it writes the record.
+   * The same rules as `save`: the banner holds it, one write at a time, the
+   * hash the panel last read, and a toast saying what landed.
+   */
+  async function writeOwn(
+    write: (hash: string) => Promise<WriteResult>,
+    toast: string,
+  ) {
     if (conflict) return;
+    // Waits its turn rather than being dropped: the human chose a file in a
+    // panel to get here, and a write already out is no reason to lose it.
+    while (writing.current || attaching.current) {
+      await (attaching.current?.catch(() => undefined) ??
+        new Promise((settle) => window.setTimeout(settle, 25)));
+    }
     const hash = lastRead.current?.contentHash;
-    if (!hash || writing.current) return;
+    if (!hash) return;
     writing.current = true;
     const written = await mutate({
       path: lastRead.current?.relativePath,
-      write: () =>
-        reattachAttachment(projectId, ticketKey, row.orphan.file, hash),
+      write: () => write(hash),
       onWritten: (result) => props.onWrite(result),
-      toast: () => `${ticketKey} re-attached · ${row.name}`,
+      toast: () => toast,
     });
     if (written) await load("local");
     writing.current = false;
     // Whatever was typed while this was out goes now, as after a save.
     void drainNewItems();
+  }
+
+  /**
+   * **Add a reference…** (LC-206): one file, pointed at where it is. Rust
+   * raises the open panel and keeps the path; the panel holds only a token.
+   */
+  async function addReference() {
+    if (conflict) return;
+    const [chosen] = await chooseReference(ticketKey).catch(refuseHere);
+    if (!chosen) return;
+    await writeOwn(
+      (hash) => addChosenReference(projectId, ticketKey, chosen.token, hash),
+      `${ticketKey} referenced · ${chosen.name}`,
+    );
+  }
+
+  /**
+   * **Attach a file…** from the Add menu. No field asked for these, so no
+   * link goes anywhere: they land in References, which opens on them. A
+   * refusal has no row under a field to sit in, so it is said in a toast.
+   */
+  async function attachFromSection() {
+    if (conflict) return;
+    for (const source of await chooseFiles().catch(refuseHere)) {
+      await attachFile(source).catch(refuseHere);
+    }
+  }
+
+  /**
+   * A refusal of something the human just pressed, said where they pressed it
+   * — the split `openInEditor` describes. Answers with nothing, so a caller
+   * that was waiting on a list or a record carries on with none.
+   */
+  function refuseHere(error: unknown): [] {
+    raise({ message: normalizeError(error).message, tone: "danger" });
+    return [];
+  }
+
+  /** Open and Show in Finder on a doc row, refused where they were pressed. */
+  function reachReference(
+    action: typeof openReference,
+  ): (reference: TicketReference) => void {
+    return (reference) => {
+      action(projectId, ticketKey, reference.id).catch(refuseHere);
+    };
   }
 
   /**
@@ -1952,6 +2021,10 @@ export function TicketPanel(props: TicketPanelProps) {
                   attachments={attachments}
                   onRemove={removeReference}
                   onReattach={(row) => void reattach(row)}
+                  onAttach={() => void attachFromSection()}
+                  onAddReference={() => void addReference()}
+                  onOpenReference={reachReference(openReference)}
+                  onRevealReference={reachReference(revealReference)}
                   onGoToComment={(eventId) => {
                     setHistoryTab("comments");
                     setMarkedEvent(eventId);

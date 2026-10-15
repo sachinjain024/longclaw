@@ -41,6 +41,7 @@ longclaw ticket edit LC-211p --status in_progress --agent-id claude-code
 longclaw ticket edit LC-42 --move-item ck_7d2a --after ck_0f19   # both key forms are taken
 longclaw ticket show LC-211p
 longclaw ticket attach LC-211p ./failure-state.png --agent-id claude-code   # copies, registers, prints the link
+longclaw ticket reference LC-211p docs/specs/LC-211p-slug.md --agent-id claude-code   # records a doc where it is
 longclaw ticket list
 longclaw                     # the full surface
 ```

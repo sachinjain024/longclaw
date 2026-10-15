@@ -88,6 +88,10 @@ longclaw ticket attach LC-1 ./failure-state.png \
   --agent-id your-tool-id --agent-name "Your Tool"
 ```
 
+When you write a spec, a prototype or another doc for a ticket, record it
+with `longclaw ticket reference <KEY> <path> --agent-id <id>` instead of
+linking it in the description.
+
 ## This project's vocabulary
 
 ### Labels
@@ -234,6 +238,14 @@ with its id, relative `file` path, original `name`, `media_type`, `size`,
 `added_at` and `added_by`. Copy the bytes first and register second, so an
 interruption leaves a recoverable file rather than an entry pointing at
 nothing. Treat registered files as immutable: replacement means a new id.
+
+### References
+
+A doc written for a ticket is recorded where it is, never copied: a
+`longclaw:reference` record under `## Ticket References` with its `id`,
+its `path` — relative to the project folder, or absolute for a file outside
+it — and `added_at` and `added_by`. Prefer `longclaw ticket reference`, which
+writes it for you.
 
 ### Writing safely
 

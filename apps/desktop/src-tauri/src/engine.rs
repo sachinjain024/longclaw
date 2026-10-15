@@ -450,6 +450,32 @@ impl ProjectEngine {
         attachments::attachment_in_folder(&self.root, key, file)
     }
 
+    /// A doc reference's file, for **Show in Finder** (LC-206). The webview
+    /// names the reference by its id; the path is the record's, read here.
+    pub fn reference_to_reveal(&self, key: &str, id: &str) -> AppResult<PathBuf> {
+        attachments::reference_file(&self.root, &self.project().key, key, id)
+    }
+
+    /// The same, for opening, held to the rule a file chip is.
+    pub fn reference_to_open(&self, key: &str, id: &str) -> AppResult<PathBuf> {
+        attachments::reference_to_open(&self.root, &self.project().key, key, id)
+    }
+
+    /// Records a doc reference to a file the human chose (LC-206, **Add a
+    /// reference…**). An ordinary edit of the record, attributed to the human.
+    pub fn add_reference(
+        &self,
+        key: &str,
+        path: &Path,
+        expected_hash: &str,
+    ) -> AppResult<WriteResult> {
+        let edit = TicketEdit {
+            add_reference: Some(path.display().to_string()),
+            ..TicketEdit::default()
+        };
+        self.edit_ticket(key, &edit, expected_hash)
+    }
+
     /// The same, for opening in the default app, which also refuses a name
     /// macOS would run rather than show. See `attachments::attachment_to_open`.
     pub fn attachment_to_open(&self, key: &str, file: &str) -> AppResult<PathBuf> {

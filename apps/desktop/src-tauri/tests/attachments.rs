@@ -924,3 +924,61 @@ fn any_file_in_the_folder_can_be_shown_in_finder_and_nothing_outside_it() {
         );
     }
 }
+
+#[test]
+fn a_reference_is_found_by_its_id_and_opens_only_when_macos_would_show_it() {
+    let project = Project::new();
+    fs::create_dir_all(project.root.join("docs/specs")).unwrap();
+    fs::write(project.root.join("docs/specs/spec.md"), "# Spec\n").unwrap();
+    fs::write(project.root.join("docs/prototype.html"), "<p>hi</p>").unwrap();
+    commit(&add_reference(&project, "docs/specs/spec.md").unwrap());
+    commit(&add_reference(&project, "docs/prototype.html").unwrap());
+    let ids: Vec<String> = project
+        .detail()
+        .ticket
+        .unwrap()
+        .references
+        .iter()
+        .map(|reference| reference.id.clone())
+        .collect();
+
+    let spec = attachments::reference_file(&project.root, "AT", &project.key, &ids[0])
+        .expect("a reference resolves to its file");
+    assert_eq!(
+        spec,
+        project
+            .root
+            .join("docs/specs/spec.md")
+            .canonicalize()
+            .unwrap()
+    );
+    assert_eq!(
+        attachments::reference_to_open(&project.root, "AT", &project.key, &ids[0]).unwrap(),
+        spec
+    );
+    // Found, and shown in Finder, but not opened: Safari runs what is in it.
+    assert!(attachments::reference_file(&project.root, "AT", &project.key, &ids[1]).is_ok());
+    let refused = attachments::reference_to_open(&project.root, "AT", &project.key, &ids[1])
+        .expect_err("an .html doc is not opened from the app");
+    assert_eq!(refused.code, ErrorCode::UnsupportedMediaType);
+    assert!(
+        refused.message.contains("prototype.html"),
+        "{}",
+        refused.message
+    );
+
+    // A reference whose file moved is missing, and an unknown id is nothing.
+    fs::remove_file(project.root.join("docs/specs/spec.md")).unwrap();
+    assert_eq!(
+        attachments::reference_file(&project.root, "AT", &project.key, &ids[0])
+            .unwrap_err()
+            .code,
+        ErrorCode::NotFound
+    );
+    assert_eq!(
+        attachments::reference_file(&project.root, "AT", &project.key, "ref_nope")
+            .unwrap_err()
+            .code,
+        ErrorCode::NotFound
+    );
+}

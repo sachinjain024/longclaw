@@ -347,6 +347,49 @@ export async function attachChosen(
   return invoke("attach_chosen", { projectId, ticketKey, token, expectedHash });
 }
 
+/**
+ * The open panel **Add a reference…** raises (LC-206), titled for the ticket.
+ * One file, as a token; empty when cancelled.
+ */
+export async function chooseReference(
+  ticketKey: string,
+): Promise<ChosenFile[]> {
+  return invoke("choose_reference", { ticketKey });
+}
+
+/** Records the file a token names as a doc reference, where it is. */
+export async function addChosenReference(
+  projectId: string,
+  ticketKey: string,
+  token: string,
+  expectedHash: string,
+): Promise<WriteResult> {
+  return invoke("add_chosen_reference", {
+    projectId,
+    ticketKey,
+    token,
+    expectedHash,
+  });
+}
+
+/** Opens a doc reference in its default app, named by its id. */
+export async function openReference(
+  projectId: string,
+  ticketKey: string,
+  referenceId: string,
+): Promise<void> {
+  return invoke("open_reference", { projectId, ticketKey, referenceId });
+}
+
+/** Shows a doc reference selected in Finder, named by its id. */
+export async function revealReference(
+  projectId: string,
+  ticketKey: string,
+  referenceId: string,
+): Promise<void> {
+  return invoke("reveal_reference", { projectId, ticketKey, referenceId });
+}
+
 /** One file, whichever way it arrived — the one place that tells them apart. */
 export function attachSource(
   projectId: string,

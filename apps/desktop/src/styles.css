@@ -4539,6 +4539,17 @@ button:disabled {
   font-size: 12px;
 }
 
+/* The section's Add sits at the heading's right end, where Description's Edit
+   does, but always visible: Edit can hide because the text under it is the
+   affordance, and a collapsed list has nothing under it to hover (review 3). */
+.references-add {
+  display: inline-flex;
+  gap: var(--lc-space-1);
+  align-items: center;
+  margin-left: auto;
+  font-weight: 500;
+}
+
 /* Five rows, then this (review 1, E3), under the names rather than the thumbs. */
 .references-more {
   justify-self: start;

@@ -1196,6 +1196,10 @@ pub fn render_agent_contract(project: &Project) -> String {
             "  --agent-id your-tool-id --agent-name \"Your Tool\"\n",
             "```\n",
             "\n",
+            "When you write a spec, a prototype or another doc for a ticket, record it\n",
+            "with `longclaw ticket reference <KEY> <path> --agent-id <id>` instead of\n",
+            "linking it in the description.\n",
+            "\n",
             "## This project's vocabulary\n",
             "\n",
         ),
@@ -1331,6 +1335,14 @@ pub fn render_agent_contract(project: &Project) -> String {
         "`added_at` and `added_by`. Copy the bytes first and register second, so an\n",
         "interruption leaves a recoverable file rather than an entry pointing at\n",
         "nothing. Treat registered files as immutable: replacement means a new id.\n",
+        "\n",
+        "### References\n",
+        "\n",
+        "A doc written for a ticket is recorded where it is, never copied: a\n",
+        "`longclaw:reference` record under `## Ticket References` with its `id`,\n",
+        "its `path` — relative to the project folder, or absolute for a file outside\n",
+        "it — and `added_at` and `added_by`. Prefer `longclaw ticket reference`, which\n",
+        "writes it for you.\n",
         "\n",
         "### Writing safely\n",
         "\n",
@@ -1973,6 +1985,10 @@ mod tests {
             .expect("the hand procedure is kept");
         assert!(verb < by_hand);
         assert!(contract.contains("longclaw ticket attach LC-1 ./failure-state.png"));
+        // `agents.guide.reference`: a doc is recorded where it is, not linked.
+        assert!(contract.contains(
+            "record it\nwith `longclaw ticket reference <KEY> <path> --agent-id <id>` instead of\nlinking it in the description."
+        ));
     }
 
     /// The example carries a readable ticket, and the same file says what a

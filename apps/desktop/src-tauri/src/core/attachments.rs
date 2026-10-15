@@ -368,7 +368,59 @@ pub fn attachment_to_open(
     file: &str,
 ) -> AppResult<PathBuf> {
     let (path, attachment) = registered_attachment(project_root, project_key, key, file)?;
-    let extension = file_name(&attachment.file)
+    openable(path, file_name(&attachment.file), &attachment.name)
+}
+
+/// A doc reference's file, by the reference's id (LC-206), for **Show in
+/// Finder**. The path is the record's — relative to the project, or absolute
+/// for a file outside it — and it must still be a file; one that moved reads
+/// as not found, which is what the row's _missing_ state says.
+pub fn reference_file(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+    id: &str,
+) -> AppResult<PathBuf> {
+    let detail = storage::read_ticket_detail(project_root, project_key, key)?;
+    let reference = detail
+        .ticket
+        .iter()
+        .flat_map(|ticket| ticket.references.iter())
+        .find(|reference| reference.id == id)
+        .ok_or_else(|| not_found(format!("{key} has no reference {id}")))?;
+    let stored = Path::new(&reference.path);
+    let path = if stored.is_absolute() {
+        stored.to_path_buf()
+    } else {
+        project_root.join(stored)
+    };
+    match path.canonicalize() {
+        Ok(resolved) if resolved.is_file() => Ok(resolved),
+        _ => Err(not_found(format!("{} is no longer there", reference.path))),
+    }
+}
+
+/// The same file, for opening in its default app — held to the rule a file
+/// chip is, since a doc can be a `.command` as easily as an attachment can.
+pub fn reference_to_open(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+    id: &str,
+) -> AppResult<PathBuf> {
+    let path = reference_file(project_root, project_key, key, id)?;
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_owned();
+    openable(path, &name, &name)
+}
+
+/// `path`, when `name` is one LaunchServices opens rather than runs; refused
+/// otherwise, naming the file as the human knows it (`shown`).
+fn openable(path: PathBuf, name: &str, shown: &str) -> AppResult<PathBuf> {
+    let extension = name
         .rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase());
     if extension.is_some_and(|extension| OPENABLE_EXTENSIONS.contains(&extension.as_str())) {
@@ -377,13 +429,12 @@ pub fn attachment_to_open(
     Err(AppError::new(
         ErrorCode::UnsupportedMediaType,
         format!(
-            "{} isn’t opened from LongClaw, because macOS might run a file with that name \
-             rather than show it. Use Show in Finder instead.",
-            attachment.name
+            "{shown} isn’t opened from LongClaw, because macOS might run a file with that name \
+             rather than show it. Use Show in Finder instead."
         ),
         true,
     )
-    .with_context("file", attachment.file))
+    .with_context("file", name.to_owned()))
 }
 
 /// The reference ids whose path does not resolve, for the detail read.

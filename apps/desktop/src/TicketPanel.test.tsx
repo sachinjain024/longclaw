@@ -43,11 +43,19 @@ vi.mock("./api", () => ({
   openAttachment: vi.fn(),
   revealAttachment: vi.fn(),
   reattachAttachment: vi.fn(),
+  chooseReference: vi.fn(),
+  addChosenReference: vi.fn(),
+  openReference: vi.fn(),
+  revealReference: vi.fn(),
   attachSource: vi.fn(),
   chooseFilesToAttach: vi.fn(),
 }));
 
 const {
+  addChosenReference,
+  chooseReference,
+  openReference,
+  revealReference,
   attachSource,
   chooseFilesToAttach,
   editTicket,
@@ -64,6 +72,10 @@ const openAttachmentMock = vi.mocked(openAttachment);
 const revealAttachmentMock = vi.mocked(revealAttachment);
 const reattachAttachmentMock = vi.mocked(reattachAttachment);
 const attachSourceMock = vi.mocked(attachSource);
+const chooseReferenceMock = vi.mocked(chooseReference);
+const addChosenReferenceMock = vi.mocked(addChosenReference);
+const openReferenceMock = vi.mocked(openReference);
+const revealReferenceMock = vi.mocked(revealReference);
 const chooseFilesToAttachMock = vi.mocked(chooseFilesToAttach);
 
 const NOW = Date.parse("2026-07-30T12:00:00Z");
@@ -342,6 +354,12 @@ beforeEach(() => {
   revealAttachmentMock.mockReset();
   revealAttachmentMock.mockResolvedValue(undefined);
   attachSourceMock.mockReset();
+  chooseReferenceMock.mockReset();
+  addChosenReferenceMock.mockReset();
+  openReferenceMock.mockReset();
+  openReferenceMock.mockResolvedValue(undefined);
+  revealReferenceMock.mockReset();
+  revealReferenceMock.mockResolvedValue(undefined);
   chooseFilesToAttachMock.mockReset();
   readTicketMock.mockResolvedValue(detail());
 });
@@ -3961,7 +3979,11 @@ describe("the References section (LC-206)", () => {
       "Re-attach",
     ]);
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
-    expect(labels(rowMenu("LC-1-round-trip.md"))).toEqual(["Remove"]);
+    expect(labels(rowMenu("LC-1-round-trip.md"))).toEqual([
+      "Open",
+      "Show in Finder",
+      "Remove",
+    ]);
   });
 
   it("views an image and reveals a file from its menu", async () => {
@@ -4300,5 +4322,150 @@ describe("attaching where it is written about (LC-206)", () => {
     });
     expect(form.classList.contains("drop-active")).toBe(true);
     screen.getByText(/Drop to attach to LC-1/);
+  });
+});
+
+/**
+ * LC-206, slice 7: docs written for a ticket are references — listed with its
+ * files, opened where they are, and added from the section's Add menu.
+ */
+describe("doc references (LC-206)", () => {
+  function reference(id: string, path: string): TicketReference {
+    return {
+      id,
+      path,
+      addedAt: "2026-07-30T10:00:00Z",
+      addedBy: { type: "agent", id: "claude-code", name: "Claude Code" },
+    };
+  }
+  const SPEC = reference("ref_1", "docs/specs/LC-1-round-trip.md");
+  const OLD = reference("ref_2", "docs/specs/LC-1-old.md");
+  const FLOWS = reference("ref_3", "/Users/sam/Design/flows v2.pdf");
+
+  async function openSection(options?: Parameters<typeof detail>[0]) {
+    readTicketMock.mockResolvedValue(
+      detail({ references: [SPEC, OLD, FLOWS], ...options }),
+    );
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /^References/ }));
+  }
+
+  function row(name: string) {
+    return screen.getByText(name, { selector: "strong" }).closest("li")!;
+  }
+
+  function menuOf(name: string) {
+    fireEvent.click(
+      screen.getByRole("button", { name: `Actions for ${name}` }),
+    );
+    return screen.getByRole("menu", { name: `Actions for ${name}` });
+  }
+
+  it("says which doc has moved, and which lives outside the project", async () => {
+    readTicketMock.mockResolvedValue({
+      ...detail({ references: [SPEC, OLD, FLOWS] }),
+      missingReferences: ["ref_2"],
+    });
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /^References/ }));
+
+    expect(row("LC-1-old.md").textContent).toContain("missing");
+    expect(row("LC-1-old.md").textContent).toContain(
+      "File not found · docs/specs/LC-1-old.md",
+    );
+    const outside = within(row("flows v2.pdf")).getByText("outside project");
+    expect(outside.getAttribute("title")).toBe(
+      "This file is not in the project folder, so agents and other machines may not find it.",
+    );
+    expect(row("LC-1-round-trip.md").textContent).not.toContain(
+      "outside project",
+    );
+
+    const labels = (menu: HTMLElement) =>
+      Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+        (item) => item.textContent,
+      );
+    expect(labels(menuOf("LC-1-old.md"))).toEqual(["Remove"]);
+  });
+
+  it("opens a doc and shows it in Finder by its id", async () => {
+    await openSection();
+    fireEvent.click(
+      within(menuOf("LC-1-round-trip.md")).getByRole("menuitem", {
+        name: "Open",
+      }),
+    );
+    expect(openReferenceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "ref_1",
+    );
+    fireEvent.click(
+      within(menuOf("LC-1-round-trip.md")).getByRole("menuitem", {
+        name: "Show in Finder",
+      }),
+    );
+    expect(revealReferenceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "ref_1",
+    );
+  });
+
+  it("offers attaching and referencing from the heading's Add menu", async () => {
+    await openSection();
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    const menu = screen.getByRole("menu", { name: "Add" });
+    expect(
+      Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual([
+      "Attach a file…Copied into the ticket",
+      "Add a reference…Linked where it is",
+    ]);
+  });
+
+  it("adds a reference to a file the open panel answered with", async () => {
+    chooseReferenceMock.mockResolvedValue([
+      { token: "tok-9", name: "flows.pdf", size: 1200 },
+    ]);
+    addChosenReferenceMock.mockResolvedValue(writeResult());
+    await openSection();
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Add a reference/ }));
+
+    await screen.findByText("LC-1 referenced · flows.pdf");
+    expect(chooseReferenceMock).toHaveBeenCalledWith("LC-1");
+    expect(addChosenReferenceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "tok-9",
+      "hash-1",
+    );
+  });
+
+  it("attaches files from the Add menu, with no field to link them from", async () => {
+    chooseFilesToAttachMock.mockResolvedValue([
+      { token: "tok-1", name: "notes.txt", size: 300 },
+    ]);
+    attachSourceMock.mockResolvedValue({
+      attachment: attachment("att_9a10", "notes.txt", "text/plain", 300),
+      written: writeResult(),
+    });
+    await openSection();
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Attach a file/ }));
+
+    await waitFor(() =>
+      expect(attachSourceMock).toHaveBeenCalledWith(
+        "project-1",
+        "LC-1",
+        "hash-1",
+        expect.objectContaining({ kind: "chosen", token: "tok-1" }),
+      ),
+    );
   });
 });

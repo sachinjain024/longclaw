@@ -1070,3 +1070,94 @@ fn attach_without_its_arguments_says_how_it_is_called() {
     assert_eq!(refuse(&root, &["ticket", "attach"]), usage);
     assert_eq!(refuse(&root, &["ticket", "attach", &key]), usage);
 }
+
+/// LC-206's other agent verb: a doc written for a ticket is recorded where it
+/// is, by its own name, attributed — and never copied or touched.
+#[test]
+fn reference_records_a_doc_where_it_is_and_prints_the_record() {
+    let (_temp, root) = common::new_project("reference", "LC");
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Has a spec"]));
+    fs::create_dir_all(root.join("docs/specs")).unwrap();
+    let spec = root.join("docs/specs/LC-1-round-trip.md");
+    fs::write(&spec, "# The round trip\n").unwrap();
+
+    let printed = run(
+        &root,
+        &[
+            "ticket",
+            "reference",
+            &key,
+            spec.to_str().unwrap(),
+            "--agent-id",
+            "claude-code",
+            "--agent-name",
+            "Claude Code",
+        ],
+    );
+    let reference = &printed["reference"];
+    let id = reference["id"].as_str().expect("an id");
+    assert!(id.starts_with("ref_"), "{id}");
+    // Inside the project, so stored relative to it: it travels with the repo.
+    assert_eq!(reference["path"], "docs/specs/LC-1-round-trip.md");
+    assert_eq!(reference["addedBy"]["type"], "agent");
+    assert_eq!(reference["addedBy"]["id"], "claude-code");
+
+    let raw = read(&root, &key);
+    assert!(raw.contains(&format!("references.{id}.added")), "{raw}");
+    assert_eq!(fs::read_to_string(&spec).unwrap(), "# The round trip\n");
+    let shown = run(&root, &["ticket", "show", &key]);
+    assert_eq!(shown["ticket"]["references"][0]["id"], id);
+    assert_eq!(shown["missingReferences"], serde_json::json!([]));
+}
+
+#[test]
+fn reference_to_a_file_outside_the_project_keeps_its_absolute_path() {
+    let (_temp, root) = common::new_project("reference-outside", "LC");
+    let scratch = tempfile::tempdir().unwrap();
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Elsewhere"]));
+    let flows = scratch_file(scratch.path(), "flows v2.pdf", b"%PDF-1.7\n");
+
+    let printed = run(&root, &["ticket", "reference", &key, &flows]);
+    // Any kind of file: a reference is pointed at, not opened or judged.
+    let stored = printed["reference"]["path"].as_str().unwrap();
+    assert!(Path::new(stored).is_absolute(), "{stored}");
+    assert!(stored.ends_with("flows v2.pdf"), "{stored}");
+    assert_eq!(printed["reference"]["addedBy"]["type"], "human");
+}
+
+#[test]
+fn reference_refuses_what_is_not_a_file_and_writes_nothing() {
+    let (_temp, root) = common::new_project("reference-refuse", "LC");
+    let scratch = tempfile::tempdir().unwrap();
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Refuses"]));
+    let before = read(&root, &key);
+
+    let gone = scratch.path().join("gone.md");
+    let message = refuse(
+        &root,
+        &["ticket", "reference", &key, gone.to_str().unwrap()],
+    );
+    assert!(message.contains("gone.md"), "{message}");
+    let message = refuse(
+        &root,
+        &[
+            "ticket",
+            "reference",
+            &key,
+            scratch.path().to_str().unwrap(),
+        ],
+    );
+    assert!(message.contains("folder"), "{message}");
+    assert_eq!(read(&root, &key), before);
+}
+
+#[test]
+fn reference_without_its_arguments_says_how_it_is_called() {
+    let (_temp, root) = common::new_project("reference-usage", "LC");
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Usage"]));
+    // `cli.reference.usage`.
+    let usage = "Usage: longclaw ticket reference <KEY> <PATH> --agent-id <ID> \
+                 [--agent-name <NAME>]";
+    assert_eq!(refuse(&root, &["ticket", "reference"]), usage);
+    assert_eq!(refuse(&root, &["ticket", "reference", &key]), usage);
+}
