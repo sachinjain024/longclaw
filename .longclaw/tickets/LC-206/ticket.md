@@ -168,3 +168,17 @@ actor:
 
 Prototype review 3 (2026-10-15) applied: Remove and Show in Finder settled. A human can add a reference by hand: the References button is now Add, with 'Attach a file… (Copied into the ticket)' and 'Add a reference… (Linked where it is)'. New scene K: pick, name, added with Undo, a file outside the project (chip), and a moved doc (missing). Open: allow outside-project paths?, should dropping onto References add a reference?, is naming worth the step?
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c0ce97dd
+kind: comment
+occurred_at: 2026-10-15T08:37:50.044Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype review 4 (2026-10-15) applied; every ask is now answered. Outside-project references allowed, with the 'outside project' chip. A reference keeps its file's name: no naming step, no Rename, no --name on 'ticket reference'. Dropping a file always attaches it; References is not a drop target.
+<!-- /longclaw:event -->
