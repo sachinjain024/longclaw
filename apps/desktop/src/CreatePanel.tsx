@@ -30,6 +30,9 @@ import { useAutoGrow } from "./autoGrow";
 import { RowActions, RowEditor } from "./ChecklistRow";
 import { dropEdge, gapUnder, landingFor, reordered } from "./checklistOrder";
 import { classes } from "./classes";
+import { chooseFilesToAttach } from "./api";
+import type { AttachSource } from "./attaching";
+import { fromChosen, HeldFiles } from "./attaching";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { GhostBox } from "./GhostBox";
 import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
@@ -103,8 +106,14 @@ interface CreatePanelProps {
    */
   initialDraft?: TicketDraft;
   onCancel: () => void;
-  /** Fires and forgets: the create is optimistic, so the panel never waits. */
-  onCreate: (request: Omit<CreateTicketRequest, "projectId">) => void;
+  /**
+   * Fires and forgets: the create is optimistic, so the panel never waits.
+   * `heldFiles` are attached once the ticket exists (LC-206).
+   */
+  onCreate: (
+    request: Omit<CreateTicketRequest, "projectId">,
+    heldFiles: AttachSource[],
+  ) => void;
 }
 
 export function CreatePanel(props: CreatePanelProps) {
@@ -121,6 +130,8 @@ export function CreatePanel(props: CreatePanelProps) {
    */
   const { properties, setProperty } = usePropertyDraft(draft?.properties);
   const [description, setDescription] = useState(draft?.description ?? "");
+  /** Files pasted, dropped or chosen before the ticket exists (LC-206). */
+  const [heldFiles, setHeldFiles] = useState<AttachSource[]>([]);
   const [checklist, setChecklist] = useState<NewChecklistItem[]>([]);
   const [newItem, setNewItem] = useState("");
   /**
@@ -320,18 +331,21 @@ export function CreatePanel(props: CreatePanelProps) {
 
   function create() {
     if (!canCreate) return;
-    props.onCreate({
-      title: title.trim(),
-      description: description.trim(),
-      status,
-      priority,
-      labels,
-      // Sent empty rather than omitted, the way the description and the labels
-      // are: one create request shape rather than two, and `{}` is the honest
-      // spelling of a create that asked for none of them.
-      properties,
-      checklist,
-    });
+    props.onCreate(
+      {
+        title: title.trim(),
+        description: description.trim(),
+        status,
+        priority,
+        labels,
+        // Sent empty rather than omitted, the way the description and the labels
+        // are: one create request shape rather than two, and `{}` is the honest
+        // spelling of a create that asked for none of them.
+        properties,
+        checklist,
+      },
+      heldFiles,
+    );
   }
 
   /**
@@ -456,6 +470,27 @@ export function CreatePanel(props: CreatePanelProps) {
           placeholder="What should happen? Agents read this before they start."
           value={description}
           onChange={setDescription}
+          // Until the project says which key is free there is no ticket to
+          // name in the picker or the drop label, and so nothing to hold for.
+          files={
+            props.provisionalKey === undefined
+              ? undefined
+              : {
+                  ticketKey: props.provisionalKey,
+                  choose: async () =>
+                    (await chooseFilesToAttach(props.provisionalKey!)).map(
+                      fromChosen,
+                    ),
+                  hold: (sources) =>
+                    setHeldFiles((held) => [...held, ...sources]),
+                }
+          }
+        />
+        <HeldFiles
+          files={heldFiles}
+          onRemove={(index) =>
+            setHeldFiles((held) => held.filter((_, at) => at !== index))
+          }
         />
       </section>
 

@@ -59,6 +59,7 @@ vi.mock("./api", () => ({
   readTicket: vi.fn(),
   openAttachment: vi.fn(),
   revealAttachment: vi.fn(),
+  attachSource: vi.fn(),
   rebuildIndex: vi.fn(),
   reconcileProject: vi.fn(),
   registerProject: vi.fn(),
@@ -442,6 +443,50 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     // `NewTicket` deserializes (`core/storage.rs:1003-1007`).
     expect(api.createTicket).toHaveBeenCalledWith(
       expect.objectContaining({ properties: { due: "2026-09-28" } }),
+    );
+  });
+
+  /**
+   * LC-206, story 40: a file pasted into quick create waits in a tray, and is
+   * attached once the ticket exists — against the hash the create left.
+   */
+  it("attaches a file quick create held, after the ticket is written", async () => {
+    vi.mocked(api.createTicket).mockResolvedValue(created());
+    vi.mocked(api.attachSource).mockResolvedValue({
+      attachment: {
+        id: "att_8e31",
+        file: "attachments/att_8e31-failure-state.png",
+        name: "failure-state.png",
+        mediaType: "image/png",
+        size: 4,
+        addedAt: "2026-07-31T09:00:00Z",
+        addedBy: { type: "human", id: "local" },
+      },
+      written: { ...created(), generation: 3 },
+    });
+    await openBoard();
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Dropped card lands one row high" },
+    });
+    const shot = new File([new Uint8Array(4)], "failure-state.png", {
+      type: "image/png",
+    });
+    fireEvent.paste(screen.getByLabelText("Description"), {
+      clipboardData: { files: [shot], types: ["Files"], getData: () => "" },
+    });
+    screen.getByText("Attached when the ticket is created:");
+    expect(api.attachSource).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Create"));
+
+    await waitFor(() =>
+      expect(api.attachSource).toHaveBeenCalledWith(
+        project.id,
+        "LC-1",
+        "hash-created",
+        expect.objectContaining({ kind: "file", file: shot }),
+      ),
     );
   });
 

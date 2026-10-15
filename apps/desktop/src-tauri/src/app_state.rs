@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
+use uuid::Uuid;
 
 use crate::core::project::EstimateSystem;
 use crate::core::ticket::Property;
@@ -15,6 +16,11 @@ pub struct AppState {
     registry: RegistryStore,
     preferences: PreferencesStore,
     engines: RwLock<HashMap<String, Arc<ProjectEngine>>>,
+    /// Files the human chose in the open panel the Attach button raises
+    /// (LC-206), by an opaque token. The webview is handed the token, a name
+    /// and a size, and never the path: a surface with no filesystem
+    /// capability names a file it may attach only by one the human picked.
+    chosen_files: Mutex<HashMap<String, PathBuf>>,
 }
 
 impl AppState {
@@ -25,7 +31,20 @@ impl AppState {
             // a reason to refuse to launch (`preferences.rs`).
             preferences: PreferencesStore::load(app_data_dir),
             engines: RwLock::new(HashMap::new()),
+            chosen_files: Mutex::new(HashMap::new()),
         })
+    }
+
+    /// Keeps a file the human picked and answers with the token that names it.
+    pub fn hold_chosen_file(&self, path: PathBuf) -> String {
+        let token = Uuid::new_v4().to_string();
+        self.chosen_files.lock().insert(token.clone(), path);
+        token
+    }
+
+    /// The file a token names, once: a token is spent by the attach it is for.
+    pub fn take_chosen_file(&self, token: &str) -> Option<PathBuf> {
+        self.chosen_files.lock().remove(token)
     }
 
     pub fn read_preferences(&self) -> PreferenceDocument {
@@ -266,5 +285,25 @@ impl AppState {
         sink: Arc<dyn Fn(StreamEnvelope) + Send + Sync + 'static>,
     ) -> AppResult<ProjectSnapshot> {
         Ok(self.engine(project_id, sink)?.snapshot())
+    }
+}
+
+#[cfg(test)]
+mod chosen_file_tests {
+    use super::*;
+
+    /// A token names one picked file, once: spent by the attach it is for, and
+    /// never a way to name a path the human did not pick (LC-206).
+    #[test]
+    fn a_chosen_file_is_named_by_a_token_that_is_spent_once() {
+        let folder = tempfile::tempdir().unwrap();
+        let state = AppState::new(folder.path()).unwrap();
+        let path = folder.path().join("notes.txt");
+        let token = state.hold_chosen_file(path.clone());
+
+        assert_ne!(token, path.display().to_string());
+        assert_eq!(state.take_chosen_file("not-a-token"), None);
+        assert_eq!(state.take_chosen_file(&token), Some(path));
+        assert_eq!(state.take_chosen_file(&token), None);
     }
 }

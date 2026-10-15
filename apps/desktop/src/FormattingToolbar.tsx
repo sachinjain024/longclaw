@@ -16,6 +16,7 @@
  */
 
 import { useRef, useState, type KeyboardEvent } from "react";
+import { PaperclipGlyph } from "./attaching";
 import { FormattingIcon } from "./FormattingIcon";
 import { TOOLBAR_ACTIONS, type ToolbarAction } from "./markdownToolbar";
 
@@ -24,16 +25,26 @@ export function FormattingToolbar(props: {
   /** A toolbar over a read-only projection has nothing to act on. */
   disabled?: boolean;
   className?: string;
+  /**
+   * The seventh button, Attach (LC-206): after a hairline, and inside the
+   * group's roving stop rather than a stop of its own (review 1), so the field
+   * it serves still costs its surface one Tab.
+   */
+  onAttach?: () => void;
 }) {
-  const [active, setActive] = useState(0);
+  const [chosen, setActive] = useState(0);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const count = TOOLBAR_ACTIONS.length + (props.onAttach ? 1 : 0);
+  // The stop the group owns must be a button that is there: one that was
+  // Attach on a toolbar that has since lost it would take the group's only
+  // stop with it.
+  const active = Math.min(chosen, count - 1);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const step =
       event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;
     event.preventDefault();
-    const count = TOOLBAR_ACTIONS.length;
     const next = (active + step + count) % count;
     setActive(next);
     buttons.current[next]?.focus();
@@ -62,6 +73,25 @@ export function FormattingToolbar(props: {
           <FormattingIcon action={action.id} />
         </button>
       ))}
+      {props.onAttach && (
+        <>
+          <span className="toolbar-sep" aria-hidden="true" />
+          <button
+            type="button"
+            aria-label="Attach files"
+            title="Attach files - Paste or Drag & Drop into the field"
+            disabled={props.disabled}
+            tabIndex={active === TOOLBAR_ACTIONS.length ? 0 : -1}
+            ref={(element) => {
+              buttons.current[TOOLBAR_ACTIONS.length] = element;
+            }}
+            onFocus={() => setActive(TOOLBAR_ACTIONS.length)}
+            onClick={props.onAttach}
+          >
+            <PaperclipGlyph />
+          </button>
+        </>
+      )}
     </div>
   );
 }

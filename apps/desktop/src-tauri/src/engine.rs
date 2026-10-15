@@ -40,8 +40,9 @@ use crate::core::storage::{
 };
 use crate::core::ticket::{Actor, TicketEdit};
 use crate::core::{
-    AppError, AppResult, ErrorCode, EventSource, ProjectEvent, ProjectReference, ProjectSnapshot,
-    RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex, TicketRow, WriteResult,
+    AppError, AppResult, AttachedFile, ErrorCode, EventSource, ProjectEvent, ProjectReference,
+    ProjectSnapshot, RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex,
+    TicketRow, WriteResult,
 };
 use crate::platform::macos;
 
@@ -473,6 +474,58 @@ impl ProjectEngine {
         let write =
             prepare_ticket_edit(&self.root, &project.key, key, edit, expected_hash, &now())?;
         self.commit(write, false)
+    }
+
+    /// Attaches bytes the webview holds — a pasted or dropped file (LC-206) —
+    /// as the human at the keyboard. Copied, checked and registered by the
+    /// core operation the CLI uses; refused as stale like any other edit.
+    pub fn attach_bytes(
+        &self,
+        key: &str,
+        bytes: &[u8],
+        name: &str,
+        expected_hash: &str,
+    ) -> AppResult<AttachedFile> {
+        let prepared = attachments::prepare_attachment(
+            &self.root,
+            &self.project().key,
+            key,
+            bytes,
+            name,
+            expected_hash,
+            &now(),
+            &Actor::local_human(),
+        )?;
+        let written = self.commit(prepared.write, false)?;
+        Ok(AttachedFile {
+            attachment: prepared.attachment,
+            written,
+        })
+    }
+
+    /// The same, for a file the human chose in the open panel the Attach
+    /// button raises. Read from where it is; its own name is kept.
+    pub fn attach_path(
+        &self,
+        key: &str,
+        source: &Path,
+        expected_hash: &str,
+    ) -> AppResult<AttachedFile> {
+        let prepared = attachments::prepare_attachment_file(
+            &self.root,
+            &self.project().key,
+            key,
+            source,
+            None,
+            expected_hash,
+            &now(),
+            &Actor::local_human(),
+        )?;
+        let written = self.commit(prepared.write, false)?;
+        Ok(AttachedFile {
+            attachment: prepared.attachment,
+            written,
+        })
     }
 
     /// Registers a file already in the ticket's `attachments/` — an orphan —

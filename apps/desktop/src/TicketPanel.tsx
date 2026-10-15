@@ -24,6 +24,8 @@ import type {
   ReactNode,
 } from "react";
 import {
+  attachSource,
+  chooseFilesToAttach,
   editTicket,
   openAttachment,
   openTicketFile,
@@ -33,6 +35,8 @@ import {
 } from "./api";
 import type { TicketAttachments } from "./AttachmentView";
 import { AttachmentViewer } from "./AttachmentView";
+import type { AttachSource } from "./attaching";
+import { AttachStatus, DropLabel, fromChosen, useAttaching } from "./attaching";
 import {
   actorGlyph,
   eventProse,
@@ -143,7 +147,13 @@ const NOTHING_PENDING: Pending = { checks: {} };
  * that may attribute a checklist tick to somebody else. `local` follows the
  * app's own write, where nothing is new to the human who just did it.
  */
-type LoadMode = "open" | "external" | "local";
+/**
+ * `attached` is a read after the panel's own attach (LC-206): the file is the
+ * panel's own write, as `local` is, but the human may be mid-sentence in the
+ * description or a comment — the field the file was dropped into — so the
+ * drafts are left exactly as they are.
+ */
+type LoadMode = "open" | "external" | "local" | "attached";
 
 /**
  * The ticket's key as a chip that copies it (`screen-specs.md:232`, D-38).
@@ -518,6 +528,12 @@ export function TicketPanel(props: TicketPanelProps) {
       });
   }
 
+  /**
+   * An attach that is out (LC-206). A save waits for it rather than being
+   * dropped: an attach can take seconds, and a Save or a tick pressed in the
+   * meantime is a write the human meant.
+   */
+  const attaching = useRef<Promise<unknown>>(undefined);
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
   /**
@@ -641,7 +657,7 @@ export function TicketPanel(props: TicketPanelProps) {
           (current) =>
             current ?? { error: externalEditConflict(next), pending: unsaved },
         );
-      } else {
+      } else if (mode !== "attached") {
         drafts.current.title = title;
         drafts.current.description = description;
         setTitleDraft(title);
@@ -846,6 +862,7 @@ export function TicketPanel(props: TicketPanelProps) {
       clearPending();
       return;
     }
+    while (attaching.current) await attaching.current.catch(() => undefined);
     // The last read rather than the last render: a save that waited on a read —
     // Keep mine does — must send the hash that came back, not the one that was
     // on screen when the button was pressed.
@@ -923,6 +940,48 @@ export function TicketPanel(props: TicketPanelProps) {
         },
       },
     );
+  }
+
+  /**
+   * Attaches one file from a field (LC-206): a paste, a drop, or the open
+   * panel. Its own write, attributed to the human, against the hash the panel
+   * last read — so it waits for any write of the panel's that is still out,
+   * which would otherwise leave it holding a hash that has just been spent.
+   *
+   * Not a `mutate`: a refusal is answered under the field it came from, with
+   * the reason and what to do, rather than as a toast, and an attach has no
+   * Undo (review 1). The read after it keeps every draft, because the human
+   * may still be typing in the one the file went into.
+   */
+  async function attachFile(source: AttachSource): Promise<Attachment> {
+    while (writing.current) {
+      await new Promise((settle) => window.setTimeout(settle, 25));
+    }
+    const hash = lastRead.current?.contentHash;
+    if (!hash) throw new Error(`${ticketKey} has not been read yet`);
+    writing.current = true;
+    const work = (async () => {
+      const attached = await attachSource(projectId, ticketKey, hash, source);
+      props.onWrite(attached.written);
+      // The file is attached whatever this read does: a read that fails is
+      // the panel's to report, not a refusal of the file.
+      await load("attached").catch(() => undefined);
+      return attached.attachment;
+    })();
+    attaching.current = work;
+    try {
+      return await work;
+    } finally {
+      writing.current = false;
+      attaching.current = undefined;
+      // Whatever was typed into the checklist meanwhile goes now.
+      void drainNewItems();
+    }
+  }
+
+  /** The open panel's answer, as sources the fields know how to take. */
+  async function chooseFiles(): Promise<AttachSource[]> {
+    return (await chooseFilesToAttach(ticketKey)).map(fromChosen);
   }
 
   /**
@@ -1102,6 +1161,13 @@ export function TicketPanel(props: TicketPanelProps) {
 
   const titleField = useAutoGrow(titleDraft);
   const commentField = useAutoGrow(commentDraft);
+  const commentFiles = useAttaching({
+    ticketKey,
+    field: commentField,
+    value: commentDraft,
+    onChange: setCommentDraft,
+    attach: attachFile,
+  });
 
   /**
    * A formatting button, applied to the comment draft (LC-211).
@@ -1818,6 +1884,11 @@ export function TicketPanel(props: TicketPanelProps) {
                   <DescriptionEditor
                     value={descriptionDraft}
                     attachments={attachments}
+                    files={{
+                      ticketKey,
+                      choose: chooseFiles,
+                      attach: attachFile,
+                    }}
                     // `TicketDocument::apply` refuses an edit that changes nothing.
                     canSave={descriptionDraft.trim() !== ticket.description}
                     onChange={(next) => {
@@ -2167,11 +2238,17 @@ export function TicketPanel(props: TicketPanelProps) {
                 would put a click between reading what an agent did and saying
                 something about it. */}
                 <form
-                  className="composer"
+                  className={classes(
+                    "composer",
+                    commentFiles.dropActive && "drop-active",
+                  )}
+                  {...commentFiles.dropHandlers}
                   onSubmit={(event) => {
                     event.preventDefault();
                     const comment = commentDraft.trim();
-                    if (!comment) return;
+                    // A file still copying has its placeholder in the text,
+                    // and posting now would write it into the record for good.
+                    if (!comment || commentFiles.pending) return;
                     void save(
                       { comment },
                       {
@@ -2208,6 +2285,7 @@ export function TicketPanel(props: TicketPanelProps) {
                     placeholder="Leave a comment… ⌘↵ to post"
                     aria-label="Comment"
                     onChange={(event) => setCommentDraft(event.target.value)}
+                    onPaste={commentFiles.onPaste}
                     onKeyDown={(event) => {
                       if (
                         event.key === "Enter" &&
@@ -2217,6 +2295,14 @@ export function TicketPanel(props: TicketPanelProps) {
                         event.currentTarget.form?.requestSubmit();
                       }
                     }}
+                  />
+                  {commentFiles.dropActive && (
+                    <DropLabel ticketKey={ticketKey} />
+                  )}
+                  <AttachStatus
+                    rows={commentFiles.rows}
+                    summary={commentFiles.summary}
+                    onDismiss={commentFiles.dismiss}
                   />
                   <div className="composer-actions">
                     {/* A comment is Markdown — the timeline renders it as Markdown,
@@ -2232,6 +2318,9 @@ export function TicketPanel(props: TicketPanelProps) {
                     <FormattingToolbar
                       className="composer-toolbar"
                       onFormat={formatComment}
+                      onAttach={() =>
+                        void chooseFiles().then(commentFiles.attachFiles)
+                      }
                     />
                     {/* ⌘↵ posts, so the button is the second way in rather than the
                     first, and it arrives with the text it would post (LC-107). A

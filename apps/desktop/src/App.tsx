@@ -16,6 +16,7 @@ import {
   commandLineStatus,
   createProjectInFolder,
   createTicket,
+  attachSource,
   editTicket,
   folderHoldsProject,
   homeDir,
@@ -90,6 +91,7 @@ import {
 } from "./keyContext";
 import { MenuButton } from "./Menu";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
+import type { AttachSource } from "./attaching";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
 import { splitPath, tildeAbbreviate } from "./pathDisplay";
@@ -169,6 +171,8 @@ interface PendingCreate {
    * into the same loop after the confirm rather than being closed by it.
    */
   keepOpen: boolean;
+  /** Files the draft held, for after the ticket exists (LC-206). */
+  heldFiles: AttachSource[];
   /** Where the draft was composed, for the dialog's own words. */
   fromProjectId: string;
 }
@@ -1657,13 +1661,18 @@ export function App() {
    */
   function submitNewTicket(
     request: Omit<CreateTicketRequest, "projectId">,
-    options?: { openPanel?: boolean; keepOpen?: boolean },
+    options?: {
+      openPanel?: boolean;
+      keepOpen?: boolean;
+      heldFiles?: AttachSource[];
+    },
   ) {
     if (createProjectId !== undefined && createProjectId !== activeProjectId) {
       setPendingCreate({
         request,
         openPanel: options?.openPanel === true,
         keepOpen: options?.keepOpen === true,
+        heldFiles: options?.heldFiles ?? [],
         fromProjectId: createProjectId,
       });
       return;
@@ -1671,7 +1680,35 @@ export function App() {
     writeNewTicket(request, {
       openPanel: options?.openPanel === true,
       keepOpen: options?.keepOpen === true,
+      heldFiles: options?.heldFiles ?? [],
     });
+  }
+
+  /**
+   * Attaches the files a create surface held (LC-206, story 40), one at a
+   * time, each against the hash the last one left. A file that is refused is
+   * said in a toast and does not stop the others; the ticket is already
+   * written, so nothing is rolled back.
+   */
+  async function attachHeldFiles(
+    projectId: string,
+    written: WriteResult,
+    held: AttachSource[],
+  ) {
+    const key = written.ticket.key;
+    let hash = written.ticket.contentHash;
+    for (const source of held) {
+      try {
+        const attached = await attachSource(projectId, key, hash, source);
+        applyLocalWrite(attached.written.ticket, attached.written.generation);
+        hash = attached.written.ticket.contentHash;
+      } catch (error) {
+        useMutationStore.getState().raise({
+          message: `${source.name} was not attached to ${key}. ${normalizeError(error).message}`,
+          tone: "danger",
+        });
+      }
+    }
   }
 
   /**
@@ -1699,7 +1736,11 @@ export function App() {
    */
   function writeNewTicket(
     request: Omit<CreateTicketRequest, "projectId">,
-    { openPanel, keepOpen }: { openPanel: boolean; keepOpen: boolean },
+    {
+      openPanel,
+      keepOpen,
+      heldFiles = [],
+    }: { openPanel: boolean; keepOpen: boolean; heldFiles?: AttachSource[] },
   ) {
     const projectId = activeProjectId;
     if (!projectId || !project) return;
@@ -1726,7 +1767,11 @@ export function App() {
       onWritten: (written) => {
         removeTicket(guessKey);
         applyLocalWrite(written.ticket, written.generation);
-        if (openPanel) openTicket(written.ticket.key);
+        // A held file needs the ticket to exist, so it goes now — and the
+        // panel opens after, so its first read already has the files.
+        const attaching = attachHeldFiles(projectId, written, heldFiles);
+        if (openPanel)
+          void attaching.then(() => openTicket(written.ticket.key));
         else if (!keepOpen) focusCard(written.ticket.key);
       },
       toast: (written) => `${written.ticket.key} created`,
@@ -2866,8 +2911,8 @@ export function App() {
               initialPriority={carriedDraft?.priority}
               initialProperties={carriedDraft?.properties}
               onCancel={closeCreateSurface}
-              onCreate={(request, { createMore }) =>
-                submitNewTicket(request, { keepOpen: createMore })
+              onCreate={(request, { createMore, heldFiles }) =>
+                submitNewTicket(request, { keepOpen: createMore, heldFiles })
               }
               onOpenFullEditor={(draft) => {
                 setCarriedDraft(draft);
@@ -2888,8 +2933,8 @@ export function App() {
               onDefineLabel={defineLabel}
               initialDraft={carriedDraft}
               onCancel={closeCreateSurface}
-              onCreate={(request) =>
-                submitNewTicket(request, { openPanel: true })
+              onCreate={(request, heldFiles) =>
+                submitNewTicket(request, { openPanel: true, heldFiles })
               }
             />
           )}
@@ -2925,6 +2970,7 @@ export function App() {
               writeNewTicket(held.request, {
                 openPanel: held.openPanel,
                 keepOpen: held.keepOpen,
+                heldFiles: held.heldFiles,
               });
             }}
             onCancel={() => setPendingCreate(undefined)}

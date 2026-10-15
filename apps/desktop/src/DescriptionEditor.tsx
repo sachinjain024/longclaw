@@ -16,7 +16,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import type { Attachment } from "./types";
 import type { TicketAttachments } from "./AttachmentView";
+import type { AttachSource, FileDestination } from "./attaching";
+import { AttachStatus, DropLabel, useAttaching } from "./attaching";
 import { MarkdownView } from "./MarkdownView";
 import { FormattingToolbar } from "./FormattingToolbar";
 import type { ToolbarAction } from "./markdownToolbar";
@@ -36,11 +39,23 @@ type Tab = (typeof TABS)[number]["id"];
  * save to. Modelled as a union rather than four optional props so the edit path
  * cannot lose its `onSave` by accident.
  */
+/**
+ * What a field does with a file (LC-206): attach it now, into a ticket that
+ * exists, or hold it until Create writes one. Either way the picker is titled
+ * for the ticket the file is for.
+ */
+export type FileIntake = {
+  ticketKey: string;
+  choose: () => Promise<AttachSource[]>;
+} & FileDestination;
+
 type DescriptionEditorProps = {
   value: string;
   onChange: (value: string) => void;
   /** The ticket's attachments, so the preview draws what the view will (LC-206). */
   attachments?: TicketAttachments;
+  /** Where pasted, dropped and chosen files go (LC-206). */
+  files?: FileIntake;
 } & (
   | {
       writeOnly: true;
@@ -63,6 +78,10 @@ type DescriptionEditorProps = {
     }
 );
 
+function noIntake(): Promise<Attachment> {
+  return Promise.reject(new Error("This field does not take files"));
+}
+
 export function DescriptionEditor(props: DescriptionEditorProps) {
   const ids = useId();
   /** The save/cancel half, absent in create mode. Narrowing the union once. */
@@ -72,6 +91,18 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
   const [tab, setTab] = useState<Tab>("write");
   const textarea = useRef<HTMLTextAreaElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const files = props.files;
+  const attaching = useAttaching({
+    ticketKey: files?.ticketKey ?? "",
+    field: textarea,
+    value: props.value,
+    onChange: props.onChange,
+    // A field with no intake never gets a file to place: its paste, drop and
+    // toolbar button are not wired, below.
+    ...(files?.hold
+      ? { hold: files.hold }
+      : { attach: files?.attach ?? noIntake }),
+  });
 
   // Entering edit puts the caret at the end (`keyboard-focus-map.md:95`). In
   // create mode there is nothing to enter — the editor is simply on screen, and
@@ -106,6 +137,12 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
     pendingSelection.current = [next.start, next.end];
     props.onChange(next.value);
   }
+
+  /**
+   * Save waits for a file still copying: its placeholder is in the draft, and
+   * saving now would write `[Attaching…]()` into the description for good.
+   */
+  const canSave = Boolean(editing?.canSave) && !attaching.pending;
 
   function moveTab(step: number) {
     const index = TABS.findIndex((entry) => entry.id === tab);
@@ -147,12 +184,20 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
     }
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
-      if (editing.canSave) editing.onSave();
+      if (canSave) editing.onSave();
     }
   }
 
   return (
-    <div className="description-editor" onKeyDown={onKeyDown}>
+    <div
+      className={
+        attaching.dropActive
+          ? "description-editor drop-active"
+          : "description-editor"
+      }
+      onKeyDown={onKeyDown}
+      {...(files && tab === "write" ? attaching.dropHandlers : {})}
+    >
       <div className="editor-tabstrip">
         {/* No Preview until the ticket exists (`screen-specs.md:280`). */}
         {editing && (
@@ -185,8 +230,20 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
         )}
         {/* A formatting button over a read-only projection has nothing to act
             on, so Preview disables the group rather than hiding it. */}
-        <FormattingToolbar onFormat={format} disabled={tab !== "write"} />
+        <FormattingToolbar
+          onFormat={format}
+          disabled={tab !== "write"}
+          onAttach={
+            files
+              ? () => void files.choose().then(attaching.attachFiles)
+              : undefined
+          }
+        />
       </div>
+
+      {files && attaching.dropActive && (
+        <DropLabel ticketKey={files.ticketKey} />
+      )}
 
       {/* With no tabstrip there is no tab for a panel to be labelled by, so in
           create mode this is a plain wrapper rather than a lying `tabpanel`. */}
@@ -203,6 +260,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
           aria-label="Description"
           placeholder={creating?.placeholder}
           onChange={(event) => props.onChange(event.target.value)}
+          onPaste={files ? attaching.onPaste : undefined}
         />
       </div>
       {editing && (
@@ -226,6 +284,14 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
         </div>
       )}
 
+      {files && (
+        <AttachStatus
+          rows={attaching.rows}
+          summary={attaching.summary}
+          onDismiss={attaching.dismiss}
+        />
+      )}
+
       {/* Create mode has no footer of its own: nothing here can be saved on its
           own, so the panel's Create ticket is the only commit. */}
       {editing && (
@@ -243,7 +309,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
             tabIndex={0}
             className="primary"
             type="button"
-            disabled={!editing.canSave}
+            disabled={!canSave}
             onClick={editing.onSave}
           >
             Save <kbd aria-hidden="true">⌘↵</kbd>

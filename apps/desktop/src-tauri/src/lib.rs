@@ -658,6 +658,119 @@ fn edit_ticket(
         .edit_ticket(&request.ticket_key, &request.edit, &request.expected_hash)
 }
 
+/// Attaches a pasted or dropped file (LC-206). The bytes arrive as the raw
+/// request body rather than as JSON — ten megabytes as an array of numbers is
+/// the wrong price for a paste — and the four names travel as headers, each
+/// percent-encoded so a file name in any script survives the trip.
+#[tauri::command]
+fn attach_bytes(
+    request: tauri::ipc::Request<'_>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<core::AttachedFile> {
+    let header = |name: &str| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .and_then(attachment_scheme::percent_decoded)
+            .ok_or_else(|| {
+                core::AppError::new(
+                    core::ErrorCode::Internal,
+                    format!("An attach request arrived without a readable {name}"),
+                    false,
+                )
+            })
+    };
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err(core::AppError::new(
+            core::ErrorCode::Internal,
+            "An attach request arrived without the file's bytes",
+            false,
+        ));
+    };
+    state
+        .engine(&header("x-project-id")?, tauri_sink(&app))?
+        .attach_bytes(
+            &header("x-ticket-key")?,
+            bytes,
+            &header("x-file-name")?,
+            &header("x-expected-hash")?,
+        )
+}
+
+/// One file the open panel answered with, as the webview may know it: a token
+/// for the path, and what the pending row says — its name and its size.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ChosenFile {
+    token: String,
+    name: String,
+    size: u64,
+}
+
+/// The open panel the toolbar's Attach button raises (LC-206): files, several
+/// at once, titled for the ticket they will land in.
+///
+/// Raised here rather than by the webview, so the paths stay here: the webview
+/// gets a token per file and can attach only what the human picked
+/// (ADR 0009). Async, because the panel blocks until the human answers and
+/// must not do it on the main thread. An empty list is a cancelled panel.
+#[tauri::command]
+async fn choose_files_to_attach(
+    ticket_key: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<ChosenFile>> {
+    use tauri_plugin_dialog::DialogExt;
+    let picked = app
+        .dialog()
+        .file()
+        .set_title(format!("Attach to {ticket_key}"))
+        .blocking_pick_files()
+        .unwrap_or_default();
+    Ok(picked
+        .into_iter()
+        .filter_map(|file| file.into_path().ok())
+        .map(|path| {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("file")
+                .to_owned();
+            let size = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
+            ChosenFile {
+                token: state.hold_chosen_file(path),
+                name,
+                size,
+            }
+        })
+        .collect())
+}
+
+/// Attaches one file the open panel answered with, by its token. Read from
+/// where it is, judged by its bytes and copied into the ticket.
+#[tauri::command]
+fn attach_chosen(
+    project_id: String,
+    ticket_key: String,
+    token: String,
+    expected_hash: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<core::AttachedFile> {
+    let path = state.take_chosen_file(&token).ok_or_else(|| {
+        core::AppError::new(
+            core::ErrorCode::NotFound,
+            "That file is no longer chosen. Press Attach and choose it again.",
+            true,
+        )
+    })?;
+    state
+        .engine(&project_id, tauri_sink(&app))?
+        .attach_path(&ticket_key, &path, &expected_hash)
+}
+
 /// **Re-attach** on a not-attached row (LC-206): registers an orphan in place.
 /// The webview names the file and the hash it read; Rust proves the file is in
 /// the ticket's folder and judges its bytes again before writing a record.
@@ -936,6 +1049,9 @@ pub fn run() {
             open_attachment,
             reveal_attachment,
             reattach_attachment,
+            attach_bytes,
+            choose_files_to_attach,
+            attach_chosen,
             command_line_status,
             install_command_line,
             edit_ticket,

@@ -324,7 +324,7 @@ fn open_without_following(path: &Path) -> std::io::Result<File> {
 
 /// `%XX` decoding for one path segment, or `None` for a malformed escape or a
 /// result that is not UTF-8.
-fn percent_decoded(segment: &str) -> Option<String> {
+pub(crate) fn percent_decoded(segment: &str) -> Option<String> {
     let bytes = segment.as_bytes();
     let mut decoded = Vec::with_capacity(bytes.len());
     let mut index = 0;

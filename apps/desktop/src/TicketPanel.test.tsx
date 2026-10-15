@@ -43,9 +43,13 @@ vi.mock("./api", () => ({
   openAttachment: vi.fn(),
   revealAttachment: vi.fn(),
   reattachAttachment: vi.fn(),
+  attachSource: vi.fn(),
+  chooseFilesToAttach: vi.fn(),
 }));
 
 const {
+  attachSource,
+  chooseFilesToAttach,
   editTicket,
   openAttachment,
   openTicketFile,
@@ -59,6 +63,8 @@ const openTicketFileMock = vi.mocked(openTicketFile);
 const openAttachmentMock = vi.mocked(openAttachment);
 const revealAttachmentMock = vi.mocked(revealAttachment);
 const reattachAttachmentMock = vi.mocked(reattachAttachment);
+const attachSourceMock = vi.mocked(attachSource);
+const chooseFilesToAttachMock = vi.mocked(chooseFilesToAttach);
 
 const NOW = Date.parse("2026-07-30T12:00:00Z");
 
@@ -335,6 +341,8 @@ beforeEach(() => {
   openAttachmentMock.mockResolvedValue(undefined);
   revealAttachmentMock.mockReset();
   revealAttachmentMock.mockResolvedValue(undefined);
+  attachSourceMock.mockReset();
+  chooseFilesToAttachMock.mockReset();
   readTicketMock.mockResolvedValue(detail());
 });
 
@@ -1171,7 +1179,8 @@ describe("the activity and comments tabs (LC-211)", () => {
     // composer is in use, and that is the stylesheet's job — a group that
     // unmounted on blur would be one Tab could never enter, because the blur
     // that would carry focus into it takes the group off the page first.
-    expect(toolbar?.querySelectorAll("button")).toHaveLength(6);
+    // The six formatting buttons, then Attach after its hairline (LC-206).
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(7);
     expect(
       toolbar
         ?.querySelector('button[tabindex="0"]')
@@ -2770,7 +2779,7 @@ async function openTheEditor(description: string) {
 }
 
 describe("the description editor (V0-12)", () => {
-  it("shows Write and Preview tabs and exactly six formatting buttons", async () => {
+  it("shows Write and Preview tabs, six formatting buttons and Attach", async () => {
     const textarea = await openTheEditor("Check whether the round trip holds.");
 
     // Scoped to the editor's own tablist: the record below it has a pair of its
@@ -2786,14 +2795,23 @@ describe("the description editor (V0-12)", () => {
       "ariaSelected",
       "true",
     );
-    // Six, no more and no fewer (`screen-specs.md:248-249`). Scoped to the
-    // editor's own: the composer below has the same six now (LC-211).
+    // Six, no more and no fewer (`screen-specs.md:248-249`), and then Attach
+    // after a hairline (LC-206). Scoped to the editor's own: the composer
+    // below has the same seven now (LC-211).
     const toolbar = document.querySelector(".editor-toolbar")!;
     expect(
       Array.from(toolbar.querySelectorAll("button")).map((button) =>
         button.getAttribute("aria-label"),
       ),
-    ).toEqual(["Bold", "Italic", "Code", "Bulleted list", "Task list", "Link"]);
+    ).toEqual([
+      "Bold",
+      "Italic",
+      "Code",
+      "Bulleted list",
+      "Task list",
+      "Link",
+      "Attach files",
+    ]);
     expect(textarea.value).toBe("Check whether the round trip holds.");
   });
 
@@ -4078,5 +4096,209 @@ describe("the References section (LC-206)", () => {
         .querySelector('[data-event="evt_with_log"]')
         ?.classList.contains("reference-target"),
     ).toBe(true);
+  });
+});
+
+/**
+ * LC-206, slice 6: a file pasted, dropped or chosen into the description
+ * editor or the composer is written into the ticket, and its link lands where
+ * the caret was. What the core does with the bytes is `tests/attachments.rs`.
+ */
+describe("attaching where it is written about (LC-206)", () => {
+  const SHOT = attachment("att_8e31", "failure-state.png", "image/png", 2_400);
+  const NOTES = attachment("att_9a10", "notes.txt", "text/plain", 300);
+
+  function attached(record: Attachment) {
+    return { attachment: record, written: writeResult() };
+  }
+
+  function png(name = "failure-state.png", size = 2_400) {
+    return new File([new Uint8Array(size)], name, { type: "image/png" });
+  }
+
+  function paste(field: HTMLElement, files: File[]) {
+    fireEvent.paste(field, {
+      clipboardData: { files, types: ["Files"], getData: () => "" },
+    });
+  }
+
+  function drop(target: HTMLElement, files: File[]) {
+    const dataTransfer = { files, types: ["Files"], dropEffect: "none" };
+    fireEvent.dragOver(target, { dataTransfer });
+    fireEvent.drop(target, { dataTransfer });
+  }
+
+  function composer() {
+    return screen.getByLabelText("Comment") as HTMLTextAreaElement;
+  }
+
+  it("pastes a file into the description as an image link, at the caret", async () => {
+    attachSourceMock.mockResolvedValue(attached(SHOT));
+    const field = await openTheEditor("Before after");
+    fireEvent.change(field, { target: { value: "Before  after" } });
+    field.setSelectionRange(7, 7);
+
+    paste(field, [png()]);
+    expect(field.value).toBe("Before ![Attaching failure-state.png…]() after");
+    screen.getByText("Attaching failure-state.png · 2 KB…");
+
+    await screen.findByText("Attached failure-state.png");
+    expect(attachSourceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "hash-1",
+      expect.objectContaining({ kind: "file", name: "failure-state.png" }),
+    );
+    expect(field.value).toBe(
+      "Before ![failure-state.png](./attachments/att_8e31-failure-state.png) after",
+    );
+  });
+
+  it("holds Save while a file is still copying, so no placeholder is saved", async () => {
+    let land: (value: ReturnType<typeof attached>) => void = () => {};
+    attachSourceMock.mockReturnValue(
+      new Promise((resolve) => {
+        land = resolve;
+      }),
+    );
+    const field = await openTheEditor("Words");
+    fireEvent.change(field, { target: { value: "Words " } });
+    field.setSelectionRange(6, 6);
+    paste(field, [png()]);
+
+    const save = screen.getByRole("button", { name: /^Save/ });
+    expect(save).toHaveProperty("disabled", true);
+    land(attached(SHOT));
+    await screen.findByText("Attached failure-state.png");
+    expect(save).toHaveProperty("disabled", false);
+  });
+
+  it("leaves a paste of plain text to the field", async () => {
+    const field = await openTheEditor("Words");
+    paste(field, []);
+    expect(attachSourceMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the description being written when the file lands", async () => {
+    attachSourceMock.mockResolvedValue(attached(SHOT));
+    const field = await openTheEditor("Saved words");
+    fireEvent.change(field, { target: { value: "Unsaved words " } });
+    field.setSelectionRange(14, 14);
+    paste(field, [png()]);
+    await screen.findByText("Attached failure-state.png");
+    // The read after the attach must not put the file's description back.
+    await waitFor(() => expect(readTicketMock).toHaveBeenCalledTimes(2));
+    expect(field.value).toBe(
+      "Unsaved words ![failure-state.png](./attachments/att_8e31-failure-state.png)",
+    );
+  });
+
+  it("drops several files into a comment, lands those that pass and says so once", async () => {
+    attachSourceMock.mockResolvedValue(attached(NOTES));
+    render(surface());
+    await ready();
+    const field = composer();
+
+    drop(field.closest("form")!, [
+      png("full-session.png", 23_600_000),
+      new File(["notes"], "notes.txt", { type: "text/plain" }),
+    ]);
+
+    await screen.findByText("Attached notes.txt");
+    // Refused before it crossed the bridge: one write, not two.
+    expect(attachSourceMock).toHaveBeenCalledTimes(1);
+    expect(field.value).toBe("[notes.txt](./attachments/att_9a10-notes.txt)");
+    screen.getByText(
+      "full-session.png is 23.6 MB. Attachments can be up to 10 MB.",
+    );
+    screen.getByText(
+      "Trim or compress it, or put it somewhere else and link to it.",
+    );
+    await screen.findByText("1 of 2 files attached. 1 could not be.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText(/full-session\.png is/)).toBeNull();
+  });
+
+  it("says what a refusal means and takes the placeholder back out", async () => {
+    attachSourceMock.mockRejectedValue({
+      code: "unsupported_media_type",
+      message:
+        "trace.png can’t be attached. Only images, text files and videos are supported.",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+    const field = composer();
+    paste(field, [png("trace.png")]);
+
+    await screen.findByText(
+      "trace.png can’t be attached. Only images, text files and videos are supported.",
+    );
+    screen.getByText(
+      "LongClaw checks what a file contains, not just its name.",
+    );
+    expect(field.value).toBe("");
+  });
+
+  it("names the ticket when it moved underneath the attach", async () => {
+    attachSourceMock.mockRejectedValue({
+      code: "conflict",
+      message: "The file changed on disk",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+    paste(composer(), [png()]);
+    await screen.findByText(
+      "LC-1 changed on disk before failure-state.png could be added.",
+    );
+    screen.getByText(
+      "The file stays on disk. You can re-attach it from References later.",
+    );
+  });
+
+  it("attaches what the toolbar's open panel answers with", async () => {
+    chooseFilesToAttachMock.mockResolvedValue([
+      { token: "tok-1", name: "notes.txt", size: 300 },
+    ]);
+    attachSourceMock.mockResolvedValue(attached(NOTES));
+    render(surface());
+    await ready();
+
+    const button = within(
+      document.querySelector<HTMLElement>(".composer-toolbar")!,
+    ).getByRole("button", { name: "Attach files" });
+    // Inside the group's roving stop, not a stop of its own.
+    expect(button.getAttribute("tabindex")).toBe("-1");
+    expect(button.getAttribute("title")).toBe(
+      "Attach files - Paste or Drag & Drop into the field",
+    );
+    fireEvent.click(button);
+
+    await screen.findByText("Attached notes.txt");
+    expect(chooseFilesToAttachMock).toHaveBeenCalledWith("LC-1");
+    // A token, never a path: the panel was handed nothing else to name it by.
+    expect(attachSourceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "hash-1",
+      expect.objectContaining({ kind: "chosen", token: "tok-1", size: 300 }),
+    );
+    screen.getByText("Attached notes.txt");
+    expect(composer().value).toBe(
+      "[notes.txt](./attachments/att_9a10-notes.txt)",
+    );
+  });
+
+  it("says where a dragged file will go while it is over the field", async () => {
+    render(surface());
+    await ready();
+    const form = composer().closest("form")!;
+    fireEvent.dragOver(form, {
+      dataTransfer: { files: [], types: ["Files"], dropEffect: "none" },
+    });
+    expect(form.classList.contains("drop-active")).toBe(true);
+    screen.getByText(/Drop to attach to LC-1/);
   });
 });

@@ -345,6 +345,22 @@ export interface DegradedTicket {
 export type TicketRow = IndexedTicket | DegradedTicket;
 
 /**
+ * One file the open panel answered with (LC-206): a token for the path Rust
+ * kept, and what the pending row says. Never the path itself.
+ */
+export interface ChosenFile {
+  token: string;
+  name: string;
+  size: number;
+}
+
+/** What attaching one file answers with (LC-206): its record, and the write. */
+export interface AttachedFile {
+  attachment: Attachment;
+  written: WriteResult;
+}
+
+/**
  * A file in `attachments/` that no record names — what a removal leaves, or an
  * interrupted attach (LC-206). `mediaType` is sniffed from its bytes, and
  * absent when it is none the format attaches or too big to have been read.

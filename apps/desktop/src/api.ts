@@ -1,7 +1,10 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { AttachSource } from "./attaching";
 import type {
+  AttachedFile,
+  ChosenFile,
   CommandLineStatus,
   CreateTicketRequest,
   EditTicketRequest,
@@ -297,6 +300,63 @@ export async function openAttachment(
   file: string,
 ): Promise<void> {
   return invoke("open_attachment", { projectId, ticketKey, file });
+}
+
+/**
+ * The open panel the toolbar's Attach button raises (LC-206): files, several
+ * at once, titled for the ticket they will land in. Rust raises it and keeps
+ * the paths; what comes back is a token per file, with the name and size the
+ * pending row says. An empty list is a cancelled panel, not a failure.
+ */
+export async function chooseFilesToAttach(
+  ticketKey: string,
+): Promise<ChosenFile[]> {
+  return invoke("choose_files_to_attach", { ticketKey });
+}
+
+/**
+ * Attaches a pasted or dropped file (LC-206). The bytes go as the request body
+ * — not as JSON, which would spell ten megabytes as an array of numbers — and
+ * the names as headers, percent-encoded so a file name in any script arrives
+ * as it was.
+ */
+export async function attachBytes(
+  projectId: string,
+  ticketKey: string,
+  expectedHash: string,
+  file: File,
+): Promise<AttachedFile> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return invoke("attach_bytes", bytes, {
+    headers: {
+      "x-project-id": encodeURIComponent(projectId),
+      "x-ticket-key": encodeURIComponent(ticketKey),
+      "x-expected-hash": encodeURIComponent(expectedHash),
+      "x-file-name": encodeURIComponent(file.name),
+    },
+  });
+}
+
+/** Attaches a file the open panel answered with, by its token. */
+export async function attachChosen(
+  projectId: string,
+  ticketKey: string,
+  token: string,
+  expectedHash: string,
+): Promise<AttachedFile> {
+  return invoke("attach_chosen", { projectId, ticketKey, token, expectedHash });
+}
+
+/** One file, whichever way it arrived — the one place that tells them apart. */
+export function attachSource(
+  projectId: string,
+  ticketKey: string,
+  expectedHash: string,
+  source: AttachSource,
+): Promise<AttachedFile> {
+  return source.kind === "file"
+    ? attachBytes(projectId, ticketKey, expectedHash, source.file)
+    : attachChosen(projectId, ticketKey, source.token, expectedHash);
 }
 
 /**

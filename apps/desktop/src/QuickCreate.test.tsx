@@ -112,7 +112,7 @@ describe("quick create is title, description, status, priority and labels", () =
         labels: [],
         properties: {},
       },
-      { createMore: false },
+      { createMore: false, heldFiles: [] },
     );
   });
 
@@ -137,7 +137,7 @@ describe("quick create is title, description, status, priority and labels", () =
         labels: [],
         properties: {},
       },
-      { createMore: false },
+      { createMore: false, heldFiles: [] },
     );
   });
 
@@ -498,6 +498,7 @@ describe("the Create more loop", () => {
     // would be a field to remember to strip at the IPC boundary.
     expect(onCreate).toHaveBeenCalledWith(expect.anything(), {
       createMore: true,
+      heldFiles: [],
     });
   });
 
@@ -558,7 +559,7 @@ describe("the Create more loop", () => {
         labels: ["storage"],
         properties: {},
       },
-      { createMore: true },
+      { createMore: true, heldFiles: [] },
     );
   });
 
@@ -591,6 +592,7 @@ describe("the Create more loop", () => {
     // taken off the screen by must not flash an emptied field first.
     expect(onCreate).toHaveBeenCalledWith(expect.anything(), {
       createMore: false,
+      heldFiles: [],
     });
     expect(field("Title").value).toBe("One and done");
   });
@@ -906,10 +908,65 @@ describe("the properties a project turned on", () => {
         title: "Second",
         properties: { due: "2026-09-28" },
       }),
-      { createMore: true },
+      { createMore: true, heldFiles: [] },
     );
     expect(screen.getByLabelText<HTMLInputElement>("Due Date").value).toBe(
       "28 Sep",
     );
+  });
+});
+
+/**
+ * LC-206, story 40: the ticket does not exist yet, so a pasted or dropped file
+ * waits in a tray and goes with the create, rather than into the description.
+ */
+describe("files held for after Create (LC-206)", () => {
+  function shot(name = "failure-state.png") {
+    return new File([new Uint8Array(2_400)], name, { type: "image/png" });
+  }
+
+  it("holds a pasted file, says so, and hands it over with the create", () => {
+    const onCreate = vi.fn();
+    render(quickCreate({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Dropped card lands one row high" },
+    });
+    const description = screen.getByLabelText(
+      "Description",
+    ) as HTMLTextAreaElement;
+    fireEvent.paste(description, {
+      clipboardData: { files: [shot()], types: ["Files"], getData: () => "" },
+    });
+
+    expect(description.value).toBe("");
+    screen.getByText("Attached when the ticket is created:");
+    screen.getByText("failure-state.png");
+    screen.getByText("2 KB");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    expect(onCreate.mock.calls[0][1].heldFiles).toEqual([
+      expect.objectContaining({ kind: "file", name: "failure-state.png" }),
+    ]);
+  });
+
+  it("lets a held file go before Create", () => {
+    const onCreate = vi.fn();
+    render(quickCreate({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "One file, then none" },
+    });
+    const description = screen.getByLabelText("Description");
+    fireEvent.drop(description, {
+      dataTransfer: { files: [shot()], types: ["Files"], dropEffect: "none" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Don’t attach failure-state.png" }),
+    );
+    expect(
+      screen.queryByText("Attached when the ticket is created:"),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    expect(onCreate.mock.calls[0][1].heldFiles).toEqual([]);
   });
 });

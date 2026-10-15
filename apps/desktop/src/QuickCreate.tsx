@@ -42,6 +42,8 @@
  */
 
 import { useRef, useState } from "react";
+import type { AttachSource } from "./attaching";
+import { AttachStatus, DropLabel, HeldFiles, useAttaching } from "./attaching";
 import { useAutoGrow } from "./autoGrow";
 import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
@@ -134,7 +136,8 @@ interface QuickCreateProps {
    */
   onCreate: (
     request: Omit<CreateTicketRequest, "projectId">,
-    options: { createMore: boolean },
+    /** `heldFiles` are attached once the ticket exists (LC-206). */
+    options: { createMore: boolean; heldFiles: AttachSource[] },
   ) => void;
   /**
    * Hands what has been typed to full create, rather than throwing it away.
@@ -185,6 +188,19 @@ export function QuickCreate(props: QuickCreateProps) {
    */
   const descriptionField = useAutoGrow(description);
   /**
+   * Files pasted or dropped before the ticket exists (LC-206, review 1: quick
+   * create holds them). No Attach button here: this modal has no toolbar, and
+   * one control is a Tab stop it was built not to have.
+   */
+  const [heldFiles, setHeldFiles] = useState<AttachSource[]>([]);
+  const files = useAttaching({
+    ticketKey: props.provisionalKey ?? "",
+    field: descriptionField,
+    value: description,
+    onChange: setDescription,
+    hold: (sources) => setHeldFiles((held) => [...held, ...sources]),
+  });
+  /**
    * The title, so the loop can put the caret back in it. Nothing else in the
    * modal moves focus: `focusCard` must not run on this path either, which is
    * `App`'s half of the same rule.
@@ -209,7 +225,7 @@ export function QuickCreate(props: QuickCreateProps) {
         labels,
         properties,
       },
-      { createMore },
+      { createMore, heldFiles },
     );
     if (!createMore) return;
     // What the next ticket in the run is: two empty fields, and the meta
@@ -225,6 +241,7 @@ export function QuickCreate(props: QuickCreateProps) {
     // then and clearing it under them would read as dropped keystrokes.
     setTitle("");
     setDescription("");
+    setHeldFiles([]);
     titleField.current?.focus();
   }
 
@@ -310,6 +327,23 @@ export function QuickCreate(props: QuickCreateProps) {
           aria-label="Description"
           placeholder="What should happen? Agents read this before they start."
           onChange={(event) => setDescription(event.target.value)}
+          onPaste={files.onPaste}
+          {...files.dropHandlers}
+          data-drop-active={files.dropActive || undefined}
+        />
+        {files.dropActive && props.provisionalKey && (
+          <DropLabel ticketKey={props.provisionalKey} />
+        )}
+        <AttachStatus
+          rows={files.rows}
+          summary={files.summary}
+          onDismiss={files.dismiss}
+        />
+        <HeldFiles
+          files={heldFiles}
+          onRemove={(index) =>
+            setHeldFiles((held) => held.filter((_, at) => at !== index))
+          }
         />
         {/* Status then priority, which is the meta grid's order in the panel
             and in full create (`screen-specs.md:243`). Both wear D-49's bare

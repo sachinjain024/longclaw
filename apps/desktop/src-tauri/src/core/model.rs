@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use super::error::Diagnostic;
 use super::project::{Label, Project, PropertiesConfig};
 use super::storage::NewTicket;
-use super::ticket::{Actor, FieldChange, Priority, Status, Ticket, TicketEdit};
+use super::ticket::{Actor, Attachment, FieldChange, Priority, Status, Ticket, TicketEdit};
 
 /// A registered project. `reachable` is false when the folder has moved or gone:
 /// the entry stays listed with its cached name so it can be relocated.
@@ -308,6 +308,15 @@ pub struct CreateTicketRequest {
     pub project_id: String,
     #[serde(flatten)]
     pub ticket: NewTicket,
+}
+
+/// What attaching one file from the app answers with (LC-206): the record the
+/// editor builds its link from, and the write it took, for the board.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachedFile {
+    pub attachment: Attachment,
+    pub written: WriteResult,
 }
 
 #[derive(Debug, Clone, Serialize)]
