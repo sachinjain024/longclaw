@@ -47,27 +47,40 @@ A human can attach a file to a ticket wherever they write about it, and see it
 where they wrote it.
 
 - In the **description editor** and the **comment composer**, the human can
-  paste an image, drop files onto the field, or choose files from an
-  **Attach** toolbar button. Each file is copied into the ticket, registered,
+  paste a copied file with ⌘V, drop files onto the field, or choose files from
+  an **Attach** (paperclip) toolbar button. Each file is copied into the ticket, registered,
   and a Markdown link to it is inserted at the caret. Images get an image link
   (`![name](./attachments/…)`); everything else gets an ordinary link.
 - Where a description or comment is **rendered**, a link into the ticket's own
   `attachments/` directory resolves: an image shows inline, a video shows as an
   inline player that can seek, and a text file or other attachment shows as a
   file chip with its name and size that opens in the default macOS app.
-- The ticket panel has an **Attachments** section that lists every registered
-  attachment: name, media type, size, who added it and when. From there the
-  human can open, reveal or remove one. The section also shows the two broken
-  states the core already detects: a **missing** attachment (registered, but no
-  bytes) and an **orphan** (bytes, but no registration). An orphan can be
-  re-attached.
-- **Removing** an attachment unregisters it and keeps its bytes. The file stays
+- The ticket panel has a **References** section, collapsed by default, that
+  lists every registered attachment (name, media type, size, who added it and
+  when) and then every **doc reference**: a spec, a prototype or any other file
+  on disk that the ticket points at where it is, without copying it. Each row
+  has one ⋮ menu: view or open, Show in Finder, and Remove. The section also
+  shows the two broken states the core already detects: a **missing**
+  attachment (registered, but no bytes) and an **orphan** (bytes, but no
+  registration, shown as _not attached_). An orphan can be re-attached.
+- A human adds a doc reference from the section's **Add** menu; agents add the
+  docs they write with `longclaw ticket reference`. Either way the reference
+  keeps the file's own name.
+- **Removing** an attachment unregisters it and keeps its bytes, and Undo (the
+  toast, or ⌘Z) puts it back. The file stays
   in `attachments/` as a recoverable orphan, which the same section offers to
   re-attach. Nothing is deleted. Permanent deletion or a ticket-local trash
   is a follow-up ([LC-276x](../../.longclaw/tickets/LC-276x/ticket.md)).
-- **Agents** get the same operation from the command line: `longclaw ticket
+- **Agents** get the same operations from the command line: `longclaw ticket
   attach`, which copies, checks, registers and attributes the file the same way
-  the app does, so neither has to hand-write a record.
+  the app does, and `longclaw ticket reference`, which records a doc they wrote.
+  Neither has to hand-write a record.
+
+The design was reviewed as a prototype in four rounds and settled on
+2026-10-15. The decisions and the settled copy deck are in
+[LC-206](../../.longclaw/tickets/LC-206/ticket.md) under _Review decisions_ and
+_Copy deck_; where this spec and the ticket disagree on a string, the ticket's
+deck wins.
 
 Every add and every removal is an attributed activity event, so the timeline
 says who attached what.
@@ -91,19 +104,19 @@ says who attached what.
 15. As a human, I want a video attachment to render as an inline player I can seek, so that I can watch a reproduction without leaving the ticket.
 16. As a human, I want a text attachment to render as a file chip showing its name and size, so that a log does not pour into the description.
 17. As a human, I want to open any attachment in its default macOS app from its chip or from the Attachments section, so that I can use the right tool for it.
-18. As a human, I want to reveal an attachment in Finder, so that I can drag it somewhere else or check it in git.
-19. As a human, I want an Attachments section in the ticket panel listing every registered attachment, so that I can see all of a ticket's files in one place even when no text links to them.
+18. As a human, I want to show an attachment in Finder, so that I can drag it somewhere else or check it in git.
+19. As a human, I want a References section in the ticket panel listing every registered attachment and every doc reference, collapsed until I open it and opening by itself when a file lands, so that I can see all of a ticket's files in one place even when no text links to them.
 20. As a human, I want each row in that section to show the name, media type, size, who added it and when, so that I know where a file came from.
 21. As a human, I want a file larger than 10 MB to be refused with a message that names the file and the limit, so that I know why it did not attach and what to do instead.
 22. As a human, I want a file whose content is not an image, text or video to be refused with a message that names the file and the kinds that are allowed, so that I am not surprised later.
 23. As a human, I want a refusal for one file in a multi-file drop not to stop the others, so that one bad file does not cost me the rest.
 24. As a human, I want a file's type to be judged by its content and not only its extension, so that a renamed executable cannot pass as an image.
-25. As a human, I want to be warned when an attachment is large enough to be a burden in ordinary git storage, so that I can decide whether to use Git LFS. LongClaw does not change my git configuration.
+25. ~~As a human, I want to be warned when an attachment is large enough to be a burden in ordinary git storage.~~ Dropped in review: a project need not be a git repository, so LongClaw does not warn about git at all.
 26. As a human, I want to remove an attachment from the Attachments section, so that a file I attached by mistake no longer belongs to the ticket.
 27. As a human, I want removing an attachment to keep its bytes on disk, so that a slip of the hand cannot destroy evidence.
 28. As a human, I want to undo a removal with ⌘Z like any other ticket edit, so that removing is as safe as editing a description.
 29. As a human, I want a removed attachment to appear as an orphan I can re-attach, so that I can recover it after the undo window has passed.
-30. As a human, I want a link to a removed attachment in the description or a comment to show as an unavailable attachment, so that I can see the reference is broken rather than having text silently disappear.
+30. As a human, I want a link to a removed attachment in the description or a comment to show as _Removed_, and a link to a missing one as _Unavailable_, so that I can see the reference is broken, and why, rather than having text silently disappear.
 31. As a human, I want a registered attachment whose file is missing to show as missing, with its metadata intact, so that I know what is gone and who added it.
 32. As a human, I want a file in `attachments/` that no record registers to show as an orphan, so that something an agent or an interrupted copy left behind does not stay hidden.
 33. As a human, I want to re-attach an orphan, so that it becomes a registered, attributed attachment without being copied again.
@@ -125,6 +138,15 @@ says who attached what.
 49. As a maintainer, I want unknown attachment fields and unsupported media types already on disk to stay preserved through every write, so that the lossless-round-trip rule still holds.
 50. As a screen-reader user, I want inline images to be announced by their alt text and file chips by name, type and size, so that attachments are not silent.
 51. As a screen-reader user, I want the attach progress, success and refusal to be announced in a live region, so that I know what happened without looking.
+52. As a human, I want ⌘V of a copied file to attach it in the description, a comment or a create surface, while ⌘V of plain text still pastes text, so that attaching from the clipboard needs no button.
+53. As a human, I want a file that came in through a comment to say _Added in a comment_ and take me to that comment, so that I can see the conversation it belongs to.
+54. As a human, I want the References section to show five rows and _View all_ for the rest, with broken rows counted among the five and a just-added row always shown, so that a long list does not push the checklist off the panel.
+55. As a human, I want each References row to have one ⋮ menu with every action it has, so that nothing a row can do is hidden behind a hover.
+56. As a human, I want to add a reference to a file on disk from the section's Add menu, without copying it, so that a ticket can point at a doc that lives elsewhere.
+57. As a human, I want a reference to a file outside the project folder to be allowed but marked _outside project_, so that I know agents and other machines may not find it.
+58. As a human, I want a reference whose file was moved or deleted to show as missing with its old path, so that I know what to fix.
+59. As an agent, I want `longclaw ticket reference <KEY> <path>` to record a doc I wrote for a ticket, attributed to me, so that a spec or a prototype is listed with the ticket's files rather than linked in its description.
+60. As a human, I want the "Attached" confirmation under the field to stay until the view next re-renders and never come back, so that I see it without it lingering as state.
 
 ## Implementation Decisions
 
@@ -152,6 +174,25 @@ actor, and returns the new attachment record. Inside, it:
 Both the Tauri command and the new `longclaw ticket attach` CLI verb are thin
 wrappers over this operation (ADR 0011: the CLI is the creation surface agents
 use). Neither caller reimplements a step.
+
+**Doc references are a new record.** A `longclaw:reference` record under a new
+`## References` section of `ticket.md` holds an `ref_…` id, the referenced
+path, `added_at` and `added_by`. The path is project-relative when the file is
+inside the project and absolute when it is not; an absolute path is allowed
+(the UI marks it _outside project_) because a reference is a pointer the human
+chose, not a canonical copy. The row's name is the file's own name, derived
+from the path and never stored, so there is nothing to rename. Nothing is
+copied and nothing is read except to check existence: a reference whose path
+does not resolve is _missing_. `TicketEdit` gains `add_reference`,
+`remove_reference` and `restore_reference`; removing drops the record and never
+touches the file. This is a format change and the first record that may name a
+path outside the project, so it lands with its own ADR, `file_format.md`
+section and format-contract fixtures, in slice 1.
+
+**No git-size warning.** The format's rule to warn when a file may be a burden
+in ordinary git storage is dropped (review 1): a project need not be a git
+repository, and a warning about a tool the user may not use is noise. Its
+bullet in `file_format.md`'s _Attachments_ section is removed in slice 1.
 
 **Removal and re-attach are ticket edits.** `TicketEdit` gains `remove_attachment`
 (by id) and `restore_attachment`, the latter so that undo can put a removed
@@ -193,22 +234,35 @@ _unavailable attachment_ node. Every other relative or protocol-relative
 destination stays refused, exactly as today. Images keep their alt text. Text
 attachments are never inlined.
 
-**Inserting.** The editor toolbar gains an _Attach_ action with an explicit
-`tabIndex`. Paste and drop handlers live on the description editor and the
-comment composer, and the create panel reuses them. Each file inserts a pending
+**Inserting.** The editor toolbar gains an _Attach_ (paperclip) action as its
+seventh button, after a hairline, inside the formatting group's roving tab
+stop. Paste and drop handlers live on the description editor and the comment
+composer, and the create panel reuses them; ⌘V attaches only when the clipboard
+holds a file. The create surfaces hold files and attach them right after the
+ticket is written, with a tray saying so. Dropping always attaches: the
+References section is not a drop target. Each file inserts a pending
 placeholder at the caret, which is replaced by the final link when its attach
-resolves and removed when the attach is refused. The textarea keeps holding the
-raw Markdown, as it does today.
+resolves and removed when the attach is refused. A row under the field says
+_Attaching…_ and then _Attached_ until the next re-render; refusals stay until
+dismissed. There is no toast for an attach. The textarea keeps holding the raw
+Markdown, as it does today.
 
-**The Attachments section.** The ticket panel lists registered attachments in
-registry order, followed by missing attachments and then orphans. It is built
-from the `missing_attachments` and `orphan_attachments` the ticket detail
-already carries. Row actions: open, reveal in Finder, remove (registered) and
-re-attach (orphan).
+**The References section.** Between Description and Checklist, collapsed by
+default behind a heading that toggles it and carries the count; it opens by
+itself when a file lands. It lists registered attachments in registry order,
+then doc references, with missing attachments and orphans where they fall. It
+is built from the `missing_attachments` and `orphan_attachments` the ticket
+detail already carries, plus the references. Five rows show, then _View all_.
+Each row ends in a ⋮ menu: View (images, the in-app viewer) or Open (default
+app), Show in Finder, and Remove (with the hint _File kept_); an orphan's menu
+offers Re-attach. The heading's **Add** menu offers _Attach a file…_ and _Add a
+reference…_. Remove raises a toast with Undo, and ⌘Z undoes it too.
 
 **Agent surface.** `longclaw ticket attach <KEY> <path> [--name …] --agent-id …
 [--agent-name …]` prints the record as JSON along with the Markdown link to
-paste. `ticket show` includes attachments and their state. The generated
+paste, always in the link form. `longclaw ticket reference <KEY> <path>
+--agent-id …` records a doc reference and prints it. `ticket show` includes
+attachments, references and their state. The generated
 `.longclaw/AGENTS.md` names the verb first and keeps the hand-written procedure
 as the fallback.
 
@@ -232,7 +286,10 @@ all of it:
    registration leaves an orphan and never a dangling record; removal leaves the
    bytes and reports them as an orphan; restore and re-attach round-trip;
    containment rejects `..`, absolute paths and escaping symlinks; and unknown
-   fields and opaque records survive. Prior art: the attachment-state tests in
+   fields and opaque records survive. References get the same treatment: add,
+   remove and restore round-trip; an inside path is stored relative and an
+   outside one absolute; a path that does not resolve reads missing; removal
+   never touches the file. Prior art: the attachment-state tests in
    the storage module and the `fixtures/format-contract/` cases
    (`valid-attachment-records-preserved`, `degraded-record-invalid-attachment`).
    New fixtures pin the exact record shape the app writes. The CLI verb gets the
@@ -269,22 +326,23 @@ exists to vet.
 - Thumbnails, poster frames, transcoding, and image editing or annotation.
 - Full-text indexing of text attachments.
 - Moving or copying an attachment between tickets.
-- Changing git configuration, or setting up Git LFS. The app only warns.
+- Anything about git: no size warning, no Git LFS, no git configuration.
+- Renaming a reference, and dropping files onto the References section.
 - Attachments on anything other than a ticket, such as a project or a label.
 
 ## Further Notes
 
-- The UI half should go through a prototype under `docs/ux/prototypes/`, with
-  its copy deck, before it reaches `src/`. The refusal messages, the
-  unavailable-attachment state, the orphan wording and the git-size warning are
-  the copy most likely to be argued over. Write the settled deck back into
-  LC-206. The prototype is
-  [`docs/ux/prototypes/LC-206-Attachments.html`](../ux/prototypes/LC-206-Attachments.html).
+- The UI half was reviewed as a prototype in four rounds and settled on
+  2026-10-15. The decisions and the copy deck are in LC-206. The prototype was
+  then deleted; its last version is `docs/ux/prototypes/LC-206-Attachments.html`
+  at commit `26c6abc`.
 - Natural slices for `/to-tickets`, blockers first: (1) the core attach and
   remove operations, with fixtures; (2) the CLI verb and the agent guide;
-  (3) the URI scheme and the CSP; (4) rendering; (5) the Attachments section;
+  (3) the URI scheme and the CSP; (4) rendering; (5) the References section;
   (6) paste, drop and the toolbar in the description editor, comments and the
-  create panel.
+  create panel; (7) doc references: the record, `ticket reference`, and the
+  Add menu. Slice 1 carries the format change for references and the removal
+  of the git-size bullet, with its ADR.
 - The website and docs must not describe attachments as shipped until they
   are. When they ship, `/docs/file-format` and `/docs/what-a-ticket-is` need
   the user-facing half.

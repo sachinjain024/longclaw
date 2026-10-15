@@ -22,20 +22,6 @@ collected in one scene so the copy can be reviewed as copy rather than found
 scene by scene. The scenes and the deck render from the same object, so the two
 cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
 
-- [`LC-206-Attachments.html`](LC-206-Attachments.html)
-  — attaching, showing and removing a ticket's files, in ten scenes: the
-  ticket panel with the new Attachments section, attaching from the description
-  and from a comment (clickable), how each kind renders, the section in every
-  state, remove/undo/re-attach, the refusals, an agent attaching through the
-  CLI, attaching while creating, and three answers to where the Attach button
-  goes (spec: `docs/specs/LC-206-attachments.md`).
-
-  **Built from captured markup.** The shell, panel, editor, composer, activity
-  record, toast and quick create are the app's own DOM, taken from the perf
-  harness over its stubs, so the scenes show today's app with the proposal in
-  it. It is the first prototype built with the `lc-build-prototype` skill, and
-  carries that template's per-scene feedback boxes and Markdown export.
-
 - [`LC-257s-GitHub-Star-Badge.html`](LC-257s-GitHub-Star-Badge.html)
   — five places a GitHub star control could stand, in two shapes (a solid
   pill and a labelled ghost), with the count states and a proposed floor under
@@ -58,8 +44,10 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   Read it for the shape, not for the rules: it predates the **copy deck**,
   which `AGENTS.md` has required since LC-249a and which a new prototype owes.
 
-Four others have been here and are not any more, all deleted when their
-tickets settled: LC-236e (defining a label from inside the create flows) and
+Five others have been here and are not any more, all deleted when their
+tickets settled: LC-206 (attachments and the References section, settled
+over four review rounds — the decisions and the copy deck are in
+`.longclaw/tickets/LC-206/ticket.md`), at `26c6abc`; LC-236e (defining a label from inside the create flows) and
 LC-249a (the `longclaw` command's install offer), both in the history at
 `3ad94ef`; LC-243d (three answers to what says which half of the Board |
 List segment is pressed — option B was chosen), at `567d0cf`; and LC-256a
