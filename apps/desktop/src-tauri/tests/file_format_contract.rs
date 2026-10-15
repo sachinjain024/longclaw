@@ -872,11 +872,15 @@ fn section_region<'a>(raw: &'a str, heading: &str) -> &'a str {
         .find(&format!("\n{heading}\n"))
         .unwrap_or_else(|| panic!("the fixture has a {heading} section"));
     let region = &raw[start + 1..];
-    ["\n## Attachments\n", "\n## References\n", "\n## Activity\n"]
-        .iter()
-        .filter_map(|next| region[1..].find(next).map(|offset| offset + 2))
-        .min()
-        .map_or(region, |end| &region[..end])
+    [
+        "\n## Attachments\n",
+        "\n## Ticket References\n",
+        "\n## Activity\n",
+    ]
+    .iter()
+    .filter_map(|next| region[1..].find(next).map(|offset| offset + 2))
+    .min()
+    .map_or(region, |end| &region[..end])
 }
 
 /// The exact shape of the two records the app writes (LC-206), pinned by a
@@ -924,7 +928,7 @@ fn the_records_the_app_writes_are_the_records_this_case_shows() {
         )
         .expect("both records can be written back");
     let next = String::from_utf8(rewritten.bytes).expect("app output should be UTF-8");
-    for heading in ["## Attachments", "## References"] {
+    for heading in ["## Attachments", "## Ticket References"] {
         assert_eq!(
             section_region(&next, heading),
             section_region(&raw, heading),

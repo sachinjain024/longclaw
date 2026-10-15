@@ -13,7 +13,7 @@ A relative path is read from the project root, so one that climbs out of it
 would leave the project without the row saying so. That record degrades; the
 one beside it stays.
 
-## References
+## Ticket References
 
 <!-- longclaw:reference
 id: ref_0001

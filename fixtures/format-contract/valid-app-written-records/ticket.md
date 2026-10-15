@@ -27,7 +27,7 @@ added_by:
 [Failure state.png](<./attachments/att_8e31c0aa-failure-state.png>)
 <!-- /longclaw:attachment -->
 
-## References
+## Ticket References
 
 <!-- longclaw:reference
 id: ref_3c1d9a2e

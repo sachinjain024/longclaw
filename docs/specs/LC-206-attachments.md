@@ -176,7 +176,7 @@ wrappers over this operation (ADR 0011: the CLI is the creation surface agents
 use). Neither caller reimplements a step.
 
 **Doc references are a new record.** A `longclaw:reference` record under a new
-`## References` section of `ticket.md` holds an `ref_…` id, the referenced
+`## Ticket References` section of `ticket.md` holds an `ref_…` id, the referenced
 path, `added_at` and `added_by`. The path is project-relative when the file is
 inside the project and absolute when it is not; an absolute path is allowed
 (the UI marks it _outside project_) because a reference is a pointer the human

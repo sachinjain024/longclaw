@@ -12,7 +12,7 @@
 //! document returns its input exactly; an edit rewrites the lines it owns and
 //! leaves the rest alone.
 //!
-//! Reserved-section rule: `## Checklist`, `## Attachments`, `## References`
+//! Reserved-section rule: `## Checklist`, `## Attachments`, `## Ticket References`
 //! and `## Activity` each run until the next reserved heading or the end of the file. Ordinary
 //! headings, fenced code, and bounded records never end a section, so an agent
 //! can quote `## Checklist` inside a comment without changing what the file means.
@@ -37,7 +37,7 @@ const REFERENCE_CLOSE: &str = "<!-- /longclaw:reference -->";
 const RESERVED_HEADINGS: [&str; 4] = [
     "## Checklist",
     "## Attachments",
-    "## References",
+    "## Ticket References",
     "## Activity",
 ];
 /// Where a ticket's own folder sits below the project root, as a link
@@ -2189,7 +2189,7 @@ impl TicketDocument {
     fn open_section(&mut self, role: Role, record: &str) {
         let heading = match role {
             Role::Attachments => "## Attachments",
-            Role::References => "## References",
+            Role::References => "## Ticket References",
             Role::Checklist => "## Checklist",
             Role::Activity => "## Activity",
             Role::Text => unreachable!("the description is not a section"),
@@ -2775,7 +2775,7 @@ fn reserved_role(trimmed: &str) -> Option<Role> {
     match trimmed {
         "## Checklist" => Some(Role::Checklist),
         "## Attachments" => Some(Role::Attachments),
-        "## References" => Some(Role::References),
+        "## Ticket References" => Some(Role::References),
         "## Activity" => Some(Role::Activity),
         _ => None,
     }
@@ -2861,7 +2861,7 @@ fn record_opener(trimmed: &str) -> Option<(&'static str, Role, &'static str)> {
         return Some((ATTACHMENT_CLOSE, Role::Attachments, "## Attachments"));
     }
     if trimmed.starts_with(REFERENCE_OPEN) {
-        return Some((REFERENCE_CLOSE, Role::References, "## References"));
+        return Some((REFERENCE_CLOSE, Role::References, "## Ticket References"));
     }
     None
 }
@@ -5654,11 +5654,15 @@ mod record_tests {
     fn section<'a>(raw: &'a str, heading: &str) -> &'a str {
         let start = raw.find(heading).expect("the section exists");
         let rest = &raw[start + heading.len()..];
-        let end = ["\n## References\n", "\n## Activity\n", "\n## Attachments\n"]
-            .iter()
-            .filter_map(|next| rest.find(next))
-            .min()
-            .map_or(rest.len(), |offset| offset + 1);
+        let end = [
+            "\n## Ticket References\n",
+            "\n## Activity\n",
+            "\n## Attachments\n",
+        ]
+        .iter()
+        .filter_map(|next| rest.find(next))
+        .min()
+        .map_or(rest.len(), |offset| offset + 1);
         &raw[start..start + heading.len() + end]
     }
 
@@ -5877,7 +5881,7 @@ mod record_tests {
         assert_eq!(reference.added_by, Actor::local_human());
         assert_eq!(reference.name(), "LC-206-attachments.md");
         let attachments = rendered.find("## Attachments").unwrap();
-        let references = rendered.find("## References").unwrap();
+        let references = rendered.find("## Ticket References").unwrap();
         let activity = rendered.find("## Activity").unwrap();
         assert!(
             attachments < references && references < activity,
@@ -5996,7 +6000,7 @@ mod record_tests {
         let raw = BARE.replace(
             "\n## Activity\n",
             concat!(
-                "\n## References\n",
+                "\n## Ticket References\n",
                 "\n",
                 "<!-- longclaw:reference\n",
                 "id: ref_0001\n",
@@ -6039,8 +6043,8 @@ mod record_tests {
             .unwrap();
         let rendered = String::from_utf8(applied.bytes).unwrap();
         assert_eq!(
-            section(&rendered, "## References"),
-            section(&raw, "## References")
+            section(&rendered, "## Ticket References"),
+            section(&raw, "## Ticket References")
         );
     }
 
@@ -6066,7 +6070,7 @@ mod record_tests {
             .ticket()
             .record_diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.message.contains("## References")));
+            .any(|diagnostic| diagnostic.message.contains("## Ticket References")));
     }
 
     #[test]
@@ -6090,7 +6094,7 @@ mod record_tests {
         );
         assert_eq!(next.ticket().checklist.len(), 1);
         let checklist = rendered.find("## Checklist").unwrap();
-        let references = rendered.find("## References").unwrap();
+        let references = rendered.find("## Ticket References").unwrap();
         assert!(checklist < references, "{rendered}");
     }
 
@@ -6099,10 +6103,29 @@ mod record_tests {
         let message = refuse(
             BARE,
             TicketEdit {
-                description: Some("Intro\n\n## References\n\n- a link".to_owned()),
+                description: Some("Intro\n\n## Ticket References\n\n- a link".to_owned()),
                 ..TicketEdit::default()
             },
         );
-        assert!(message.contains("## References"), "{message}");
+        assert!(message.contains("## Ticket References"), "{message}");
+    }
+
+    #[test]
+    fn a_plain_references_heading_is_still_the_description_s() {
+        // The common heading stays prose: reserving it would end every
+        // description that lists its links under one (ADR 0017).
+        let description = "Intro\n\n## References\n\n- [a link](https://example.com)";
+        let (rendered, next) = apply(
+            BARE,
+            TicketEdit {
+                description: Some(description.to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(next.ticket().description, description);
+        assert!(next.ticket().references.is_empty());
+        assert!(next.ticket().record_diagnostics.is_empty());
+        let reparsed = parse(&rendered);
+        assert_eq!(reparsed.ticket().description, description);
     }
 }

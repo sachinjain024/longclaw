@@ -174,7 +174,7 @@ Ticket frontmatter uses a deliberately constrained YAML subset:
 The Markdown body remains ordinary CommonMark apart from four reserved sections:
 
 - `## Checklist`, containing Markdown tasks with invisible `longclaw:item` markers;
-- `## Attachments` and `## References`, containing bounded `longclaw:attachment` and `longclaw:reference` records ([References](#references));
+- `## Attachments` and `## Ticket References`, containing bounded `longclaw:attachment` and `longclaw:reference` records ([References](#references));
 - `## Activity`, containing bounded `longclaw:event` records.
 
 Other headings, such as `## Approach` or `## Discoveries`, are normal description content.
@@ -486,10 +486,10 @@ Before agents can create tickets or team sync is introduced, the allocation poli
 
 ## References
 
-A ticket may point at docs written for it — a spec, a UX prototype, a design — without copying them in. Each is a bounded `longclaw:reference` record under a `## References` section of `ticket.md`, after `## Attachments` and before `## Activity` ([ADR 0017](adr/0017-a-reference-points-at-a-file-it-does-not-own.md)):
+A ticket may point at docs written for it — a spec, a UX prototype, a design — without copying them in. Each is a bounded `longclaw:reference` record under a `## Ticket References` section of `ticket.md`, after `## Attachments` and before `## Activity` ([ADR 0017](adr/0017-a-reference-points-at-a-file-it-does-not-own.md)):
 
 ```md
-## References
+## Ticket References
 
 <!-- longclaw:reference
 id: ref_3c1d9a2e
