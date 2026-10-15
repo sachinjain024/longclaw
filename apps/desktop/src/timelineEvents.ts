@@ -115,6 +115,12 @@ const CHECKLIST_FIELD = /^checklist\.(.+)\.(checked|added|moved|text|removed)$/;
  * with the record it was withdrawn from.
  */
 const COMMENT_FIELD = /^comment\.(?:(.+)\.(edited|removed)|(restored))$/;
+/**
+ * What a write did to the attachment registry or the references (LC-206). The
+ * record carries the name, so the line still reads once the row is gone.
+ */
+const RECORD_FIELD =
+  /^(attachments|references)\.(.+)\.(added|removed|reattached)$/;
 
 /**
  * Every line one record puts on screen.
@@ -228,6 +234,10 @@ export function describeChange(
   const comment = COMMENT_FIELD.exec(field);
   if (comment) {
     return describeComment(comment[2] ?? comment[3]);
+  }
+  const record = RECORD_FIELD.exec(field);
+  if (record) {
+    return describeRecord(record[1], record[3], from, to);
   }
   return describeUnknownField(field, from, to);
 }
@@ -349,6 +359,55 @@ function describeComment(what: string): ChangeLine {
   // record itself uses in `edited_at` and the word the entry wears beside its
   // age, and one gesture should not be called two things.
   return { glyph: char("✎"), text: "edited a comment" };
+}
+
+/**
+ * An attachment or a reference added or removed, in the copy deck's words
+ * (`activity.attached`, `activity.removed`, `activity.reattached`,
+ * `activity.referenced`). An undo's restore records `added`: it puts back a
+ * row, and nothing was re-attached.
+ */
+function describeRecord(
+  registry: string,
+  what: string,
+  from: string | undefined,
+  to: string | undefined,
+): ChangeLine {
+  const name = what === "removed" ? from : to;
+  if (registry === "attachments") {
+    if (what === "reattached") {
+      return {
+        glyph: char("+"),
+        text: name === undefined ? "re-attached a file" : `re-attached ${name}`,
+      };
+    }
+    if (what === "added") {
+      return {
+        glyph: char("+"),
+        text: name === undefined ? "attached a file" : `attached ${name}`,
+      };
+    }
+    return {
+      glyph: char("−"),
+      text: name === undefined ? "removed an attachment" : `removed ${name}`,
+    };
+  }
+  if (what === "added") {
+    return {
+      glyph: char("+"),
+      text:
+        name === undefined
+          ? "added a reference"
+          : `added a reference to ${name}`,
+    };
+  }
+  return {
+    glyph: char("−"),
+    text:
+      name === undefined
+        ? "removed a reference"
+        : `removed the reference to ${name}`,
+  };
 }
 
 /**

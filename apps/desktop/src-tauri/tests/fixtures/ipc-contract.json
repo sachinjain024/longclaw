@@ -273,6 +273,14 @@
       "to": "Write the migration"
     },
     {
+      "field": "attachments.att_0001.added",
+      "to": "failure-state.png"
+    },
+    {
+      "field": "references.ref_minted.added",
+      "to": "LC-1-loading.md"
+    },
+    {
       "field": "comment.evt_0001.edited",
       "from": "",
       "to": "Reworded by the fixture"
@@ -284,6 +292,18 @@
     {
       "field": "comment.restored",
       "to": "Restored by the fixture"
+    },
+    {
+      "field": "attachments.att_0001.removed",
+      "from": "failure-state.png"
+    },
+    {
+      "field": "references.ref_minted.removed",
+      "from": "LC-1-loading.md"
+    },
+    {
+      "field": "attachments.att_0001.reattached",
+      "to": "failure-state.png"
     }
   ],
   "writeFailureCauses": ["missing", "noSpace", "readOnly"],

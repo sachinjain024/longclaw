@@ -1,0 +1,48 @@
+{
+  "summary": "A References section beside the attachment registry: two project-relative docs an agent recorded (one carrying fields this build does not interpret and prose under its link) and an absolute path a person chose from outside the project. Each is read, the name comes from the path, and nothing about the records is rewritten by an unrelated edit (LC-206).",
+  "key": "LC-206",
+  "outcome": "valid",
+  "ticket": {
+    "title": "Docs written for this ticket are references",
+    "description": "A spec and a prototype an agent wrote for this ticket, and a design file a\nperson chose from outside the project. None of them is copied in.",
+    "attachments": [
+      {
+        "id": "att_2001",
+        "file": "attachments/att_2001-failure-state.png",
+        "name": "failure-state.png",
+        "mediaType": "image/png",
+        "size": 51200,
+        "addedByType": "human",
+        "addedById": "local"
+      }
+    ],
+    "references": [
+      {
+        "id": "ref_3c1d9a2e",
+        "path": "docs/specs/LC-206-attachments.md",
+        "name": "LC-206-attachments.md",
+        "outsideProject": false,
+        "addedByType": "agent",
+        "addedById": "claude-code"
+      },
+      {
+        "id": "ref_4e2a0b13",
+        "path": "docs/ux/prototypes/LC-206-Attachments.html",
+        "name": "LC-206-Attachments.html",
+        "outsideProject": false,
+        "addedByType": "agent",
+        "addedById": "claude-code"
+      },
+      {
+        "id": "ref_5f3b1c24",
+        "path": "/Users/sam/Design/flows v2.fig",
+        "name": "flows v2.fig",
+        "outsideProject": true,
+        "addedByType": "human",
+        "addedById": "local"
+      }
+    ],
+    "unknownKeys": [],
+    "recordDiagnostics": []
+  }
+}

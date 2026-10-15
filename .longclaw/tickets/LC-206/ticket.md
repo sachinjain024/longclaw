@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T08:47:31.078Z
+updated_at: 2026-10-15T09:20:31.033Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -133,7 +133,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 
 ## Checklist
 
-- [ ] 1 · Core: attach, remove and restore an attachment, and the reference record (add, remove, restore), with the ADR superseding 0005's UI half, the file_format.md changes (References section; git-size bullet removed) and format fixtures — no blockers <!-- longclaw:item=ck_b5b81061 -->
+- [x] 1 · Core: attach, remove and restore an attachment, and the reference record (add, remove, restore), with the ADR superseding 0005's UI half, the file_format.md changes (References section; git-size bullet removed) and format fixtures — no blockers <!-- longclaw:item=ck_b5b81061 -->
 - [ ] 2 · CLI: `longclaw ticket attach` as a thin wrapper over the core operation, plus the agent guide — after 1 <!-- longclaw:item=ck_a74fb95d -->
 - [ ] 3 · Serving: the attachment URI scheme and the CSP change, so the webview loads a ticket's own files and nothing else — after 1 <!-- longclaw:item=ck_2bf48f8c -->
 - [ ] 4 · Rendering: full-width images, videos that never autoplay, file chips, Removed/Unavailable chips and the in-app viewer, in the description and in comments — after 3 <!-- longclaw:item=ck_e0ee20a9 -->
@@ -346,4 +346,22 @@ changes:
 ### Claude Code updated this ticket
 
 Split the spec into seven tracer-bullet slices as this checklist, blockers first; each item names what gates it. Detail and acceptance criteria are the spec's (docs/specs/LC-206-attachments.md).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d6a3f1cf
+kind: update
+occurred_at: 2026-10-15T09:20:31.033Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b5b81061.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Slice 1 landed: core attach, remove, restore and re-attach (core/attachments.rs over the ticket document), the longclaw:reference record under ## References with add/remove/restore, error codes too_large/unsupported_media_type/not_found, ADRs 0016 and 0017, file_format.md (References section, invariant 17, git-size bullet dropped), and three format-contract fixtures. No caller wires it up yet: ticket attach is slice 2, the app command slice 6.
 <!-- /longclaw:event -->

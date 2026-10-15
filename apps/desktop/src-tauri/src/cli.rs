@@ -362,6 +362,15 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         edit_comment: None,
         remove_comment: None,
         restore_comment: None,
+        // Attachments and references get verbs of their own — `ticket attach`
+        // and `ticket reference` (LC-206) — because both read a file off the
+        // disk first, which an edit of the record never does.
+        remove_attachment: None,
+        restore_attachment: None,
+        register_attachment: None,
+        add_reference: None,
+        remove_reference: None,
+        restore_reference: None,
     };
 
     // Read, then write against the hash that read saw. The gap between them is

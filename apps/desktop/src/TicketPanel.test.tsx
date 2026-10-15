@@ -106,6 +106,7 @@ function detail(options?: {
     rawTruncated: false,
     missingAttachments: [],
     orphanAttachments: [],
+    missingReferences: [],
     ticket: {
       id: "019c8c7e",
       key,
@@ -123,6 +124,7 @@ function detail(options?: {
         { id: "ck_2", text: "Review what it changed", checked: false },
       ],
       attachments: [],
+      references: [],
       activity: options?.activity ?? [humanEvent()],
       historyIncomplete: false,
       unknownKeys: [],
@@ -149,6 +151,7 @@ function degradedDetail(options?: {
     rawTruncated: false,
     missingAttachments: [],
     orphanAttachments: [],
+    missingReferences: [],
     diagnostic: {
       code: options?.readOnly ? "unsupported_version" : "parse_failed",
       message:

@@ -1,0 +1,48 @@
+{
+  "summary": "The exact shape of the attachment and reference records LongClaw writes, and the activity each one narrates (LC-206). `the_records_the_app_writes_are_the_records_this_case_shows` takes both records out and writes them back through the app, and requires the bytes to come back identical.",
+  "key": "LC-208",
+  "outcome": "valid",
+  "ticket": {
+    "description": "![Failure state.png](<./attachments/att_8e31c0aa-failure-state.png>)",
+    "attachments": [
+      {
+        "id": "att_8e31c0aa",
+        "file": "attachments/att_8e31c0aa-failure-state.png",
+        "name": "Failure state.png",
+        "mediaType": "image/png",
+        "size": 51200,
+        "addedByType": "human",
+        "addedById": "local"
+      }
+    ],
+    "references": [
+      {
+        "id": "ref_3c1d9a2e",
+        "path": "docs/specs/LC-208-records.md",
+        "name": "LC-208-records.md",
+        "outsideProject": false,
+        "addedByType": "agent",
+        "addedById": "claude-code"
+      }
+    ],
+    "activity": [
+      { "id": "evt_0a1b2c3d", "kind": "create", "actorType": "human", "actorId": "local" },
+      {
+        "id": "evt_1b2c3d4e",
+        "kind": "update",
+        "actorType": "human",
+        "actorId": "local",
+        "changedFields": ["attachments.att_8e31c0aa.added"]
+      },
+      {
+        "id": "evt_2c3d4e5f",
+        "kind": "update",
+        "actorType": "agent",
+        "actorId": "claude-code",
+        "changedFields": ["references.ref_3c1d9a2e.added"]
+      }
+    ],
+    "historyIncomplete": false,
+    "recordDiagnostics": []
+  }
+}

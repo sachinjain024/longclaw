@@ -14,8 +14,8 @@ use longclaw_desktop_lib::core::storage::{
     belongs_to_project, foreign_project_diagnostic, prepare_new_ticket, NewTicket,
 };
 use longclaw_desktop_lib::core::ticket::{
-    ChecklistToggle, NewChecklistItem, Priority, Property, Status, TicketDocument, TicketEdit,
-    TicketProperties,
+    AttachmentRegistration, ChecklistToggle, NewChecklistItem, Priority, Property, RecordSlot,
+    ReferenceRestore, Status, TicketDocument, TicketEdit, TicketProperties,
 };
 use serde::{Deserialize, Deserializer};
 
@@ -88,6 +88,8 @@ struct ExpectedTicket {
     #[serde(default)]
     attachments: Option<Vec<ExpectedAttachment>>,
     #[serde(default)]
+    references: Option<Vec<ExpectedReference>>,
+    #[serde(default)]
     activity: Option<Vec<ExpectedEvent>>,
     #[serde(default)]
     unknown_keys: Option<Vec<String>>,
@@ -113,6 +115,17 @@ struct ExpectedAttachment {
     name: String,
     media_type: String,
     size: u64,
+    added_by_type: String,
+    added_by_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ExpectedReference {
+    id: String,
+    path: String,
+    name: String,
+    outside_project: bool,
     added_by_type: String,
     added_by_id: Option<String>,
 }
@@ -390,6 +403,42 @@ fn check_ticket(
             );
         }
     }
+    if let Some(references) = &expected.references {
+        report.equal(
+            name,
+            "reference count",
+            ticket.references.len(),
+            references.len(),
+        );
+        for (actual, expected) in ticket.references.iter().zip(references) {
+            report.equal(name, "reference id", &actual.id, &expected.id);
+            report.equal(name, "reference path", &actual.path, &expected.path);
+            report.equal(
+                name,
+                "reference name",
+                actual.name(),
+                expected.name.as_str(),
+            );
+            report.equal(
+                name,
+                "reference outsideProject",
+                actual.is_outside_project(),
+                expected.outside_project,
+            );
+            report.equal(
+                name,
+                "reference addedByType",
+                actor_type_name(&actual.added_by),
+                expected.added_by_type.clone(),
+            );
+            report.equal(
+                name,
+                "reference addedById",
+                &actual.added_by.id,
+                &expected.added_by_id,
+            );
+        }
+    }
     if let Some(events) = &expected.activity {
         report.equal(name, "activity count", ticket.activity.len(), events.len());
         for (actual, expected) in ticket.activity.iter().zip(events) {
@@ -552,6 +601,12 @@ fn check_edit_preserves_everything_else(
     );
     report.equal(
         name,
+        "references after edit",
+        &after.references,
+        &before.references,
+    );
+    report.equal(
+        name,
         "unknownKeys after edit",
         &after.unknown_keys,
         &before.unknown_keys,
@@ -631,8 +686,9 @@ fn attachment_region(raw: &str) -> &str {
 /// V0-18's must-pass, stated as it is written: a ticket carrying attachment
 /// records survives every app mutation byte-identically in those records.
 ///
-/// The app renders no attachment UI and creates no registry entries (ADR 0005),
-/// so nothing here should touch them — but "should" is what this test replaces.
+/// None of these mutations is about attachments, so none should touch them —
+/// but "should" is what this test replaces. The ones that are (LC-206) take
+/// one record out or put one in, and the round trip below holds them to that.
 /// It runs every mutation a `TicketEdit` can make against a registry holding a
 /// media type outside the v0 `image/*`, `text/*`, `video/*` set and a record with
 /// fields this build never reads.
@@ -801,13 +857,82 @@ fn check_attachments_survive(
     report.check(name, after == before, || {
         format!("the attachment records changed:\n--- before\n{before}\n--- after\n{after}")
     });
-    // The app registers nothing of its own either (ADR 0005).
+    // And an edit about something else registers nothing.
     report.equal(
         name,
         "attachment count",
         applied.document.ticket().attachments.len(),
         document.ticket().attachments.len(),
     );
+}
+
+/// Everything from `heading` to the next reserved heading, or the end.
+fn section_region<'a>(raw: &'a str, heading: &str) -> &'a str {
+    let start = raw
+        .find(&format!("\n{heading}\n"))
+        .unwrap_or_else(|| panic!("the fixture has a {heading} section"));
+    let region = &raw[start + 1..];
+    ["\n## Attachments\n", "\n## References\n", "\n## Activity\n"]
+        .iter()
+        .filter_map(|next| region[1..].find(next).map(|offset| offset + 2))
+        .min()
+        .map_or(region, |end| &region[..end])
+}
+
+/// The exact shape of the two records the app writes (LC-206), pinned by a
+/// case a reader can open: take each record out through the app, write it back
+/// through the app, and the section must come back byte for byte. A change to
+/// how either record is rendered — a key order, a quote, the link under it — is
+/// a change to the format agents copy, and lands here first.
+#[test]
+fn the_records_the_app_writes_are_the_records_this_case_shows() {
+    let case = repository_root().join("fixtures/format-contract/valid-app-written-records");
+    let raw = fs::read_to_string(case.join("ticket.md")).expect("the fixture should be readable");
+    let document = TicketDocument::parse(&raw, "LC-208").expect("the fixture should parse");
+    let attachment = document.ticket().attachments[0].clone();
+    let reference = document.ticket().references[0].clone();
+
+    let emptied = document
+        .apply(
+            &TicketEdit {
+                remove_attachment: Some(attachment.id.clone()),
+                remove_reference: Some(reference.id.clone()),
+                ..TicketEdit::default()
+            },
+            NOW,
+        )
+        .expect("both records can be removed");
+    let rewritten = emptied
+        .document
+        .apply(
+            &TicketEdit {
+                register_attachment: Some(AttachmentRegistration {
+                    attachment: attachment.clone(),
+                    slot: RecordSlot::End,
+                    reattached: false,
+                }),
+                restore_reference: Some(ReferenceRestore {
+                    id: reference.id.clone(),
+                    path: reference.path.clone(),
+                    added_at: reference.added_at.clone(),
+                    added_by: reference.added_by.clone(),
+                    after: None,
+                }),
+                ..TicketEdit::default()
+            },
+            NOW,
+        )
+        .expect("both records can be written back");
+    let next = String::from_utf8(rewritten.bytes).expect("app output should be UTF-8");
+    for heading in ["## Attachments", "## References"] {
+        assert_eq!(
+            section_region(&next, heading),
+            section_region(&raw, heading),
+            "the app wrote {heading} differently from the case"
+        );
+    }
+    assert_eq!(rewritten.document.ticket().attachments, vec![attachment]);
+    assert_eq!(rewritten.document.ticket().references, vec![reference]);
 }
 
 /// The `priority:` line exactly as it stands in the file, newline included.

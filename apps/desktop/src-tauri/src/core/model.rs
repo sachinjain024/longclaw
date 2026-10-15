@@ -222,6 +222,9 @@ pub struct TicketDetail {
     pub missing_attachments: Vec<String>,
     /// Files with no registry entry. Recoverable, never deleted.
     pub orphan_attachments: Vec<String>,
+    /// References whose path does not resolve, by id (LC-206). The record is
+    /// kept: the doc may come back, and the row says it is missing meanwhile.
+    pub missing_references: Vec<String>,
 }
 
 /// A prepared write: the bytes to place, and the changes the edit recorded. The
