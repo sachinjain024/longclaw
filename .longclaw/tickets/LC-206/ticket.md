@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T08:40:21.193Z
+updated_at: 2026-10-15T08:47:31.078Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -130,6 +130,16 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 | `ack.agent` | banner | the panel, after an agent's change | ❯ updated by Claude Code · just now · via file edit | existing |
 | `format.link` | aria-label | the toolbar button the paperclip sits beside | Link | existing |
 
+
+## Checklist
+
+- [ ] 1 · Core: attach, remove and restore an attachment, and the reference record (add, remove, restore), with the ADR superseding 0005's UI half, the file_format.md changes (References section; git-size bullet removed) and format fixtures — no blockers <!-- longclaw:item=ck_b5b81061 -->
+- [ ] 2 · CLI: `longclaw ticket attach` as a thin wrapper over the core operation, plus the agent guide — after 1 <!-- longclaw:item=ck_a74fb95d -->
+- [ ] 3 · Serving: the attachment URI scheme and the CSP change, so the webview loads a ticket's own files and nothing else — after 1 <!-- longclaw:item=ck_2bf48f8c -->
+- [ ] 4 · Rendering: full-width images, videos that never autoplay, file chips, Removed/Unavailable chips and the in-app viewer, in the description and in comments — after 3 <!-- longclaw:item=ck_e0ee20a9 -->
+- [ ] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
+- [ ] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
+- [ ] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
 ## Activity
 
 <!-- longclaw:event
@@ -307,4 +317,33 @@ changes:
 ### Claude Code updated this ticket
 
 Prototype review settled (2026-10-15). Review decisions and the 85-row copy deck are now in this ticket's description; the spec is updated to match; the prototype is deleted (last version at 26c6abc).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_154edaff
+kind: update
+occurred_at: 2026-10-15T08:47:31.078Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b5b81061.added
+    to: "1 · Core: attach, remove and restore an attachment, and the reference record (add, remove, restore), with the ADR superseding 0005's UI half, the file_format.md changes (References section; git-size bullet removed) and format fixtures — no blockers"
+  - field: checklist.ck_a74fb95d.added
+    to: "2 · CLI: `longclaw ticket attach` as a thin wrapper over the core operation, plus the agent guide — after 1"
+  - field: checklist.ck_2bf48f8c.added
+    to: "3 · Serving: the attachment URI scheme and the CSP change, so the webview loads a ticket's own files and nothing else — after 1"
+  - field: checklist.ck_e0ee20a9.added
+    to: "4 · Rendering: full-width images, videos that never autoplay, file chips, Removed/Unavailable chips and the in-app viewer, in the description and in comments — after 3"
+  - field: checklist.ck_51e4f1af.added
+    to: "5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3"
+  - field: checklist.ck_8cbc2320.added
+    to: "6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5"
+  - field: checklist.ck_9a64aab2.added
+    to: "7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5"
+-->
+### Claude Code updated this ticket
+
+Split the spec into seven tracer-bullet slices as this checklist, blockers first; each item names what gates it. Detail and acceptance criteria are the spec's (docs/specs/LC-206-attachments.md).
 <!-- /longclaw:event -->
