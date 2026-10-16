@@ -2,37 +2,46 @@
 format: longclaw.ticket/v1
 id: a4daabec-bcc5-4963-8fe5-188e8ccc9504
 key: LC-277x
-title: "Attachments: view PDF, Markdown and text files in the app"
+title: "Attachments: in-app browser for HTML, PDF and Markdown files"
 status: todo
 priority: none
 labels:
   - frontend
-  - ready-for-agent
+  - design
 created_at: 2026-10-16T06:49:12.619Z
-updated_at: 2026-10-16T07:11:07.018Z
+updated_at: 2026-10-16T22:20:25.891Z
 ---
 
-Follow-up to LC-206. Attachments render in place only for images and videos. Every other file is a chip that hands off to the default macOS app, and PDFs can't do even that:
+Follow-up to LC-206. Attachments render in place only for images and videos. Every other file is a chip that hands off to the default macOS app:
 
 - **PDF.** Not one of the format's media-type families (`media_type` returns `None` for `%PDF-`), and not on the open allow-list. A PDF attachment is a chip with no type, and **Open** refuses it.
-- **Markdown** (`.md`, `.markdown`) and **text** (`.txt`, `.log`, `.csv`, `.json`, …). These are on the allow-list, so Open hands them to another app. Nothing shows them inside LongClaw.
+- **Markdown** (`.md`, `.markdown`). On the allow-list, so Open hands it to another app. Nothing shows it inside LongClaw.
+- **HTML** (prototypes). Kept off the allow-list on purpose, because Safari runs their scripts.
+- **Text** (`.txt`, `.log`, `.csv`, `.json`, …). Opens in another app, with nothing in LongClaw.
 
-Support these three kinds in attachments: they should be read inside the app, the way an image or a video already can be.
-
-## Acceptance criteria
-
-- [ ] A PDF attachment is recognised as one: its media type is recorded and shown on the chip and in References.
-- [ ] A PDF can be viewed inside the app (a viewer like the image viewer, with paging and scroll), and opened in Preview from its ⋮ menu.
-- [ ] A Markdown attachment can be viewed rendered, using the app's own Markdown renderer. Links and images inside it are not followed or loaded.
-- [ ] A text attachment can be viewed as plain monospaced text. A size cap keeps a huge log from freezing the panel, and the viewer says when the text is cut short.
-- [ ] Rendering stays inside ADR 0009 and the network audit. The webview gets bytes or tokens from Rust, never a path, and nothing in a viewed file can reach the network or run script.
-- [ ] Keyboard and focus follow the existing viewer: Esc closes it and focus returns to the chip. Add `a11y:audit` rows.
-- [ ] Copy for every new viewer state (loading, too large, could not read) is in the ticket's copy deck.
+**Direction:** HTML, PDF and Markdown files open in an **in-app browser** that opens to the right of the ticket panel. This is deferred: the pane's design comes first, and this ticket is not ready to build yet.
 
 ## Decisions
 
-- **Viewer only, not inline.** A PDF, Markdown or text attachment in a description or comment renders as a link (its chip). Activating it opens the in-app viewer. Nothing is embedded inline the way an image or video is.
-- **No `.html`.** HTML prototypes stay out of this ticket and off the open allow-list, sandboxed or not.
+- **A link, not inline.** In a description or comment, a PDF, Markdown, HTML or text attachment renders as a link (its chip), never embedded inline the way an image or video is.
+- **HTML, PDF and Markdown open in the in-app browser.** It is a pane to the right of the ticket panel, not the modal attachment viewer.
+- **HTML stays off the "open in default app" allow-list.** It is reachable only through the in-app browser, never handed to Safari.
+
+## To settle before building
+
+- The browser pane: its width and resizing, how it sits next to the ticket panel at the 760px minimum window, how it closes, and what happens when the selected ticket changes.
+- Sandboxing: no network and no script for HTML prototypes, or scripts in a sandbox with no network. Either way it must pass `audit:network` and stay inside ADR 0009 (the webview gets bytes or tokens from Rust, never a path).
+- Whether the pane also opens doc references (specs, prototypes) and not only attachments.
+- Plain text: the same browser pane or the existing viewer, with a size cap for large logs.
+
+## Acceptance criteria (draft)
+
+- [ ] A PDF attachment is recognised as one: its media type is recorded and shown on the chip and in References.
+- [ ] Activating a PDF, Markdown or HTML attachment link opens it in the in-app browser to the right of the ticket panel.
+- [ ] Markdown is shown rendered by the app's own renderer. Links and remote images inside it are not followed or loaded.
+- [ ] Nothing shown in the browser can reach the network, which `audit:network` confirms.
+- [ ] Keyboard: the pane can be reached and closed from the keyboard, and focus returns to the link it was opened from. Add `a11y:audit` rows.
+- [ ] Every new string (pane title, loading, too large, could not read, close) is in the ticket's copy deck.
 
 ## Activity
 
@@ -62,4 +71,26 @@ changes:
 ### Claude Code updated this ticket
 
 Settled both open questions. PDF, Markdown and text show as a link that opens the in-app viewer, never inline. HTML prototypes are out, even sandboxed.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c49c7806
+kind: update
+occurred_at: 2026-10-16T22:20:25.891Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: title
+    from: "Attachments: view PDF, Markdown and text files in the app"
+    to: "Attachments: in-app browser for HTML, PDF and Markdown files"
+  - field: labels
+    from: frontend, ready-for-agent
+    to: frontend, design
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Direction changed: HTML, PDF and Markdown will open in an in-app browser to the right of the ticket panel, to be handled later. HTML is now in scope, through the browser only. Relabelled from ready-for-agent to design, because the pane's design isn't settled.
 <!-- /longclaw:event -->
