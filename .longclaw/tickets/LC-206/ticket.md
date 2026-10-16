@@ -676,3 +676,17 @@ All seven slices have landed. Everything still open is on the checklist (Open it
 - 'outside project' is decided from the path's shape.
 - Symlinked references are stored by their target.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_363ada08
+kind: comment
+occurred_at: 2026-10-16T06:49:17.085Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Follow-up filed: LC-277x, for viewing PDF, Markdown and text attachments inside the app.
+<!-- /longclaw:event -->
