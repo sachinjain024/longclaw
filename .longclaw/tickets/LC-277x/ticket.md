@@ -9,7 +9,7 @@ labels:
   - frontend
   - ready-for-agent
 created_at: 2026-10-16T06:49:12.619Z
-updated_at: 2026-10-16T06:49:12.619Z
+updated_at: 2026-10-16T07:11:07.018Z
 ---
 
 Follow-up to LC-206. Attachments render in place only for images and videos. Every other file is a chip that hands off to the default macOS app, and PDFs can't do even that:
@@ -29,10 +29,10 @@ Support these three kinds in attachments: they should be read inside the app, th
 - [ ] Keyboard and focus follow the existing viewer: Esc closes it and focus returns to the chip. Add `a11y:audit` rows.
 - [ ] Copy for every new viewer state (loading, too large, could not read) is in the ticket's copy deck.
 
-## Open questions
+## Decisions
 
-- Inline in the description (like images), or only in the viewer?
-- Should `.html` prototypes join this, sandboxed, or stay out (see LC-206's open allow-list question)?
+- **Viewer only, not inline.** A PDF, Markdown or text attachment in a description or comment renders as a link (its chip). Activating it opens the in-app viewer. Nothing is embedded inline the way an image or video is.
+- **No `.html`.** HTML prototypes stay out of this ticket and off the open allow-list, sandboxed or not.
 
 ## Activity
 
@@ -46,4 +46,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a37c00b6
+kind: update
+occurred_at: 2026-10-16T07:11:07.018Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Settled both open questions. PDF, Markdown and text show as a link that opens the in-app viewer, never inline. HTML prototypes are out, even sandboxed.
 <!-- /longclaw:event -->
