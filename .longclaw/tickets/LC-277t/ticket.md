@@ -8,7 +8,7 @@ priority: none
 labels:
   - platform
 created_at: 2026-10-16T22:20:35.784Z
-updated_at: 2026-10-16T22:20:35.784Z
+updated_at: 2026-10-16T22:36:27.041Z
 ---
 
 Snapshot of the open Dependabot alerts on sachinjain024/longclaw, taken 2026-10-17: 27 alerts. Logged only — nothing is fixed by this ticket. Each checklist item is one alert, `#<n>` being its number under Security → Dependabot, grouped high → medium → low.
@@ -17,7 +17,7 @@ Tick an item once the alert is closed on GitHub (fixed or dismissed with a reaso
 
 ## Checklist
 
-- [ ] #29 [high] undici (apps/desktop) — undici vulnerable to TLS certificate validation bypass via dropped connect options in BalancedPool (>= 7.24.1, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_574ba956 -->
+- [x] #29 [high] undici (apps/desktop) — undici vulnerable to TLS certificate validation bypass via dropped connect options in BalancedPool (>= 7.24.1, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_574ba956 -->
 - [ ] #41 [high] devalue (apps/website) — devalue: Repeated primitive strings cause quadratic expansion in uneval (<= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_b36bc1bb -->
 - [ ] #40 [high] devalue (apps/website) — devalue: `stringify`/`uneval` serialize shared memory (>= 5.1.0, <= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_dbbc7ef0 -->
 - [ ] #39 [high] devalue (apps/website) — devalue: stringifyAsync can cause an unhandled rejection despite a caught returned promise (>= 5.8.0, <= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_f98acec6 -->
@@ -57,4 +57,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b4c7f534
+kind: update
+occurred_at: 2026-10-16T22:36:27.041Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_574ba956.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
