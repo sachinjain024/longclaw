@@ -8,7 +8,7 @@ priority: none
 labels:
   - platform
 created_at: 2026-10-16T22:20:35.784Z
-updated_at: 2026-10-17T16:53:24.584Z
+updated_at: 2026-10-17T16:56:33.602Z
 ---
 
 Snapshot of the open Dependabot alerts on sachinjain024/longclaw, taken 2026-10-17: 27 alerts. Logged only — nothing is fixed by this ticket. Each checklist item is one alert, `#<n>` being its number under Security → Dependabot, grouped high → medium → low.
@@ -44,7 +44,7 @@ Tick an item once the alert is closed on GitHub (fixed or dismissed with a reaso
 - [x] #27 [low] undici (apps/website) — undici vulnerable to response truncation via oversized chunked responses in the dump interceptor (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_d17e0e48 -->
 - [x] #23 [low] undici (apps/website) — undici vulnerable to downstream response splitting via retry interceptor (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_f2e2c18f -->
 - [x] #21 [low] undici (apps/website) — undici vulnerable to caching and replay of unsafe HTTP method responses (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_4f5ae594 -->
-- [ ] #56 [high] sharp (apps/website) — sharp: Vulnerability in librsvg dependency CVE-2026-96889 (< 0.35.5; fix 0.35.5) <!-- longclaw:item=ck_8a62152c -->
+- [x] #56 [high] sharp (apps/website) — sharp: Vulnerability in librsvg dependency CVE-2026-96889 (< 0.35.5; fix 0.35.5) <!-- longclaw:item=ck_8a62152c -->
 - [x] #54 [high] source-map-js (apps/website) — source-map-js allows event-loop denial of service through indexed source-map section offsets (>= 1.0.0, < 1.2.2; fix 1.2.2) <!-- longclaw:item=ck_fa3fd40e -->
 - [x] #51 [high] source-map-js (apps/desktop) — source-map-js allows event-loop denial of service through indexed source-map section offsets (>= 1.0.0, < 1.2.2; fix 1.2.2) <!-- longclaw:item=ck_10eea202 -->
 - [ ] #55 [medium] smol-toml (apps/website) — smol-toml: Quadratic-time parse() from parseKey rescanning to end of document on each key line (<= 1.8.0; fix 1.9.0) <!-- longclaw:item=ck_62c6b161 -->
@@ -420,6 +420,22 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_fa3fd40e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_574f84aa
+kind: update
+occurred_at: 2026-10-17T16:56:33.602Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8a62152c.checked
     from: "false"
     to: "true"
 -->
