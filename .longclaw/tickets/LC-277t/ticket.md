@@ -8,7 +8,7 @@ priority: none
 labels:
   - platform
 created_at: 2026-10-16T22:20:35.784Z
-updated_at: 2026-10-17T17:51:58.948Z
+updated_at: 2026-10-17T17:53:02.553Z
 ---
 
 Snapshot of the open Dependabot alerts on sachinjain024/longclaw, taken 2026-10-17: 27 alerts. Logged only — nothing is fixed by this ticket. Each checklist item is one alert, `#<n>` being its number under Security → Dependabot, grouped high → medium → low.
@@ -26,8 +26,8 @@ Tick an item once the alert is closed on GitHub (fixed or dismissed with a reaso
 - [x] #25 [high] undici (apps/website) — undici vulnerable to Denial of Service via unrequested WebSocket subprotocol (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_b01e2d62 -->
 - [x] #22 [high] undici (apps/website) — undici vulnerable to TLS certificate validation bypass via dropped connect options in BalancedPool (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_17c42019 -->
 - [x] #19 [high] undici (apps/website) — undici vulnerable to cross-origin cache poisoning via missing origin isolation in interceptors (>= 8.10.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_875a6ce1 -->
-- [ ] #36 [medium] undici (apps/desktop) — undici vulnerable to cross-user cookie disclosure via Set-Cookie caching in shared caches (>= 7.0.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_9a556d7a -->
-- [ ] #31 [medium] undici (apps/desktop) — undici vulnerable to Denial of Service via orphaned RetryHandler response body (>= 7.11.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_d7022063 -->
+- [x] #36 [medium] undici (apps/desktop) — undici vulnerable to cross-user cookie disclosure via Set-Cookie caching in shared caches (>= 7.0.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_9a556d7a -->
+- [x] #31 [medium] undici (apps/desktop) — undici vulnerable to Denial of Service via orphaned RetryHandler response body (>= 7.11.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_d7022063 -->
 - [x] #2 [medium] glib (apps/desktop/src-tauri) — Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter` (>= 0.15.0, < 0.20.0; fix 0.20.0) <!-- longclaw:item=ck_009941f3 -->
 - [x] #44 [medium] devalue (apps/website) — devalue: Residual sparse-array CPU amplification in uneval (<= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_eb75f10c -->
 - [x] #42 [medium] devalue (apps/website) — devalue: Malformed null-prototype object keys bypass __proto__ rejection via property-key coercion (<= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_897d816b -->
@@ -37,9 +37,9 @@ Tick an item once the alert is closed on GitHub (fixed or dismissed with a reaso
 - [x] #24 [medium] undici (apps/website) — undici vulnerable to cross-user cookie disclosure via Set-Cookie caching in shared caches (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_3e13e226 -->
 - [x] #20 [medium] undici (apps/website) — undici vulnerable to Denial of Service via WebSocketStream unclean close (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_6c41e7d3 -->
 - [x] #17 [medium] undici (apps/website) — undici vulnerable to Denial of Service via unhandled error in WebSocket permessage-deflate decompression (>= 8.1.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_ab1f6c9e -->
-- [ ] #37 [low] undici (apps/desktop) — undici vulnerable to caching and replay of unsafe HTTP method responses (>= 7.0.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_550d4807 -->
-- [ ] #34 [low] undici (apps/desktop) — undici vulnerable to downstream response splitting via retry interceptor (>= 7.0.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_c4e245df -->
-- [ ] #32 [low] undici (apps/desktop) — undici vulnerable to response truncation via oversized chunked responses in the dump interceptor (>= 7.1.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_f6d3b990 -->
+- [x] #37 [low] undici (apps/desktop) — undici vulnerable to caching and replay of unsafe HTTP method responses (>= 7.0.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_550d4807 -->
+- [x] #34 [low] undici (apps/desktop) — undici vulnerable to downstream response splitting via retry interceptor (>= 7.0.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_c4e245df -->
+- [x] #32 [low] undici (apps/desktop) — undici vulnerable to response truncation via oversized chunked responses in the dump interceptor (>= 7.1.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_f6d3b990 -->
 - [x] #43 [low] devalue (apps/website) — devalue: Sparse arrays emitted by uneval cause eager allocation when evaluated (>= 1.0.0, <= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_1ea8deb5 -->
 - [x] #27 [low] undici (apps/website) — undici vulnerable to response truncation via oversized chunked responses in the dump interceptor (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_d17e0e48 -->
 - [x] #23 [low] undici (apps/website) — undici vulnerable to downstream response splitting via retry interceptor (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_f2e2c18f -->
@@ -532,6 +532,86 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_009941f3.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_47acf58d
+kind: update
+occurred_at: 2026-10-17T17:53:02.381Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_9a556d7a.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_84ca2a7f
+kind: update
+occurred_at: 2026-10-17T17:53:02.434Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d7022063.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_029f0919
+kind: update
+occurred_at: 2026-10-17T17:53:02.481Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_550d4807.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ed9c8174
+kind: update
+occurred_at: 2026-10-17T17:53:02.518Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c4e245df.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_36b4b3d3
+kind: update
+occurred_at: 2026-10-17T17:53:02.553Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f6d3b990.checked
     from: "false"
     to: "true"
 -->
