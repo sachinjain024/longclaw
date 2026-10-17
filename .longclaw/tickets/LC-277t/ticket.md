@@ -8,7 +8,7 @@ priority: none
 labels:
   - platform
 created_at: 2026-10-16T22:20:35.784Z
-updated_at: 2026-10-17T16:56:33.602Z
+updated_at: 2026-10-17T17:38:20.233Z
 ---
 
 Snapshot of the open Dependabot alerts on sachinjain024/longclaw, taken 2026-10-17: 27 alerts. Logged only — nothing is fixed by this ticket. Each checklist item is one alert, `#<n>` being its number under Security → Dependabot, grouped high → medium → low.
@@ -31,7 +31,7 @@ Tick an item once the alert is closed on GitHub (fixed or dismissed with a reaso
 - [ ] #2 [medium] glib (apps/desktop/src-tauri) — Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter` (>= 0.15.0, < 0.20.0; fix 0.20.0) <!-- longclaw:item=ck_009941f3 -->
 - [x] #44 [medium] devalue (apps/website) — devalue: Residual sparse-array CPU amplification in uneval (<= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_eb75f10c -->
 - [x] #42 [medium] devalue (apps/website) — devalue: Malformed null-prototype object keys bypass __proto__ rejection via property-key coercion (<= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_897d816b -->
-- [ ] #7 [medium] fflate (apps/website) — fflate unzipSync can enter an infinite loop when parsing malformed ZIP64 archives (>= 0.7.0, < 0.7.5; fix 0.7.5) <!-- longclaw:item=ck_cfabc7d9 -->
+- [x] #7 [medium] fflate (apps/website) — fflate unzipSync can enter an infinite loop when parsing malformed ZIP64 archives (>= 0.7.0, < 0.7.5; fix 0.7.5) <!-- longclaw:item=ck_cfabc7d9 -->
 - [x] #28 [medium] undici (apps/website) — undici vulnerable to Denial of Service via orphaned RetryHandler response body (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_05716c61 -->
 - [x] #26 [medium] undici (apps/website) — undici vulnerable to Denial of Service via unbounded decompression of compressed responses (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_d1473965 -->
 - [x] #24 [medium] undici (apps/website) — undici vulnerable to cross-user cookie disclosure via Set-Cookie caching in shared caches (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_3e13e226 -->
@@ -436,6 +436,22 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_8a62152c.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ccf8d6d3
+kind: update
+occurred_at: 2026-10-17T17:38:20.233Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_cfabc7d9.checked
     from: "false"
     to: "true"
 -->
