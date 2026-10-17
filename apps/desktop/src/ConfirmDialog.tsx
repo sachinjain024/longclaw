@@ -15,6 +15,7 @@
  * is the rung the menus own too.
  */
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { holdFocus, useModalEntry } from "./modalFocus";
 import type { ProjectReference } from "./types";
 
 export function ConfirmDialog(props: {
@@ -83,18 +84,12 @@ export function ConfirmDialog(props: {
   // Rule 3 owns the return. A confirmed removal takes its own opener off the
   // screen with it, and focusing an element that is no longer in the document
   // does nothing — which is the right answer, not a special case.
-  useEffect(() => {
-    const opener =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : undefined;
-    // Cancel where there is one, and where there is not, the only button there
-    // is. `?.` on both rather than a branch: a dialog can have neither — one
-    // whose body holds its own action — and focusing nothing is the honest
-    // answer there, not an error.
-    (cancel.current ?? confirm.current)?.focus();
-    return () => opener?.focus();
-  }, []);
+  //
+  // Cancel where there is one, and where there is not, the only button there
+  // is. `??` rather than a branch: a dialog can have neither — one whose body
+  // holds its own action — and focusing nothing is the honest answer there,
+  // not an error.
+  useModalEntry(() => cancel.current ?? confirm.current);
 
   /**
    * A control that disables itself under the pointer takes focus with it: the
@@ -110,27 +105,6 @@ export function ConfirmDialog(props: {
     if (dialog.current?.contains(document.activeElement)) return;
     confirm.current?.focus();
   }, [props.confirmDisabled]);
-
-  /**
-   * Rule 5: a modal holds focus until it is dismissed. Without this, `Tab` off
-   * the danger button walks straight into the screen the dialog is asking about.
-   *
-   * Disabled buttons are not stops. A disabled one is still in the document and
-   * `focus()` on it does nothing, so a ring that included it would swallow every
-   * other `Tab` while a write is out (LC-249a) — the browser's own ring skips
-   * them, and this stands in for the browser's ring.
-   */
-  function holdFocus(event: React.KeyboardEvent) {
-    const stops = Array.from(
-      dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled)") ??
-        [],
-    );
-    if (stops.length === 0) return;
-    event.preventDefault();
-    const here = stops.indexOf(document.activeElement as HTMLElement);
-    const next = here + (event.shiftKey ? -1 : 1);
-    stops[(next + stops.length) % stops.length].focus();
-  }
 
   return (
     // Clicking away is the same answer as Cancel, which is how the prototype's
@@ -151,7 +125,7 @@ export function ConfirmDialog(props: {
         aria-labelledby={titleId}
         onKeyDown={(event) => {
           if (event.key === "Tab") {
-            holdFocus(event);
+            holdFocus(dialog, event);
             return;
           }
           if (event.key !== "Escape") return;

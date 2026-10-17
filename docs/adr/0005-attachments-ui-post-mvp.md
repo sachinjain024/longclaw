@@ -1,6 +1,6 @@
 # Attachment UI is post-MVP; the on-disk attachment format ships in v1
 
-**Status:** accepted 2026-07-29, and propagated through the prototype and specs in the same change.
+**Status:** accepted 2026-07-29, and propagated through the prototype and specs in the same change. Its "no attachment UI" half is superseded by [ADR 0016](0016-the-attachment-ui-ships.md) (LC-206); the format half stands.
 
 v0 renders no attachment UI — no upload, gallery, or preview surfaces. The v1 file format still ships full attachment support (the `## Attachments` registry in `ticket.md` and the ticket-owned `attachments/` directory) so that attachment identity, attribution, and ownership exist from day one and adding the UI later is not a schema migration. Until then, descriptions and comments may reference attachment files as ordinary relative markdown links.
 

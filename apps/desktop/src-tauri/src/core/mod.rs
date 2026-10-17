@@ -1,3 +1,5 @@
+pub mod attachment_scheme;
+pub mod attachments;
 pub mod attribution;
 pub mod error;
 pub mod index;

@@ -328,7 +328,7 @@ function deck() {
       '<td class="where">' + esc(r.where) + "</td>" +
       "<td>" + esc(fill(r.text)) +
         (r.note ? '<span class="rowhint">' + esc(r.note) + "</span>" : "") +
-        '<textarea name="copy:' + esc(r.id) + '" data-fb="copy:' + esc(r.id) + '" placeholder="Suggest a rewrite">' + esc(feedback["copy:" + r.id] || "") + "</textarea>" +
+        '<textarea rows="1" name="copy:' + esc(r.id) + '" data-fb="copy:' + esc(r.id) + '" placeholder="Suggest a rewrite">' + esc(feedback["copy:" + r.id] || "") + "</textarea>" +
       "</td>" +
       '<td><span class="st st-' + esc(r.status) + '">' + esc(r.status) + "</span></td>" +
     "</tr>").join("");

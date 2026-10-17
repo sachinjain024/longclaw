@@ -16,6 +16,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExternalMark } from "./acknowledgement";
@@ -25,10 +26,13 @@ import { TicketPanel } from "./TicketPanel";
 import { ToastStack } from "./WriteFeedback";
 import type {
   ActivityEvent,
+  Attachment,
   ChecklistItem,
   Label,
+  OrphanAttachment,
   PropertiesConfig,
   TicketDetail,
+  TicketReference,
   WriteResult,
 } from "./types";
 
@@ -36,12 +40,43 @@ vi.mock("./api", () => ({
   readTicket: vi.fn(),
   editTicket: vi.fn(),
   openTicketFile: vi.fn(),
+  openAttachment: vi.fn(),
+  revealAttachment: vi.fn(),
+  reattachAttachment: vi.fn(),
+  chooseReference: vi.fn(),
+  addChosenReference: vi.fn(),
+  openReference: vi.fn(),
+  revealReference: vi.fn(),
+  attachSource: vi.fn(),
+  chooseFilesToAttach: vi.fn(),
 }));
 
-const { editTicket, openTicketFile, readTicket } = await import("./api");
+const {
+  addChosenReference,
+  chooseReference,
+  openReference,
+  revealReference,
+  attachSource,
+  chooseFilesToAttach,
+  editTicket,
+  openAttachment,
+  openTicketFile,
+  readTicket,
+  reattachAttachment,
+  revealAttachment,
+} = await import("./api");
 const readTicketMock = vi.mocked(readTicket);
 const editTicketMock = vi.mocked(editTicket);
 const openTicketFileMock = vi.mocked(openTicketFile);
+const openAttachmentMock = vi.mocked(openAttachment);
+const revealAttachmentMock = vi.mocked(revealAttachment);
+const reattachAttachmentMock = vi.mocked(reattachAttachment);
+const attachSourceMock = vi.mocked(attachSource);
+const chooseReferenceMock = vi.mocked(chooseReference);
+const addChosenReferenceMock = vi.mocked(addChosenReference);
+const openReferenceMock = vi.mocked(openReference);
+const revealReferenceMock = vi.mocked(revealReference);
+const chooseFilesToAttachMock = vi.mocked(chooseFilesToAttach);
 
 const NOW = Date.parse("2026-07-30T12:00:00Z");
 
@@ -90,6 +125,11 @@ function detail(options?: {
   labels?: string[];
   checklist?: ChecklistItem[];
   activity?: ActivityEvent[];
+  /** The registry, and the two broken states the read reports (LC-206). */
+  attachments?: Attachment[];
+  missingAttachments?: string[];
+  orphanAttachments?: OrphanAttachment[];
+  references?: TicketReference[];
   /** The four opt-in properties, as raw as a ticket carries them (LC-227). */
   properties?: Partial<
     Pick<TicketDetail["ticket"] & object, "type" | "due" | "start" | "estimate">
@@ -104,8 +144,9 @@ function detail(options?: {
     readOnly: false,
     raw: "",
     rawTruncated: false,
-    missingAttachments: [],
-    orphanAttachments: [],
+    missingAttachments: options?.missingAttachments ?? [],
+    orphanAttachments: options?.orphanAttachments ?? [],
+    missingReferences: [],
     ticket: {
       id: "019c8c7e",
       key,
@@ -122,7 +163,8 @@ function detail(options?: {
         { id: "ck_1", text: "Let an agent read this ticket", checked: false },
         { id: "ck_2", text: "Review what it changed", checked: false },
       ],
-      attachments: [],
+      attachments: options?.attachments ?? [],
+      references: options?.references ?? [],
       activity: options?.activity ?? [humanEvent()],
       historyIncomplete: false,
       unknownKeys: [],
@@ -149,6 +191,7 @@ function degradedDetail(options?: {
     rawTruncated: false,
     missingAttachments: [],
     orphanAttachments: [],
+    missingReferences: [],
     diagnostic: {
       code: options?.readOnly ? "unsupported_version" : "parse_failed",
       message:
@@ -306,6 +349,18 @@ beforeEach(() => {
   editTicketMock.mockReset();
   openTicketFileMock.mockReset();
   openTicketFileMock.mockResolvedValue(undefined);
+  openAttachmentMock.mockReset();
+  openAttachmentMock.mockResolvedValue(undefined);
+  revealAttachmentMock.mockReset();
+  revealAttachmentMock.mockResolvedValue(undefined);
+  attachSourceMock.mockReset();
+  chooseReferenceMock.mockReset();
+  addChosenReferenceMock.mockReset();
+  openReferenceMock.mockReset();
+  openReferenceMock.mockResolvedValue(undefined);
+  revealReferenceMock.mockReset();
+  revealReferenceMock.mockResolvedValue(undefined);
+  chooseFilesToAttachMock.mockReset();
   readTicketMock.mockResolvedValue(detail());
 });
 
@@ -1142,7 +1197,8 @@ describe("the activity and comments tabs (LC-211)", () => {
     // composer is in use, and that is the stylesheet's job — a group that
     // unmounted on blur would be one Tab could never enter, because the blur
     // that would carry focus into it takes the group off the page first.
-    expect(toolbar?.querySelectorAll("button")).toHaveLength(6);
+    // The six formatting buttons, then Attach after its hairline (LC-206).
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(7);
     expect(
       toolbar
         ?.querySelector('button[tabindex="0"]')
@@ -2741,7 +2797,7 @@ async function openTheEditor(description: string) {
 }
 
 describe("the description editor (V0-12)", () => {
-  it("shows Write and Preview tabs and exactly six formatting buttons", async () => {
+  it("shows Write and Preview tabs, six formatting buttons and Attach", async () => {
     const textarea = await openTheEditor("Check whether the round trip holds.");
 
     // Scoped to the editor's own tablist: the record below it has a pair of its
@@ -2757,14 +2813,23 @@ describe("the description editor (V0-12)", () => {
       "ariaSelected",
       "true",
     );
-    // Six, no more and no fewer (`screen-specs.md:248-249`). Scoped to the
-    // editor's own: the composer below has the same six now (LC-211).
+    // Six, no more and no fewer (`screen-specs.md:248-249`), and then Attach
+    // after a hairline (LC-206). Scoped to the editor's own: the composer
+    // below has the same seven now (LC-211).
     const toolbar = document.querySelector(".editor-toolbar")!;
     expect(
       Array.from(toolbar.querySelectorAll("button")).map((button) =>
         button.getAttribute("aria-label"),
       ),
-    ).toEqual(["Bold", "Italic", "Code", "Bulleted list", "Task list", "Link"]);
+    ).toEqual([
+      "Bold",
+      "Italic",
+      "Code",
+      "Bulleted list",
+      "Task list",
+      "Link",
+      "Attach files",
+    ]);
     expect(textarea.value).toBe("Check whether the round trip holds.");
   });
 
@@ -3555,5 +3620,852 @@ describe("the panel's width", () => {
     const handle = screen.getByRole("separator", { name: "Panel width" });
     const panel = handle.closest(".ticket-panel");
     expect(panel?.firstElementChild).toBe(handle);
+  });
+});
+
+/** A registered attachment, as the registry holds one (LC-206). */
+function attachment(
+  id: string,
+  name: string,
+  mediaType: string,
+  size: number,
+): Attachment {
+  return {
+    id,
+    file: `attachments/${id}-${name}`,
+    name,
+    mediaType,
+    size,
+    addedAt: "2026-07-30T11:00:00Z",
+    addedBy: { type: "human", id: "local" },
+  };
+}
+
+/**
+ * LC-206, slice 4: a link into the ticket's own `attachments/` renders as the
+ * file it names, in the description and in a comment. Which node a link
+ * becomes is `markdown.test.ts`; this is what each one does on screen.
+ */
+describe("attachments where the text links them (LC-206)", () => {
+  const SHOT = attachment(
+    "att_8e31",
+    "failure-state.png",
+    "image/png",
+    2_400_000,
+  );
+  const FILM = attachment(
+    "att_1c07",
+    "drag-repro.mov",
+    "video/quicktime",
+    8_700_000,
+  );
+  const LOG = attachment("att_7d2a", "console.log", "text/plain", 48_000);
+  const GONE = attachment("att_42bf", "before.png", "image/png", 1_100_000);
+
+  function withAttachments(description: string, activity?: ActivityEvent[]) {
+    return detail({
+      description,
+      activity,
+      attachments: [SHOT, FILM, LOG, GONE],
+      missingAttachments: [GONE.id],
+      orphanAttachments: [
+        {
+          file: "attachments/att_9a10-notes.txt",
+          size: 3000,
+          mediaType: "text/plain",
+        },
+      ],
+    });
+  }
+
+  const DESCRIPTION = [
+    "![Failure state](./attachments/att_8e31-failure-state.png)",
+    "",
+    "[drag-repro.mov](./attachments/att_1c07-drag-repro.mov)",
+    "",
+    "See [console.log](./attachments/att_7d2a-console.log), [notes](./attachments/att_9a10-notes.txt) and ![before](./attachments/att_42bf-before.png).",
+  ].join("\n");
+
+  it("draws each link as its file, through the scheme Rust owns", async () => {
+    readTicketMock.mockResolvedValue(withAttachments(DESCRIPTION));
+    render(surface());
+    await ready();
+
+    const image = screen.getByRole("button", {
+      name: "Failure state, image. Open full size",
+    });
+    expect(image.querySelector("img")?.getAttribute("src")).toBe(
+      "longclaw-attachment://localhost/project-1/LC-1/attachments/att_8e31-failure-state.png",
+    );
+
+    const video = screen.getByLabelText("drag-repro.mov, video");
+    expect(video.tagName).toBe("VIDEO");
+    expect(video.hasAttribute("controls")).toBe(true);
+    expect(video.hasAttribute("autoplay")).toBe(false);
+
+    const chip = screen.getByRole("button", {
+      name: "console.log, text/plain, 48 KB. Opens in its default app",
+    });
+    expect(chip.textContent).toBe("console.logtext/plain · 48 KB");
+
+    expect(
+      screen.getByRole("img", {
+        name: "att_9a10-notes.txt, removed from this ticket",
+      }).textContent,
+    ).toBe("Removed");
+    expect(
+      screen.getByRole("img", { name: "before.png, unavailable" }).textContent,
+    ).toBe("Unavailable");
+  });
+
+  it("opens an image in the viewer, and Esc puts focus back on it", async () => {
+    readTicketMock.mockResolvedValue(withAttachments(DESCRIPTION));
+    render(surface());
+    await ready();
+
+    const image = screen.getByRole("button", {
+      name: "Failure state, image. Open full size",
+    });
+    image.focus();
+    fireEvent.click(image);
+
+    const viewer = screen.getByRole("dialog", { name: "failure-state.png" });
+    expect(viewer.textContent).toContain("image/png · 2.4 MB");
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Close" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(openAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      SHOT.file,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show in Finder" }));
+    expect(revealAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      SHOT.file,
+    );
+
+    fireEvent.keyDown(viewer, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(image);
+  });
+
+  it("opens a chip in its default app, and says so when macOS will not", async () => {
+    readTicketMock.mockResolvedValue(withAttachments(DESCRIPTION));
+    openAttachmentMock.mockRejectedValueOnce({
+      code: "unsupported_media_type",
+      message: "console.log isn’t opened from LongClaw.",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /^console\.log, text\/plain/ }),
+    );
+    expect(openAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      LOG.file,
+    );
+    await screen.findByText("console.log isn’t opened from LongClaw.");
+  });
+
+  it("draws an image a comment links, and opens the same viewer", async () => {
+    const comment: ActivityEvent = {
+      ...humanEvent(),
+      body: "### You commented\n\n![Failure state](./attachments/att_8e31-failure-state.png)",
+    };
+    readTicketMock.mockResolvedValue(
+      withAttachments("Plain words.", [comment]),
+    );
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /^Comments/ }));
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Failure state, image. Open full size",
+      }),
+    );
+    screen.getByRole("dialog", { name: "failure-state.png" });
+  });
+});
+
+/**
+ * LC-206, slice 5: the References section, between Description and Checklist.
+ * Collapsed until asked for or until a file lands; five rows, then View all;
+ * one ⋮ per row with every action the row has.
+ */
+describe("the References section (LC-206)", () => {
+  const SHOT = attachment(
+    "att_8e31",
+    "failure-state.png",
+    "image/png",
+    2_400_000,
+  );
+  const LOG = {
+    ...attachment("att_7d2a", "console.log", "text/plain", 48_000),
+    addedBy: { type: "agent" as const, id: "claude-code", name: "Claude Code" },
+  };
+  const GONE = attachment("att_42bf", "before.png", "image/png", 1_100_000);
+  const SPEC: TicketReference = {
+    id: "ref_1a2b",
+    path: "docs/specs/LC-1-round-trip.md",
+    addedAt: "2026-07-30T10:00:00Z",
+    addedBy: { type: "agent", id: "claude-code", name: "Claude Code" },
+  };
+  /** A removal the activity recorded, which is what made the orphan below. */
+  const REMOVAL: ActivityEvent = {
+    id: "evt_removed",
+    kind: "update",
+    occurredAt: "2026-07-30T11:30:00Z",
+    actor: { type: "human", id: "local" },
+    changes: [{ field: "attachments.att_9a10.removed", from: "notes.txt" }],
+    body: "### You updated this ticket",
+  };
+
+  function withFiles(options?: Parameters<typeof detail>[0]) {
+    return detail({
+      attachments: [SHOT, LOG, GONE],
+      missingAttachments: [GONE.id],
+      orphanAttachments: [
+        {
+          file: "attachments/att_9a10-notes.txt",
+          size: 3000,
+          mediaType: "text/plain",
+        },
+      ],
+      references: [SPEC],
+      activity: [humanEvent(), REMOVAL],
+      ...options,
+    });
+  }
+
+  function toggle() {
+    return screen.getByRole("button", { name: /^References/ });
+  }
+
+  function rowMenu(name: string) {
+    fireEvent.click(
+      screen.getByRole("button", { name: `Actions for ${name}` }),
+    );
+    return screen.getByRole("menu", { name: `Actions for ${name}` });
+  }
+
+  it("sits collapsed between Description and Checklist, with its count", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+
+    const headings = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    const at = headings.findIndex((text) => text?.startsWith("References"));
+    expect(headings[at - 1]).toMatch(/^Description/);
+    expect(headings[at + 1]).toMatch(/^Checklist/);
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(toggle().textContent).toBe("References5");
+    expect(screen.queryByText("failure-state.png")).toBeNull();
+  });
+
+  it("lists files, then the not-attached, then docs, each with its facts", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    const rows = screen
+      .getAllByRole("listitem")
+      .filter((row) => row.classList.contains("attachment-row"));
+    expect(rows.map((row) => row.querySelector("strong")?.textContent)).toEqual(
+      [
+        "failure-state.png",
+        "console.log",
+        "before.png",
+        "notes.txt",
+        "LC-1-round-trip.md",
+      ],
+    );
+    expect(rows[0].textContent).toContain("image/png · 2.4 MB · You · 1h");
+    expect(rows[1].textContent).toContain(
+      "text/plain · 48 KB · Claude Code · 1h",
+    );
+    expect(rows[2].textContent).toContain("missing");
+    expect(rows[2].textContent).toContain(
+      "File not found · image/png · You · 1h",
+    );
+    expect(rows[3].textContent).toContain("not attached");
+    expect(rows[3].textContent).toContain(
+      "Removed 30m — file kept · text/plain · 3 KB",
+    );
+    expect(rows[4].textContent).toContain("docs/specs/ · Claude Code · 2h");
+  });
+
+  it("says what belongs there when there is nothing", async () => {
+    render(surface());
+    await ready();
+    expect(toggle().textContent).toBe("References0");
+    fireEvent.click(toggle());
+    screen.getByText(/^Nothing here yet\. Paste or drop a file/);
+  });
+
+  it("shows five rows, then View all, then Show fewer", async () => {
+    const many = Array.from({ length: 7 }, (_, index) =>
+      attachment(`att_${index}0`, `shot-${index}.png`, "image/png", 1000),
+    );
+    readTicketMock.mockResolvedValue(
+      detail({ attachments: many, activity: [humanEvent()] }),
+    );
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    const rowCount = () => document.querySelectorAll(".attachment-row").length;
+    expect(rowCount()).toBe(5);
+    fireEvent.click(screen.getByRole("button", { name: "View all 7" }));
+    expect(rowCount()).toBe(7);
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
+    expect(rowCount()).toBe(5);
+  });
+
+  it("opens by itself when a file lands, and shows it past the five", async () => {
+    const five = Array.from({ length: 5 }, (_, index) =>
+      attachment(`att_${index}0`, `shot-${index}.png`, "image/png", 1000),
+    );
+    const landed = attachment("att_ff", "new.png", "image/png", 1000);
+    readTicketMock
+      .mockResolvedValueOnce(detail({ attachments: five }))
+      .mockResolvedValueOnce(detail({ attachments: [...five, landed] }));
+    const { rerender } = render(surface());
+    await ready();
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+
+    rerender(surface({ reloadSignal: 1 }));
+    await screen.findByText("new.png");
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelectorAll(".attachment-row").length).toBe(6);
+  });
+
+  it("gives each kind of row the menu it has", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    const labels = (menu: HTMLElement) =>
+      Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+        (row) => row.textContent,
+      );
+    expect(labels(rowMenu("failure-state.png"))).toEqual([
+      "View",
+      "Show in Finder",
+      "RemoveFile kept",
+    ]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("console.log"))).toEqual([
+      "Open",
+      "Show in Finder",
+      "RemoveFile kept",
+    ]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("before.png"))).toEqual(["RemoveFile kept"]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("notes.txt"))).toEqual([
+      "Show in Finder",
+      "Re-attach",
+    ]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(labels(rowMenu("LC-1-round-trip.md"))).toEqual([
+      "Open",
+      "Show in Finder",
+      "Remove",
+    ]);
+  });
+
+  it("views an image and reveals a file from its menu", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("failure-state.png")).getByRole("menuitem", {
+        name: "View",
+      }),
+    );
+    screen.getByRole("dialog", { name: "failure-state.png" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    fireEvent.click(
+      within(rowMenu("notes.txt")).getByRole("menuitem", {
+        name: "Show in Finder",
+      }),
+    );
+    expect(revealAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "attachments/att_9a10-notes.txt",
+    );
+  });
+
+  it("removes without asking, and Undo puts the record back where it was", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("console.log")).getByRole("menuitem", { name: /^Remove/ }),
+    );
+    await screen.findByText("LC-1 removed · console.log");
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      expectedHash: "hash-1",
+      edit: { removeAttachment: "att_7d2a" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({
+      restoreAttachment: {
+        id: "att_7d2a",
+        file: LOG.file,
+        name: "console.log",
+        addedAt: LOG.addedAt,
+        addedBy: LOG.addedBy,
+        after: "att_8e31",
+      },
+    });
+  });
+
+  it("removes a doc reference the same way", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("LC-1-round-trip.md")).getByRole("menuitem", {
+        name: /^Remove/,
+      }),
+    );
+    await screen.findByText("LC-1 removed · LC-1-round-trip.md");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({
+      restoreReference: {
+        id: SPEC.id,
+        path: SPEC.path,
+        addedAt: SPEC.addedAt,
+        addedBy: SPEC.addedBy,
+      },
+    });
+  });
+
+  it("re-attaches a file that is not attached", async () => {
+    readTicketMock.mockResolvedValue(withFiles());
+    reattachAttachmentMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+    fireEvent.click(toggle());
+
+    fireEvent.click(
+      within(rowMenu("notes.txt")).getByRole("menuitem", { name: "Re-attach" }),
+    );
+    await screen.findByText("LC-1 re-attached · notes.txt");
+    expect(reattachAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "attachments/att_9a10-notes.txt",
+      "hash-1",
+    );
+  });
+
+  it("takes a file that came in through a comment to that comment", async () => {
+    const comment: ActivityEvent = {
+      ...humanEvent(),
+      id: "evt_with_log",
+      body: "### You commented\n\nConsole: [console.log](./attachments/att_7d2a-console.log)",
+    };
+    readTicketMock.mockResolvedValue(withFiles({ activity: [comment] }));
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /^Activity/ }));
+    fireEvent.click(toggle());
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Go to the comment that added failure-state.png",
+      }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Go to the comment that added console.log",
+      }),
+    );
+    expect(
+      screen
+        .getByRole("tab", { name: /^Comments/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      document
+        .querySelector('[data-event="evt_with_log"]')
+        ?.classList.contains("reference-target"),
+    ).toBe(true);
+  });
+});
+
+/**
+ * LC-206, slice 6: a file pasted, dropped or chosen into the description
+ * editor or the composer is written into the ticket, and its link lands where
+ * the caret was. What the core does with the bytes is `tests/attachments.rs`.
+ */
+describe("attaching where it is written about (LC-206)", () => {
+  const SHOT = attachment("att_8e31", "failure-state.png", "image/png", 2_400);
+  const NOTES = attachment("att_9a10", "notes.txt", "text/plain", 300);
+
+  function attached(record: Attachment) {
+    return { attachment: record, written: writeResult() };
+  }
+
+  function png(name = "failure-state.png", size = 2_400) {
+    return new File([new Uint8Array(size)], name, { type: "image/png" });
+  }
+
+  function paste(field: HTMLElement, files: File[]) {
+    fireEvent.paste(field, {
+      clipboardData: { files, types: ["Files"], getData: () => "" },
+    });
+  }
+
+  function drop(target: HTMLElement, files: File[]) {
+    const dataTransfer = { files, types: ["Files"], dropEffect: "none" };
+    fireEvent.dragOver(target, { dataTransfer });
+    fireEvent.drop(target, { dataTransfer });
+  }
+
+  function composer() {
+    return screen.getByLabelText("Comment") as HTMLTextAreaElement;
+  }
+
+  it("pastes a file into the description as an image link, at the caret", async () => {
+    attachSourceMock.mockResolvedValue(attached(SHOT));
+    const field = await openTheEditor("Before after");
+    fireEvent.change(field, { target: { value: "Before  after" } });
+    field.setSelectionRange(7, 7);
+
+    paste(field, [png()]);
+    expect(field.value).toBe("Before ![Attaching failure-state.png…]() after");
+    screen.getByText("Attaching failure-state.png · 2 KB…");
+
+    await screen.findByText("Attached failure-state.png");
+    expect(attachSourceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "hash-1",
+      expect.objectContaining({ kind: "file", name: "failure-state.png" }),
+    );
+    expect(field.value).toBe(
+      "Before ![failure-state.png](./attachments/att_8e31-failure-state.png) after",
+    );
+  });
+
+  it("holds Save while a file is still copying, so no placeholder is saved", async () => {
+    let land: (value: ReturnType<typeof attached>) => void = () => {};
+    attachSourceMock.mockReturnValue(
+      new Promise((resolve) => {
+        land = resolve;
+      }),
+    );
+    const field = await openTheEditor("Words");
+    fireEvent.change(field, { target: { value: "Words " } });
+    field.setSelectionRange(6, 6);
+    paste(field, [png()]);
+
+    const save = screen.getByRole("button", { name: /^Save/ });
+    expect(save).toHaveProperty("disabled", true);
+    land(attached(SHOT));
+    await screen.findByText("Attached failure-state.png");
+    expect(save).toHaveProperty("disabled", false);
+  });
+
+  it("leaves a paste of plain text to the field", async () => {
+    const field = await openTheEditor("Words");
+    paste(field, []);
+    expect(attachSourceMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the description being written when the file lands", async () => {
+    attachSourceMock.mockResolvedValue(attached(SHOT));
+    const field = await openTheEditor("Saved words");
+    fireEvent.change(field, { target: { value: "Unsaved words " } });
+    field.setSelectionRange(14, 14);
+    paste(field, [png()]);
+    await screen.findByText("Attached failure-state.png");
+    // The read after the attach must not put the file's description back.
+    await waitFor(() => expect(readTicketMock).toHaveBeenCalledTimes(2));
+    expect(field.value).toBe(
+      "Unsaved words ![failure-state.png](./attachments/att_8e31-failure-state.png)",
+    );
+  });
+
+  it("drops several files into a comment, lands those that pass and says so once", async () => {
+    attachSourceMock.mockResolvedValue(attached(NOTES));
+    render(surface());
+    await ready();
+    const field = composer();
+
+    drop(field.closest("form")!, [
+      png("full-session.png", 23_600_000),
+      new File(["notes"], "notes.txt", { type: "text/plain" }),
+    ]);
+
+    await screen.findByText("Attached notes.txt");
+    // Refused before it crossed the bridge: one write, not two.
+    expect(attachSourceMock).toHaveBeenCalledTimes(1);
+    expect(field.value).toBe("[notes.txt](./attachments/att_9a10-notes.txt)");
+    screen.getByText(
+      "full-session.png is 23.6 MB. Attachments can be up to 10 MB.",
+    );
+    screen.getByText(
+      "Trim or compress it, or put it somewhere else and link to it.",
+    );
+    await screen.findByText("1 of 2 files attached. 1 could not be.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText(/full-session\.png is/)).toBeNull();
+  });
+
+  it("says what a refusal means and takes the placeholder back out", async () => {
+    attachSourceMock.mockRejectedValue({
+      code: "unsupported_media_type",
+      message:
+        "trace.png can’t be attached. Only images, text files and videos are supported.",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+    const field = composer();
+    paste(field, [png("trace.png")]);
+
+    await screen.findByText(
+      "trace.png can’t be attached. Only images, text files and videos are supported.",
+    );
+    screen.getByText(
+      "LongClaw checks what a file contains, not just its name.",
+    );
+    expect(field.value).toBe("");
+  });
+
+  it("names the ticket when it moved underneath the attach", async () => {
+    attachSourceMock.mockRejectedValue({
+      code: "conflict",
+      message: "The file changed on disk",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+    paste(composer(), [png()]);
+    await screen.findByText(
+      "LC-1 changed on disk before failure-state.png could be added.",
+    );
+    screen.getByText(
+      "The file stays on disk. You can re-attach it from References later.",
+    );
+  });
+
+  it("attaches what the toolbar's open panel answers with", async () => {
+    chooseFilesToAttachMock.mockResolvedValue([
+      { token: "tok-1", name: "notes.txt", size: 300 },
+    ]);
+    attachSourceMock.mockResolvedValue(attached(NOTES));
+    render(surface());
+    await ready();
+
+    const button = within(
+      document.querySelector<HTMLElement>(".composer-toolbar")!,
+    ).getByRole("button", { name: "Attach files" });
+    // Inside the group's roving stop, not a stop of its own.
+    expect(button.getAttribute("tabindex")).toBe("-1");
+    expect(button.getAttribute("title")).toBe(
+      "Attach files - Paste or Drag & Drop into the field",
+    );
+    fireEvent.click(button);
+
+    await screen.findByText("Attached notes.txt");
+    expect(chooseFilesToAttachMock).toHaveBeenCalledWith("LC-1");
+    // A token, never a path: the panel was handed nothing else to name it by.
+    expect(attachSourceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "hash-1",
+      expect.objectContaining({ kind: "chosen", token: "tok-1", size: 300 }),
+    );
+    screen.getByText("Attached notes.txt");
+    expect(composer().value).toBe(
+      "[notes.txt](./attachments/att_9a10-notes.txt)",
+    );
+  });
+
+  it("says where a dragged file will go while it is over the field", async () => {
+    render(surface());
+    await ready();
+    const form = composer().closest("form")!;
+    fireEvent.dragOver(form, {
+      dataTransfer: { files: [], types: ["Files"], dropEffect: "none" },
+    });
+    expect(form.classList.contains("drop-active")).toBe(true);
+    screen.getByText(/Drop to attach to LC-1/);
+  });
+});
+
+/**
+ * LC-206, slice 7: docs written for a ticket are references — listed with its
+ * files, opened where they are, and added from the section's Add menu.
+ */
+describe("doc references (LC-206)", () => {
+  function reference(id: string, path: string): TicketReference {
+    return {
+      id,
+      path,
+      addedAt: "2026-07-30T10:00:00Z",
+      addedBy: { type: "agent", id: "claude-code", name: "Claude Code" },
+    };
+  }
+  const SPEC = reference("ref_1", "docs/specs/LC-1-round-trip.md");
+  const OLD = reference("ref_2", "docs/specs/LC-1-old.md");
+  const FLOWS = reference("ref_3", "/Users/sam/Design/flows v2.pdf");
+
+  async function openSection(options?: Parameters<typeof detail>[0]) {
+    readTicketMock.mockResolvedValue(
+      detail({ references: [SPEC, OLD, FLOWS], ...options }),
+    );
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /^References/ }));
+  }
+
+  function row(name: string) {
+    return screen.getByText(name, { selector: "strong" }).closest("li")!;
+  }
+
+  function menuOf(name: string) {
+    fireEvent.click(
+      screen.getByRole("button", { name: `Actions for ${name}` }),
+    );
+    return screen.getByRole("menu", { name: `Actions for ${name}` });
+  }
+
+  it("says which doc has moved, and which lives outside the project", async () => {
+    readTicketMock.mockResolvedValue({
+      ...detail({ references: [SPEC, OLD, FLOWS] }),
+      missingReferences: ["ref_2"],
+    });
+    render(surface());
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /^References/ }));
+
+    expect(row("LC-1-old.md").textContent).toContain("missing");
+    expect(row("LC-1-old.md").textContent).toContain(
+      "File not found · docs/specs/LC-1-old.md",
+    );
+    const outside = within(row("flows v2.pdf")).getByText("outside project");
+    expect(outside.getAttribute("title")).toBe(
+      "This file is not in the project folder, so agents and other machines may not find it.",
+    );
+    expect(row("LC-1-round-trip.md").textContent).not.toContain(
+      "outside project",
+    );
+
+    const labels = (menu: HTMLElement) =>
+      Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+        (item) => item.textContent,
+      );
+    expect(labels(menuOf("LC-1-old.md"))).toEqual(["Remove"]);
+  });
+
+  it("opens a doc and shows it in Finder by its id", async () => {
+    await openSection();
+    fireEvent.click(
+      within(menuOf("LC-1-round-trip.md")).getByRole("menuitem", {
+        name: "Open",
+      }),
+    );
+    expect(openReferenceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "ref_1",
+    );
+    fireEvent.click(
+      within(menuOf("LC-1-round-trip.md")).getByRole("menuitem", {
+        name: "Show in Finder",
+      }),
+    );
+    expect(revealReferenceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "ref_1",
+    );
+  });
+
+  it("offers attaching and referencing from the heading's Add menu", async () => {
+    await openSection();
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    const menu = screen.getByRole("menu", { name: "Add" });
+    expect(
+      Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual([
+      "Attach a file…Copied into the ticket",
+      "Add a reference…Linked where it is",
+    ]);
+  });
+
+  it("adds a reference to a file the open panel answered with", async () => {
+    chooseReferenceMock.mockResolvedValue([
+      { token: "tok-9", name: "flows.pdf", size: 1200 },
+    ]);
+    addChosenReferenceMock.mockResolvedValue(writeResult());
+    await openSection();
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Add a reference/ }));
+
+    await screen.findByText("LC-1 referenced · flows.pdf");
+    expect(chooseReferenceMock).toHaveBeenCalledWith("LC-1");
+    expect(addChosenReferenceMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      "tok-9",
+      "hash-1",
+    );
+  });
+
+  it("attaches files from the Add menu, with no field to link them from", async () => {
+    chooseFilesToAttachMock.mockResolvedValue([
+      { token: "tok-1", name: "notes.txt", size: 300 },
+    ]);
+    attachSourceMock.mockResolvedValue({
+      attachment: attachment("att_9a10", "notes.txt", "text/plain", 300),
+      written: writeResult(),
+    });
+    await openSection();
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Attach a file/ }));
+
+    await waitFor(() =>
+      expect(attachSourceMock).toHaveBeenCalledWith(
+        "project-1",
+        "LC-1",
+        "hash-1",
+        expect.objectContaining({ kind: "chosen", token: "tok-1" }),
+      ),
+    );
   });
 });

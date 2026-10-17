@@ -642,6 +642,40 @@ if (!csp.includes("connect-src ipc: http://ipc.localhost")) {
 if (/connect-src[^;]*(https?:\/\/(?!ipc\.localhost)|wss?:)/.test(csp)) {
   fail("CSP must not allow arbitrary network connections");
 }
+/* LC-206 serves attachments through a scheme Rust owns. An image or a video may
+   come from it and from nowhere on the network, so each of the two directives
+   is held to an allow-list rather than a deny-pattern: a bare `https:` or a host
+   that merely begins `asset.localhost` is a network source a pattern can miss,
+   and a list cannot. */
+const ALLOWED_MEDIA_SOURCES = {
+  "img-src": [
+    "'self'",
+    "asset:",
+    "http://asset.localhost",
+    "longclaw-attachment:",
+    "http://longclaw-attachment.localhost",
+  ],
+  "media-src": ["longclaw-attachment:", "http://longclaw-attachment.localhost"],
+};
+for (const [directive, allowed] of Object.entries(ALLOWED_MEDIA_SOURCES)) {
+  const sources = csp
+    .split(";")
+    .map((part) => part.trim().split(/\s+/))
+    .find(([name]) => name === directive)
+    ?.slice(1);
+  if (!sources) {
+    fail(`CSP must declare ${directive} (LC-206)`);
+    continue;
+  }
+  for (const source of sources) {
+    if (!allowed.includes(source)) {
+      fail(`CSP ${directive} names ${source}, which is not an allowed source`);
+    }
+  }
+}
+if (!/media-src[^;]*longclaw-attachment:/.test(csp)) {
+  fail("CSP media-src must name the longclaw-attachment scheme (LC-206)");
+}
 
 /**
  * Where the updater is pointed, which is the other half of ADR 0014's promise.
@@ -826,7 +860,11 @@ const HTTP_CLIENT_FILE = "github_client.rs";
 
 failOnMatch(
   shippedRustFiles.filter((file) => !file.endsWith(`/${HTTP_CLIENT_FILE}`)),
-  [[/\bhttp::|reqwest::|ureq::/, "Rust HTTP client"]],
+  // `tauri::http::` is excepted, and only it: those are the request and
+  // response types of a URI scheme the window calls *into* (LC-206's
+  // attachment scheme), not a client that calls out. Any other `http::` —
+  // the crate a client is built on — still fails here.
+  [[/(?<!tauri::)\bhttp::|reqwest::|ureq::/, "Rust HTTP client"]],
 );
 failOnMatch(shippedRustFiles, [[/\bCommand::new\s*\(/, "process launch"]]);
 

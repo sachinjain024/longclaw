@@ -21,6 +21,11 @@ pub mod macos {
         false
     }
 
+    /// The same, for showing an attachment in Finder.
+    pub fn reveal_in_finder(_path: &Path) -> bool {
+        false
+    }
+
     /// The same, for the one URL the update path can offer.
     pub fn open_web_url(_url: &str) -> bool {
         false

@@ -8,7 +8,13 @@
  * stops one surface from disagreeing with another about who did something.
  */
 
-import type { ActivityEvent, ActorType, AppError, TicketDetail } from "./types";
+import type {
+  ActivityEvent,
+  Actor,
+  ActorType,
+  AppError,
+  TicketDetail,
+} from "./types";
 
 /** What the app calls a change whose file named no actor. */
 export const UNKNOWN_ACTOR_LABEL = "actor unknown";
@@ -58,10 +64,13 @@ export function actorGlyph(actorType: ActorType): string {
 
 /** The timeline's name for an actor. `human` is the local human (ADR 0001). */
 export function actorName(event: ActivityEvent): string {
-  if (event.actor.type === "agent") {
-    return event.actor.name ?? event.actor.id ?? "An agent";
-  }
-  return event.actor.type === "unknown" ? "Unknown actor" : "You";
+  return actorLabel(event.actor);
+}
+
+/** The same name, for a record that carries an actor but is not an event. */
+export function actorLabel(actor: Actor): string {
+  if (actor.type === "agent") return actor.name ?? actor.id ?? "An agent";
+  return actor.type === "unknown" ? "Unknown actor" : "You";
 }
 
 /**

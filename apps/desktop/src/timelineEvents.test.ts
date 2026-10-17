@@ -36,6 +36,31 @@ const CONTEXT = {
 describe("every field apply() can write", () => {
   const fields: [string, FieldChange, string][] = [
     [
+      "an attachment added",
+      { field: "attachments.att_7d2a.added", to: "debug-log.txt" },
+      "attached debug-log.txt",
+    ],
+    [
+      "an attachment removed",
+      { field: "attachments.att_7d2a.removed", from: "debug-log.txt" },
+      "removed debug-log.txt",
+    ],
+    [
+      "an orphan re-attached",
+      { field: "attachments.att_7d2a.reattached", to: "debug-log.txt" },
+      "re-attached debug-log.txt",
+    ],
+    [
+      "a reference added",
+      { field: "references.ref_3c1d.added", to: "LC-206-attachments.md" },
+      "added a reference to LC-206-attachments.md",
+    ],
+    [
+      "a reference removed",
+      { field: "references.ref_3c1d.removed", from: "LC-206-attachments.md" },
+      "removed the reference to LC-206-attachments.md",
+    ],
+    [
       "title",
       { field: "title", from: "Old name", to: "New name" },
       "renamed this to “New name”",
@@ -178,12 +203,18 @@ describe("every field apply() can write", () => {
       const line = describeChange(change, CONTEXT);
       // No code chip: that is reserved for a key with no sentence of its own.
       expect(line.code).toBeUndefined();
+      // The values the change carried are the sentence's to say: a file name
+      // has a dot in it and is not a leaked key. What is left must not.
+      const words = [change.from, change.to].reduce<string>(
+        (text, value) => (value ? text.replace(value, "") : text),
+        line.text,
+      );
       // And no dotted path, which is the shape a checklist field arrives in.
       // A letter has to follow the dot: an estimate is a legal value with one
       // in it — `1.5d` — and a sentence that says so is not a leaked key.
-      expect(line.text).not.toMatch(/\b[a-z_]+\.[a-z_]/i);
+      expect(words).not.toMatch(/\b[a-z_]+\.[a-z_]/i);
       // Nor a wire enum value, which is what `status todo → in_review` was.
-      expect(line.text).not.toMatch(/\b\w+_\w+\b/);
+      expect(words).not.toMatch(/\b\w+_\w+\b/);
     }
   });
 

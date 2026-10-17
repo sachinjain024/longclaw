@@ -98,7 +98,7 @@ hold:
 - the only explicit permissions are `core:default`, `core:event:default`, and
   `dialog:allow-open` — **the updater plugin's own JavaScript commands are
   never granted and its npm package is never installed**;
-- the CSP limits `connect-src` to Tauri IPC;
+- the CSP limits `connect-src` to Tauri IPC, and `img-src` and `media-src` to an allow-list that names no network host — the attachment scheme (LC-206), the asset protocol and `'self'`;
 - the macOS bundle metadata and v0 support floor are present.
 
 It also reads the **macOS host dependency graph** via `cargo tree`, so a

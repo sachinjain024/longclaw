@@ -4075,6 +4075,487 @@ button:disabled {
   color: var(--lc-accent-human-text);
 }
 
+/* ---- a ticket's attachments where its text links them (LC-206)
+
+   An image takes the full column in a padded frame, so a screenshot reads as
+   an exhibit set into the text rather than as text (review 1, A2). The picture
+   keeps its ratio and is never scaled past its own size; the frame is what
+   spans. A button, because pressing it opens the viewer (story 14). */
+.md-attachment-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: var(--lc-space-3) 0;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-3);
+  background: var(--lc-bg);
+  cursor: zoom-in;
+}
+
+.md-attachment-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* The tile surface, because it is dark in both appearances: a player is black
+   around its picture whatever the app is wearing. Never autoplays (review 1,
+   D3) — that is the markup's job, and there is no `autoplay` to style. */
+.md-attachment-video {
+  display: block;
+  max-width: 100%;
+  margin: var(--lc-space-3) 0;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  color: var(--lc-tile-ink);
+  background: var(--lc-tile);
+}
+
+/* A file chip: glyph, name, then the facts a reader needs before opening it. A
+   button, because it does something (opens the default app), not a link. */
+.attachment-chip {
+  display: inline-flex;
+  max-width: 100%;
+  gap: var(--lc-space-2);
+  align-items: center;
+  vertical-align: middle;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  padding: 3px var(--lc-space-2);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font: 500 12px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.attachment-chip svg {
+  flex: none;
+}
+
+.attachment-chip .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-chip .meta {
+  flex: none;
+  color: var(--lc-ink-3);
+  font: 400 11px var(--lc-font-mono);
+}
+
+/* Removed / Unavailable: the link is kept and says which, rather than vanishing
+   (story 30). Not a button — there is nothing to open. Warn, not danger:
+   nothing failed just now, a reference went stale. The file's name is in the
+   title and the accessible name; the chip itself is one word (review 1, D2). */
+.attachment-chip.unavailable {
+  border-style: dashed;
+  border-color: var(--lc-warn-border);
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+  cursor: default;
+}
+
+/* The viewer (story 14), opened from an image wherever it is — the description
+   or a comment (review 1, D1). The app's scrim, and a header on the panel's own
+   surface, so it reads the same in both appearances. */
+.attachment-viewer {
+  position: fixed;
+  z-index: var(--lc-z-modal);
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--lc-space-3);
+  padding: var(--lc-space-5);
+  background: var(--lc-scrim);
+}
+
+.attachment-viewer header {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  font-size: var(--lc-type-small-size);
+}
+
+.attachment-viewer header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-viewer header .meta {
+  flex: none;
+  margin-right: auto;
+  color: var(--lc-ink-3);
+  font: 400 11px var(--lc-font-mono);
+}
+
+.attachment-viewer header button {
+  flex: none;
+}
+
+.attachment-viewer figure {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  margin: 0;
+}
+
+.attachment-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--lc-radius-card);
+  box-shadow: var(--lc-shadow-modal);
+}
+
+/* ---- attaching where it is written about (LC-206, stories 1-11, 21-23, 51)
+
+   The seventh toolbar button sits after a hairline, inside the group's roving
+   stop (review 1). The rule is the toolbar's own `button` rule; this only adds
+   the separator. */
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 3px var(--lc-space-1);
+  background: var(--lc-line);
+}
+
+.attach-glyph {
+  flex: none;
+}
+
+/* One row per file in flight, landed or refused, under the field. The list is
+   the live region. A landed row goes at the next gesture and a refusal stays
+   until dismissed (review 1, G3): news about a gesture, not ticket state. */
+.attach-status {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 var(--lc-space-2) var(--lc-space-2);
+  list-style: none;
+}
+
+.composer .attach-status {
+  grid-column: 2;
+  padding: 0;
+}
+
+.attach-status li {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+  border-radius: var(--lc-radius-control);
+  padding: 5px var(--lc-space-2);
+  color: var(--lc-ink-3);
+  background: var(--lc-wash);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.attach-status li.done {
+  color: var(--lc-ink-2);
+}
+
+.attach-status li.refused {
+  color: var(--lc-danger);
+  background: var(--lc-danger-surface);
+}
+
+.attach-status li > span:first-of-type {
+  flex: 1;
+  min-width: 0;
+}
+
+.attach-status .hint {
+  display: block;
+  color: var(--lc-ink-3);
+}
+
+.attach-status button {
+  flex: none;
+  border: 0;
+  padding: 0 4px;
+  color: inherit;
+  background: transparent;
+}
+
+.attach-status button:focus-visible {
+  border-radius: var(--lc-radius-control);
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* The app's own spinner, at its own pace. */
+.attach-spinner {
+  flex: none;
+  align-self: center;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--lc-radius-full);
+  animation: lc-write-spin var(--lc-motion-spinner) linear infinite;
+}
+
+/* The whole field lights, not a separate zone: the place a file is linked is
+   the place it is dropped. The human accent, because dropping is a person's
+   action. */
+.description-editor.drop-active,
+.composer.drop-active textarea,
+.quick-create-description[data-drop-active] {
+  outline: 2px dashed var(--lc-accent-human);
+  outline-offset: -2px;
+  background: var(--lc-accent-human-wash);
+}
+
+.drop-label {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  justify-content: center;
+  padding: var(--lc-space-3);
+  color: var(--lc-accent-human-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.composer .drop-label {
+  grid-column: 2;
+  padding: var(--lc-space-1);
+}
+
+.drop-label small {
+  color: var(--lc-ink-3);
+  font-weight: 400;
+}
+
+/* A ticket that does not exist yet has no folder to copy into, so the create
+   surfaces hold files and attach them right after the ticket is written. The
+   tray says so, one chip per file (story 40). */
+.held-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lc-space-2);
+  align-items: center;
+  margin: var(--lc-space-2) 0 0;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
+.held-files .attachment-chip {
+  cursor: default;
+}
+
+.held-files .attachment-chip button {
+  border: 0;
+  padding: 0 2px;
+  color: var(--lc-ink-3);
+  background: transparent;
+}
+
+.held-files .attachment-chip button:focus-visible {
+  border-radius: var(--lc-radius-control);
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* ---- the References section (LC-206, stories 18-20, 26, 29, 31-33)
+
+   Files the ticket holds and docs it points at, in one list. Collapsed by
+   default: the heading is the toggle, with the count beside it, so a ticket
+   with references costs the panel one line until it is asked for. */
+.references-toggle {
+  display: inline-flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  padding: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.references-toggle .menu-chevron {
+  transition: transform var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.references-toggle[aria-expanded="true"] .menu-chevron {
+  transform: rotate(90deg);
+}
+
+.references-toggle:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+.attachments {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One line per reference, and one control per line: the ⋮ is always visible
+   at the row's right end (review 1, E4), so nothing a row can do is hidden
+   behind a hover. */
+.attachment-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  gap: var(--lc-space-2);
+  align-items: center;
+  border-radius: var(--lc-radius-control);
+  padding: 4px var(--lc-space-1) 4px 4px;
+}
+
+.attachment-row:hover,
+.attachment-row:focus-within {
+  background: var(--lc-wash);
+}
+
+.attachment-thumb {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-ink-3);
+  background: var(--lc-bg);
+}
+
+/* The picture itself, cropped to the square — not a generated thumbnail, which
+   the spec keeps out of the project. */
+.attachment-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-text {
+  display: grid;
+  min-width: 0;
+}
+
+.attachment-name {
+  display: flex;
+  min-width: 0;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+}
+
+.attachment-text strong {
+  overflow: hidden;
+  color: var(--lc-ink);
+  font-size: var(--lc-type-small-size);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-text .meta {
+  overflow: hidden;
+  color: var(--lc-ink-3);
+  font: 400 11px var(--lc-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Where a file came in, when it was a comment (review 1, C2). A link-styled
+   button: pressing it moves the record to that comment and marks it. */
+.attachment-source {
+  flex: none;
+  border: 0;
+  padding: 0;
+  color: var(--lc-accent-human-text);
+  background: none;
+  font: 500 11px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.attachment-source:hover {
+  text-decoration: underline;
+}
+
+.attachment-source:focus-visible {
+  border-radius: var(--lc-radius-control);
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* The comment a source link led to, for a moment. */
+.timeline-entry.reference-target {
+  border-radius: var(--lc-radius-card);
+  background: var(--lc-accent-human-wash);
+  box-shadow: 0 0 0 6px var(--lc-accent-human-wash);
+}
+
+/* missing and not attached: warn, not danger — nothing failed just now. */
+.attachment-state {
+  border-radius: var(--lc-radius-full);
+  padding: 1px 7px;
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+  font: 500 10.5px var(--lc-font-mono);
+  white-space: nowrap;
+}
+
+.attachment-row.missing strong,
+.attachment-row.orphan strong {
+  color: var(--lc-ink-2);
+}
+
+/* A file an external write added wears that write's accent, as a ticked row
+   does, and for as long as the acknowledgement lasts (story 35). The agent's
+   is the rail a card and a comment get. */
+.attachment-row.acknowledged.acknowledged-agent {
+  box-shadow: inset 2px 0 0 var(--lc-accent-agent-rail);
+  background: var(--lc-accent-agent-wash);
+}
+
+.attachment-row.acknowledged.acknowledged-human {
+  background: var(--lc-accent-human-wash);
+}
+
+.attachment-row.acknowledged.acknowledged-unknown {
+  background: var(--lc-warn-surface);
+}
+
+.attachments-empty {
+  margin: 0;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
+/* The section's Add sits at the heading's right end, where Description's Edit
+   does, but always visible: Edit can hide because the text under it is the
+   affordance, and a collapsed list has nothing under it to hover (review 3). */
+.references-add {
+  display: inline-flex;
+  gap: var(--lc-space-1);
+  align-items: center;
+  margin-left: auto;
+  font-weight: 500;
+}
+
+/* Five rows, then this (review 1, E3), under the names rather than the thumbs. */
+.references-more {
+  justify-self: start;
+  margin: var(--lc-space-1) 0 0 calc(28px + var(--lc-space-2) + 4px);
+}
+
 .checklist {
   display: grid;
   gap: var(--lc-space-1);

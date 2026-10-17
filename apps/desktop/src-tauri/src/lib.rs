@@ -11,11 +11,12 @@ pub mod update;
 mod update_plugin;
 mod zoom;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use app_state::AppState;
+use core::attachment_scheme::{self, ATTACHMENT_SCHEME};
 use core::project::{EstimateSystem, DEFAULT_LABEL_COLOR};
 use core::ticket::Property;
 use core::{
@@ -400,6 +401,73 @@ fn open_ticket_file(
     .with_context("path", path.display().to_string()))
 }
 
+/// Opens one attachment in its default app, from a file chip or the viewer's
+/// **Open** (LC-206).
+///
+/// The webview names the record's `file`, and Rust holds it to the registry
+/// and to the ticket's folder before the system sees a path — the rule
+/// `open_ticket_file` follows with a ticket key. A name macOS would run
+/// rather than show is refused before it is handed over.
+#[tauri::command]
+fn open_attachment(
+    project_id: String,
+    ticket_key: String,
+    file: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .attachment_to_open(&ticket_key, &file)?;
+    if platform::macos::open_in_default_app(&path) {
+        return Ok(());
+    }
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        format!(
+            "macOS would not open {}. Show it in Finder and open it from there.",
+            file_name_of(&file)
+        ),
+        true,
+    )
+    .with_context("ticketKey", ticket_key)
+    .with_context("path", path.display().to_string()))
+}
+
+/// The name a refusal states: the file's own, never the `attachments/` path,
+/// which is a detail of the format rather than something the human typed.
+fn file_name_of(file: &str) -> &str {
+    file.rsplit('/').next().unwrap_or(file)
+}
+
+/// Shows one attachment selected in Finder (LC-206) — registered or an orphan,
+/// proven inside the ticket's folder.
+#[tauri::command]
+fn reveal_attachment(
+    project_id: String,
+    ticket_key: String,
+    file: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .attachment_to_reveal(&ticket_key, &file)?;
+    if platform::macos::reveal_in_finder(&path) {
+        return Ok(());
+    }
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        format!(
+            "Finder would not show {}. Open {ticket_key}'s attachments folder from Finder instead.",
+            file_name_of(&file)
+        ),
+        true,
+    )
+    .with_context("ticketKey", ticket_key)
+    .with_context("path", path.display().to_string()))
+}
+
 /// Whether the `longclaw` command is on `PATH`, and what it points at (LC-233).
 ///
 /// Reads and writes nothing. It is here rather than behind a preference because
@@ -590,6 +658,236 @@ fn edit_ticket(
         .edit_ticket(&request.ticket_key, &request.edit, &request.expected_hash)
 }
 
+/// Attaches a pasted or dropped file (LC-206). The bytes arrive as the raw
+/// request body rather than as JSON — ten megabytes as an array of numbers is
+/// the wrong price for a paste — and the four names travel as headers, each
+/// percent-encoded so a file name in any script survives the trip.
+#[tauri::command]
+fn attach_bytes(
+    request: tauri::ipc::Request<'_>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<core::AttachedFile> {
+    let header = |name: &str| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .and_then(attachment_scheme::percent_decoded)
+            .ok_or_else(|| {
+                core::AppError::new(
+                    core::ErrorCode::Internal,
+                    format!("An attach request arrived without a readable {name}"),
+                    false,
+                )
+            })
+    };
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err(core::AppError::new(
+            core::ErrorCode::Internal,
+            "An attach request arrived without the file's bytes",
+            false,
+        ));
+    };
+    state
+        .engine(&header("x-project-id")?, tauri_sink(&app))?
+        .attach_bytes(
+            &header("x-ticket-key")?,
+            bytes,
+            &header("x-file-name")?,
+            &header("x-expected-hash")?,
+        )
+}
+
+/// One file the open panel answered with, as the webview may know it: a token
+/// for the path, and what the pending row says — its name and its size.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ChosenFile {
+    token: String,
+    name: String,
+    size: u64,
+}
+
+/// Raises the system open panel and keeps what it answers with (LC-206):
+/// the paths stay here, and the webview is handed a token per file with the
+/// name and size its rows say (ADR 0009). Blocking until the human answers,
+/// which is why the commands that call it are async and off the main thread.
+fn choose_files(
+    app: &AppHandle,
+    state: &AppState,
+    title: String,
+    multiple: bool,
+) -> Vec<ChosenFile> {
+    use tauri_plugin_dialog::DialogExt;
+    let panel = app.dialog().file().set_title(title);
+    let picked = if multiple {
+        panel.blocking_pick_files().unwrap_or_default()
+    } else {
+        panel.blocking_pick_file().into_iter().collect()
+    };
+    picked
+        .into_iter()
+        .filter_map(|file| file.into_path().ok())
+        .map(|path| {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("file")
+                .to_owned();
+            let size = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
+            ChosenFile {
+                token: state.hold_chosen_file(path),
+                name,
+                size,
+            }
+        })
+        .collect()
+}
+
+/// The open panel the toolbar's Attach button raises (LC-206): files, several
+/// at once, titled for the ticket they will land in. An empty list is a
+/// cancelled panel.
+#[tauri::command]
+async fn choose_files_to_attach(
+    ticket_key: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<ChosenFile>> {
+    Ok(choose_files(
+        &app,
+        &state,
+        format!("Attach to {ticket_key}"),
+        true,
+    ))
+}
+
+/// The open panel **Add a reference…** raises (LC-206): one file, titled
+/// for the ticket (`reference.picker.title`). Empty when cancelled.
+#[tauri::command]
+async fn choose_reference(
+    ticket_key: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<ChosenFile>> {
+    Ok(choose_files(
+        &app,
+        &state,
+        format!("Add a reference to {ticket_key}"),
+        false,
+    ))
+}
+
+/// Records the file a token names as a doc reference: pointed at where it
+/// is, never copied or read.
+#[tauri::command]
+fn add_chosen_reference(
+    project_id: String,
+    ticket_key: String,
+    token: String,
+    expected_hash: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<WriteResult> {
+    let path = chosen(&state, &token)?;
+    state
+        .engine(&project_id, tauri_sink(&app))?
+        .add_reference(&ticket_key, &path, &expected_hash)
+}
+
+/// The path a token names, once.
+fn chosen(state: &AppState, token: &str) -> AppResult<PathBuf> {
+    state.take_chosen_file(token).ok_or_else(|| {
+        core::AppError::new(
+            core::ErrorCode::NotFound,
+            "That file is no longer chosen. Choose it again.",
+            true,
+        )
+    })
+}
+
+/// Opens a doc reference in its default app (LC-206), by the reference's id,
+/// held to the rule a file chip is.
+#[tauri::command]
+fn open_reference(
+    project_id: String,
+    ticket_key: String,
+    reference_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .reference_to_open(&ticket_key, &reference_id)?;
+    hand_to_macos(platform::macos::open_in_default_app(&path), "open", &path)
+}
+
+/// Shows a doc reference selected in Finder (LC-206), by the reference's id.
+#[tauri::command]
+fn reveal_reference(
+    project_id: String,
+    ticket_key: String,
+    reference_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .reference_to_reveal(&ticket_key, &reference_id)?;
+    hand_to_macos(platform::macos::reveal_in_finder(&path), "show", &path)
+}
+
+/// What a doc reference's Open and Show in Finder say when macOS declines.
+fn hand_to_macos(accepted: bool, verb: &str, path: &Path) -> AppResult<()> {
+    if accepted {
+        return Ok(());
+    }
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        format!("macOS would not {verb} {name}."),
+        true,
+    )
+    .with_context("path", path.display().to_string()))
+}
+
+/// Attaches one file the open panel answered with, by its token. Read from
+/// where it is, judged by its bytes and copied into the ticket.
+#[tauri::command]
+fn attach_chosen(
+    project_id: String,
+    ticket_key: String,
+    token: String,
+    expected_hash: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<core::AttachedFile> {
+    let path = chosen(&state, &token)?;
+    state
+        .engine(&project_id, tauri_sink(&app))?
+        .attach_path(&ticket_key, &path, &expected_hash)
+}
+
+/// **Re-attach** on a not-attached row (LC-206): registers an orphan in place.
+/// The webview names the file and the hash it read; Rust proves the file is in
+/// the ticket's folder and judges its bytes again before writing a record.
+#[tauri::command]
+fn reattach_attachment(
+    project_id: String,
+    ticket_key: String,
+    file: String,
+    expected_hash: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<WriteResult> {
+    state
+        .engine(&project_id, tauri_sink(&app))?
+        .reattach_attachment(&ticket_key, &file, &expected_hash)
+}
+
 #[tauri::command]
 fn create_ticket(
     request: CreateTicketRequest,
@@ -727,12 +1025,71 @@ fn report_visible_ui(probe: VisibleUiProbe, app: AppHandle) -> AppResult<()> {
     Ok(())
 }
 
+/// One attachment request, answered (LC-206). Everything that decides the
+/// answer is `core::attachment_scheme`; this finds the project the URL names in
+/// the registry, so a URL can reach no folder the person did not register.
+fn attachment_response(
+    app: &AppHandle,
+    method: &tauri::http::Method,
+    path: &str,
+    range: Option<&str>,
+) -> tauri::http::Response<Vec<u8>> {
+    let served = if method != tauri::http::Method::GET {
+        attachment_scheme::method_not_allowed()
+    } else {
+        match attachment_scheme::parse_request(path) {
+            None => attachment_scheme::malformed(),
+            Some(request) => match app
+                .try_state::<AppState>()
+                .and_then(|state| state.find_project(&request.project_id).ok())
+            {
+                None => attachment_scheme::unknown_project(),
+                Some(project) => attachment_scheme::serve(
+                    Path::new(&project.root_path),
+                    &project.key,
+                    &request,
+                    range,
+                ),
+            },
+        }
+    };
+    let mut response = tauri::http::Response::builder().status(served.status);
+    for (name, value) in served.headers {
+        response = response.header(name, value);
+    }
+    response.body(served.body).unwrap_or_else(|_| {
+        tauri::http::Response::builder()
+            .status(500)
+            .body(Vec::new())
+            .expect("an empty 500 is always a valid response")
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = PROCESS_STARTED.set(Instant::now());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .register_asynchronous_uri_scheme_protocol(
+            ATTACHMENT_SCHEME,
+            |context, request, responder| {
+                let app = context.app_handle().clone();
+                let method = request.method().clone();
+                let path = request.uri().path().to_owned();
+                let range = request
+                    .headers()
+                    .get("range")
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::to_owned);
+                // The blocking pool every other file read uses, so a video's
+                // run of range requests queues there instead of starting a
+                // thread each.
+                tauri::async_runtime::spawn_blocking(move || {
+                    responder.respond(attachment_response(&app, &method, &path, range.as_deref()));
+                });
+            },
+        )
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
             let state = AppState::new(&app_data_dir)?;
@@ -789,6 +1146,16 @@ pub fn run() {
             search_tickets,
             read_ticket,
             open_ticket_file,
+            open_attachment,
+            reveal_attachment,
+            reattach_attachment,
+            attach_bytes,
+            choose_files_to_attach,
+            attach_chosen,
+            choose_reference,
+            add_chosen_reference,
+            open_reference,
+            reveal_reference,
             command_line_status,
             install_command_line,
             edit_ticket,

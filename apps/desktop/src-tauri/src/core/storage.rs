@@ -26,9 +26,11 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
+use super::attachments;
 use super::error::{AppError, AppResult, Diagnostic, ErrorCode};
 use super::model::{
-    ActivitySummary, DegradedRow, IndexedRow, TicketDetail, TicketRow, TicketWrite,
+    ActivitySummary, DegradedRow, IndexedRow, OrphanAttachment, TicketDetail, TicketRow,
+    TicketWrite,
 };
 use super::project::{
     is_project_key, is_project_name, is_theme_id, render_agent_contract, render_claude_pointer,
@@ -542,6 +544,10 @@ pub fn read_ticket_detail(
         Some(ticket) => attachment_state(&path, ticket),
         None => (Vec::new(), Vec::new()),
     };
+    let missing_references = ticket
+        .as_ref()
+        .map(|ticket| attachments::missing_references(project_root, ticket))
+        .unwrap_or_default();
     let truncated = file.raw.len() > RAW_VIEW_LIMIT;
     let raw = truncate_on_char_boundary(file.raw, RAW_VIEW_LIMIT);
     Ok(TicketDetail {
@@ -556,13 +562,14 @@ pub fn read_ticket_detail(
         raw_truncated: truncated,
         missing_attachments,
         orphan_attachments,
+        missing_references,
     })
 }
 
 /// Registry entries whose bytes are gone, and bytes with no registry entry.
 /// Neither is repaired here: a missing file keeps its metadata and an orphan file
 /// is surfaced for recovery, never deleted.
-fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<String>) {
+fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<OrphanAttachment>) {
     let directory = match ticket_path.parent() {
         Some(parent) => parent.join(ATTACHMENTS_DIRECTORY),
         None => return (Vec::new(), Vec::new()),
@@ -588,7 +595,10 @@ fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<St
         .filter(|attachment| !on_disk.contains(&attachment.file))
         .map(|attachment| attachment.id.clone())
         .collect();
-    let orphans = on_disk.difference(&registered).cloned().collect();
+    let orphans = on_disk
+        .difference(&registered)
+        .map(|file| attachments::describe_orphan(ticket_path, file))
+        .collect();
     (missing, orphans)
 }
 
@@ -999,6 +1009,11 @@ pub fn prepare_ticket_edit_as(
         })
         .with_context("ticketKey", key.to_owned())
     })?;
+    // A restore and a reference both name a file, and a document only ever sees
+    // `ticket.md`: they are checked against the disk here, where every edit
+    // passes, so no caller can reach `apply_as` with either unchecked.
+    let settled = attachments::settle(project_root, &path, edit)?;
+    let edit = settled.as_ref().unwrap_or(edit);
     let applied = document.apply_as(edit, now, author).map_err(|diagnostic| {
         AppError::from(diagnostic).with_context("ticketKey", key.to_owned())
     })?;
@@ -2539,7 +2554,11 @@ mod tests {
         assert_eq!(detail.missing_attachments, vec!["att_gone".to_owned()]);
         assert_eq!(
             detail.orphan_attachments,
-            vec!["attachments/stray.txt".to_owned()]
+            vec![crate::core::OrphanAttachment {
+                file: "attachments/stray.txt".to_owned(),
+                size: 5,
+                media_type: Some("text/plain".to_owned()),
+            }]
         );
         assert!(directory.join("attachments/stray.txt").is_file());
         assert!(!detail.raw_truncated);

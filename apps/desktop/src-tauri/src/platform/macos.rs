@@ -68,6 +68,21 @@ pub fn open_in_default_app(path: &Path) -> bool {
     NSWorkspace::sharedWorkspace().openURL(&url)
 }
 
+/// Shows one file selected in a Finder window (LC-206: **Show in Finder**).
+///
+/// The same AppKit surface as [`open_in_default_app`], and the safer half of
+/// it: Finder selects the file and runs nothing, so this is the way round a
+/// file that is not opened from the app. Returns whether Finder accepted it.
+pub fn reveal_in_finder(path: &Path) -> bool {
+    let Some(text) = path.to_str() else {
+        return false;
+    };
+    // An empty root is "the Finder window the system picks", which is what a
+    // person pressing the button expects.
+    NSWorkspace::sharedWorkspace()
+        .selectFile_inFileViewerRootedAtPath(Some(&NSString::from_str(text)), &NSString::new())
+}
+
 /// Hands one `https:` URL to the default browser.
 ///
 /// The webview names no URL to reach this: the caller is `open_download_page`,

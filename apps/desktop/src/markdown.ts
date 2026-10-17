@@ -44,7 +44,17 @@
  * The security invariant is untouched and is still structural. A cell holds
  * `Inline[]` like every other run of text, so no branch gained the ability to
  * produce markup — the grid is in the tree's shape, never in a string.
+ *
+ * **Attachments (LC-206) make the link policy ticket-aware**, and only when a
+ * ticket is passed in. A relative destination that names a file directly inside
+ * the ticket's own `attachments/` folder becomes an attachment node carrying the
+ * registry's record, or an unavailable node when no live record backs it. The
+ * node holds a record, never a URL: where the bytes come from is the renderer's
+ * business, and the only answer it has is the URI scheme Rust owns. Every other
+ * relative destination is refused exactly as before.
  */
+
+import type { Attachment } from "./types";
 
 export interface TextNode {
   type: "text";
@@ -78,8 +88,54 @@ export interface LinkNode {
   children: Inline[];
 }
 
+/**
+ * A link or an image whose destination is a registered attachment with its
+ * bytes on disk. `kind` comes from the record's media type, not from how the
+ * link was written: a plain link to a screenshot is still a picture, which is
+ * why the CLI can print one link form for every file.
+ */
+export interface AttachmentNode {
+  type: "attachment";
+  kind: "image" | "video" | "file";
+  attachment: Attachment;
+  /** The link's own text — an image's alt — or the record's name without one. */
+  alt: string;
+}
+
+/**
+ * A link into `attachments/` that no live record backs. `removed` when the
+ * bytes are still there with no record naming them — an orphan, which is what
+ * a removal leaves — and otherwise unavailable: a record whose file is gone, or
+ * a file nobody attached. Kept on screen as a word, never dropped.
+ */
+export interface UnavailableAttachmentNode {
+  type: "unavailableAttachment";
+  removed: boolean;
+  /** The record's name, or the file's own when no record names it. */
+  name: string;
+}
+
 export type Inline =
-  TextNode | BreakNode | CodeSpanNode | StrongNode | EmphasisNode | LinkNode;
+  | TextNode
+  | BreakNode
+  | CodeSpanNode
+  | StrongNode
+  | EmphasisNode
+  | LinkNode
+  | AttachmentNode
+  | UnavailableAttachmentNode;
+
+/**
+ * What a ticket holds, for resolving its own links: the registry, and the two
+ * broken states the detail read already reports.
+ */
+export interface AttachmentIndex {
+  attachments: Attachment[];
+  /** Ids of records whose bytes are gone. */
+  missing: string[];
+  /** `attachments/<name>` files that no record names. */
+  orphans: string[];
+}
 
 export interface HeadingBlock {
   type: "heading";
@@ -171,11 +227,26 @@ const TABLE_DELIMITER =
 const CLOSING_HASHES = /[ \t]+#+$/;
 const ESCAPABLE = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/;
 
+/**
+ * A file directly inside the ticket's `attachments/` folder, as the app and
+ * the CLI write it (`./attachments/<file>`) or without the `./`. One segment:
+ * a sub-folder is not a thing the format registers.
+ */
+const ATTACHMENT_DESTINATION = /^(?:\.\/)?attachments\/([^/]+)$/;
+
 /** Destinations the app is willing to turn into a navigable anchor. */
 const SAFE_SCHEME = /^(?:https?|mailto):/i;
 const ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
-export function parseMarkdown(source: string): Block[] {
+/**
+ * `attachments` is the ticket the source belongs to. Without it — release
+ * notes, anything that is not a ticket's own text — no destination resolves to
+ * an attachment and the policy is exactly the one before LC-206.
+ */
+export function parseMarkdown(
+  source: string,
+  attachments?: AttachmentIndex,
+): Block[] {
   const lines = source.split("\n");
   const blocks: Block[] = [];
   let index = 0;
@@ -196,22 +267,22 @@ export function parseMarkdown(source: string): Block[] {
       blocks.push({
         type: "heading",
         level: atx[1].length,
-        children: parseInline(text),
+        children: parseInline(text, attachments),
       });
       index += 1;
       continue;
     }
     if (QUOTE.test(line)) {
-      index = readQuote(lines, index, blocks);
+      index = readQuote(lines, index, blocks, attachments);
       continue;
     }
     if (BULLET.test(line) || ORDERED.test(line)) {
-      index = readList(lines, index, blocks);
+      index = readList(lines, index, blocks, attachments);
       continue;
     }
     index = startsTable(lines, index)
-      ? readTable(lines, index, blocks)
-      : readParagraph(lines, index, blocks);
+      ? readTable(lines, index, blocks, attachments)
+      : readParagraph(lines, index, blocks, attachments);
   }
   return blocks;
 }
@@ -249,7 +320,12 @@ function readFence(
  * indented sub-list keeps its own text and its own marker in the item; it is not
  * nested, and nothing is lost.
  */
-function readList(lines: string[], start: number, blocks: Block[]): number {
+function readList(
+  lines: string[],
+  start: number,
+  blocks: Block[],
+  attachments: AttachmentIndex | undefined,
+): number {
   const ordered = ORDERED.test(lines[start]) && !BULLET.test(lines[start]);
   const marker = ordered ? ORDERED : BULLET;
   /** The ordered marker captures its number first, so the text shifts along. */
@@ -268,9 +344,13 @@ function readList(lines: string[], start: number, blocks: Block[]): number {
         ? {
             task: true,
             checked: task[1].toLowerCase() === "x",
-            children: parseInline(task[2]),
+            children: parseInline(task[2], attachments),
           }
-        : { task: false, checked: false, children: parseInline(text) },
+        : {
+            task: false,
+            checked: false,
+            children: parseInline(text, attachments),
+          },
     );
     index += 1;
   }
@@ -289,7 +369,12 @@ function readList(lines: string[], start: number, blocks: Block[]): number {
  * CommonMark's lazy continuation would absorb it, and under-quoting one line is
  * a smaller lie than quoting a line its author did not mark.
  */
-function readQuote(lines: string[], start: number, blocks: Block[]): number {
+function readQuote(
+  lines: string[],
+  start: number,
+  blocks: Block[],
+  attachments: AttachmentIndex | undefined,
+): number {
   const inner: string[] = [];
   let index = start;
   while (index < lines.length) {
@@ -300,7 +385,7 @@ function readQuote(lines: string[], start: number, blocks: Block[]): number {
   }
   blocks.push({
     type: "blockquote",
-    children: parseMarkdown(inner.join("\n")),
+    children: parseMarkdown(inner.join("\n"), attachments),
   });
   return index;
 }
@@ -314,6 +399,7 @@ function readParagraph(
   lines: string[],
   start: number,
   blocks: Block[],
+  attachments: AttachmentIndex | undefined,
 ): number {
   const body = [lines[start]];
   let index = start + 1;
@@ -325,7 +411,10 @@ function readParagraph(
     body.push(lines[index]);
     index += 1;
   }
-  blocks.push({ type: "paragraph", children: parseInline(body.join("\n")) });
+  blocks.push({
+    type: "paragraph",
+    children: parseInline(body.join("\n"), attachments),
+  });
   return index;
 }
 
@@ -370,7 +459,12 @@ function startsTable(lines: string[], index: number): boolean {
  * is a block — no fence, no list, no nested table — which is GFM's own rule and
  * also the whole reason a cell can stay `Inline[]`.
  */
-function readTable(lines: string[], start: number, blocks: Block[]): number {
+function readTable(
+  lines: string[],
+  start: number,
+  blocks: Block[],
+  attachments: AttachmentIndex | undefined,
+): number {
   // The delimiter row is taken on `startsTable`'s word: a table written without
   // leading pipes has a `- | -` under it, which `interruptsParagraph` would
   // read as a bullet.
@@ -398,7 +492,7 @@ function readTable(lines: string[], start: number, blocks: Block[]): number {
     alignments.length,
   );
   const square = (cells: string[]): TableRow => ({
-    cells: pad(cells, width, "").map(parseInline),
+    cells: pad(cells, width, "").map((cell) => parseInline(cell, attachments)),
   });
   blocks.push({
     type: "table",
@@ -482,7 +576,10 @@ function readAlignment(spec: string): ColumnAlignment {
   return null;
 }
 
-export function parseInline(source: string): Inline[] {
+export function parseInline(
+  source: string,
+  attachments?: AttachmentIndex,
+): Inline[] {
   const nodes: Inline[] = [];
   let text = "";
   let index = 0;
@@ -532,10 +629,17 @@ export function parseInline(source: string): Inline[] {
     }
     // An image is link-shaped, so it has to be recognised to be left alone:
     // otherwise its `!` would separate from a link the app would then render.
+    // The one image that is drawn is the ticket's own attachment.
     if (char === "!" && next === "[") {
       const image = matchLink(source, index + 1);
       if (image) {
-        text += source.slice(index, image.end);
+        const attachment = attachmentNode(image, attachments);
+        if (attachment) {
+          flush();
+          nodes.push(attachment);
+        } else {
+          text += source.slice(index, image.end);
+        }
         index = image.end;
         continue;
       }
@@ -543,14 +647,22 @@ export function parseInline(source: string): Inline[] {
     if (char === "[") {
       const link = matchLink(source, index);
       if (link) {
+        const attachment = attachmentNode(link, attachments);
         const href = linkHref(link.destination);
-        if (href === undefined) {
+        if (attachment) {
+          flush();
+          nodes.push(attachment);
+        } else if (href === undefined) {
           // A destination the app will not follow keeps its own markdown, so
           // both halves stay on screen and nothing is lost.
           text += source.slice(index, link.end);
         } else {
           flush();
-          nodes.push({ type: "link", href, children: parseInline(link.text) });
+          nodes.push({
+            type: "link",
+            href,
+            children: parseInline(link.text, attachments),
+          });
         }
         index = link.end;
         continue;
@@ -563,7 +675,7 @@ export function parseInline(source: string): Inline[] {
         flush();
         nodes.push({
           type: run === 2 ? "strong" : "emphasis",
-          children: parseInline(source.slice(index + run, close)),
+          children: parseInline(source.slice(index + run, close), attachments),
         });
         index = close + run;
         continue;
@@ -581,10 +693,11 @@ export function parseInline(source: string): Inline[] {
  * renders as its own markdown text instead.
  *
  * Three destinations are refused, each for its own reason. A `javascript:` URL
- * is the obvious one. A relative path points inside the ticket directory, which
- * v0 has no attachment UI to open (ADR 0005) and which the webview would resolve
- * against `tauri://` and navigate the whole app to. A protocol-relative `//host`
- * does the same thing more quietly.
+ * is the obvious one. A relative path is never an anchor: the webview would
+ * resolve it against `tauri://` and navigate the whole app to it, so the one
+ * relative destination that renders — the ticket's own attachment — becomes its
+ * own node in `attachmentNode` and never reaches here. A protocol-relative
+ * `//host` does the same thing more quietly.
  */
 export function linkHref(destination: string): string | undefined {
   // Control characters and spaces go before the scheme is read, so a tab
@@ -595,6 +708,46 @@ export function linkHref(destination: string): string | undefined {
   if (href === "" || href.startsWith("//")) return undefined;
   if (!ANY_SCHEME.test(href)) return undefined;
   return SAFE_SCHEME.test(href) ? href : undefined;
+}
+
+/**
+ * The node a link into the ticket's own `attachments/` folder becomes, or
+ * `undefined` for any other destination — including `..`, which the pattern
+ * would otherwise take for a file name.
+ */
+function attachmentNode(
+  link: LinkMatch,
+  attachments: AttachmentIndex | undefined,
+): AttachmentNode | UnavailableAttachmentNode | undefined {
+  if (attachments === undefined) return undefined;
+  const name = ATTACHMENT_DESTINATION.exec(link.destination)?.[1];
+  if (name === undefined || name === "." || name === "..") return undefined;
+  const file = `attachments/${name}`;
+  const record = attachments.attachments.find(
+    (attachment) => attachment.file === file,
+  );
+  if (record && !attachments.missing.includes(record.id)) {
+    return {
+      type: "attachment",
+      kind: attachmentKind(record.mediaType),
+      attachment: record,
+      alt: link.text || record.name,
+    };
+  }
+  // The file's name rather than the link's words: what is broken is a file,
+  // and `render.unavailable.title` says which one.
+  return {
+    type: "unavailableAttachment",
+    removed: record === undefined && attachments.orphans.includes(file),
+    name: record?.name ?? name,
+  };
+}
+
+/** Text is never inlined, and nor is anything that is not a picture or a film. */
+function attachmentKind(mediaType: string): AttachmentNode["kind"] {
+  if (mediaType.startsWith("image/")) return "image";
+  if (mediaType.startsWith("video/")) return "video";
+  return "file";
 }
 
 function runLength(source: string, start: number, char: string): number {

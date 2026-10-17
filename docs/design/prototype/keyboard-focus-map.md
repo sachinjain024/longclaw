@@ -273,3 +273,25 @@ order back, because the numbers on the rows *are* the order.
   lists that are *not* a board — the panel's checklist (LC-185) and the
   sidebar (LC-260j) — each bind `⌥↑`/`⌥↓` on the focused row.
 - `New terminal` command exists but is disabled until Phase 2.
+
+## Attachments and References (LC-206)
+
+Settled in LC-206's prototype review (2026-10-15); not built yet. The decisions
+and copy are in `.longclaw/tickets/LC-206/ticket.md`.
+
+- **Attach** is the seventh button of the formatting toolbar, after a hairline,
+  inside the group's one roving tab stop (`←`/`→` reach it), in the description
+  editor, the composer and the create panel. `Enter`/`Space` raise the picker.
+- **⌘V** in the description, the composer or quick create attaches a copied
+  file; with plain text on the clipboard it pastes text, as today.
+- **References** heading is a toggle button (`aria-expanded`), its own Tab
+  stop; **Add** after it is a menu button (_Attach a file…_, _Add a
+  reference…_).
+- Each References row is one Tab stop: its **⋮** menu button, which opens the
+  row's menu with the app's menu keys. _Added in a comment_ is a second stop on
+  rows that have it; it moves focus to that comment. _View all_ follows the
+  fifth row.
+- **⌘Z** after Remove restores the row, as for any ticket edit; the toast's
+  Undo is the pointer path.
+- The image **viewer** closes on `Esc` and returns focus to the image (or the
+  row's ⋮) that opened it.
