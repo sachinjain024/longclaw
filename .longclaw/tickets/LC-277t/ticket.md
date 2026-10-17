@@ -8,7 +8,7 @@ priority: none
 labels:
   - platform
 created_at: 2026-10-16T22:20:35.784Z
-updated_at: 2026-10-17T17:38:20.233Z
+updated_at: 2026-10-17T17:44:33.373Z
 ---
 
 Snapshot of the open Dependabot alerts on sachinjain024/longclaw, taken 2026-10-17: 27 alerts. Logged only — nothing is fixed by this ticket. Each checklist item is one alert, `#<n>` being its number under Security → Dependabot, grouped high → medium → low.
@@ -48,8 +48,8 @@ Tick an item once the alert is closed on GitHub (fixed or dismissed with a reaso
 - [x] #54 [high] source-map-js (apps/website) — source-map-js allows event-loop denial of service through indexed source-map section offsets (>= 1.0.0, < 1.2.2; fix 1.2.2) <!-- longclaw:item=ck_fa3fd40e -->
 - [x] #51 [high] source-map-js (apps/desktop) — source-map-js allows event-loop denial of service through indexed source-map section offsets (>= 1.0.0, < 1.2.2; fix 1.2.2) <!-- longclaw:item=ck_10eea202 -->
 - [ ] #55 [medium] smol-toml (apps/website) — smol-toml: Quadratic-time parse() from parseKey rescanning to end of document on each key line (<= 1.8.0; fix 1.9.0) <!-- longclaw:item=ck_62c6b161 -->
-- [ ] #50 [medium] brace-expansion (apps/desktop) — brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service (< 1.1.21; fix 1.1.21) <!-- longclaw:item=ck_f09519cc -->
-- [ ] #49 [medium] brace-expansion (apps/desktop) — brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service (>= 4.0.0, < 5.0.12; fix 5.0.12) <!-- longclaw:item=ck_899d6884 -->
+- [x] #50 [medium] brace-expansion (apps/desktop) — brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service (< 1.1.21; fix 1.1.21) <!-- longclaw:item=ck_f09519cc -->
+- [x] #49 [medium] brace-expansion (apps/desktop) — brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service (>= 4.0.0, < 5.0.12; fix 5.0.12) <!-- longclaw:item=ck_899d6884 -->
 
 ## Activity
 
@@ -452,6 +452,38 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_cfabc7d9.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1661d8dd
+kind: update
+occurred_at: 2026-10-17T17:44:33.328Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_899d6884.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_33a1a1a7
+kind: update
+occurred_at: 2026-10-17T17:44:33.373Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f09519cc.checked
     from: "false"
     to: "true"
 -->
