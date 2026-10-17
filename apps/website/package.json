@@ -30,5 +30,8 @@
   },
   "devDependencies": {
     "@fontsource/ibm-plex-sans": "^5.3.0"
+  },
+  "overrides": {
+    "fflate": "0.7.5"
   }
 }
