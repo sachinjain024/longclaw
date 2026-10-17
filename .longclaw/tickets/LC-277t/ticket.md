@@ -8,7 +8,7 @@ priority: none
 labels:
   - platform
 created_at: 2026-10-16T22:20:35.784Z
-updated_at: 2026-10-17T17:48:46.736Z
+updated_at: 2026-10-17T17:51:58.948Z
 ---
 
 Snapshot of the open Dependabot alerts on sachinjain024/longclaw, taken 2026-10-17: 27 alerts. Logged only — nothing is fixed by this ticket. Each checklist item is one alert, `#<n>` being its number under Security → Dependabot, grouped high → medium → low.
@@ -22,13 +22,13 @@ Tick an item once the alert is closed on GitHub (fixed or dismissed with a reaso
 - [x] #40 [high] devalue (apps/website) — devalue: `stringify`/`uneval` serialize shared memory (>= 5.1.0, <= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_dbbc7ef0 -->
 - [x] #39 [high] devalue (apps/website) — devalue: stringifyAsync can cause an unhandled rejection despite a caught returned promise (>= 5.8.0, <= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_f98acec6 -->
 - [x] #16 [high] fast-uri (apps/website) — fast-uri vulnerable to host confusion via an unclosed bracket in the URI authority (= 3.1.6; fix 3.1.7) <!-- longclaw:item=ck_48a0e758 -->
-- [ ] #45 [high] http-cache-semantics (apps/website) — http-cache-semantics max-stale handling can disclose cross-user cached responses (<= 4.2.0; no patched version) <!-- longclaw:item=ck_a328f3a0 -->
+- [x] #45 [high] http-cache-semantics (apps/website) — http-cache-semantics max-stale handling can disclose cross-user cached responses (<= 4.2.0; no patched version) <!-- longclaw:item=ck_a328f3a0 -->
 - [x] #25 [high] undici (apps/website) — undici vulnerable to Denial of Service via unrequested WebSocket subprotocol (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_b01e2d62 -->
 - [x] #22 [high] undici (apps/website) — undici vulnerable to TLS certificate validation bypass via dropped connect options in BalancedPool (>= 8.0.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_17c42019 -->
 - [x] #19 [high] undici (apps/website) — undici vulnerable to cross-origin cache poisoning via missing origin isolation in interceptors (>= 8.10.0, < 8.10.2; fix 8.10.2) <!-- longclaw:item=ck_875a6ce1 -->
 - [ ] #36 [medium] undici (apps/desktop) — undici vulnerable to cross-user cookie disclosure via Set-Cookie caching in shared caches (>= 7.0.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_9a556d7a -->
 - [ ] #31 [medium] undici (apps/desktop) — undici vulnerable to Denial of Service via orphaned RetryHandler response body (>= 7.11.0, < 7.29.1; fix 7.29.1) <!-- longclaw:item=ck_d7022063 -->
-- [ ] #2 [medium] glib (apps/desktop/src-tauri) — Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter` (>= 0.15.0, < 0.20.0; fix 0.20.0) <!-- longclaw:item=ck_009941f3 -->
+- [x] #2 [medium] glib (apps/desktop/src-tauri) — Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter` (>= 0.15.0, < 0.20.0; fix 0.20.0) <!-- longclaw:item=ck_009941f3 -->
 - [x] #44 [medium] devalue (apps/website) — devalue: Residual sparse-array CPU amplification in uneval (<= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_eb75f10c -->
 - [x] #42 [medium] devalue (apps/website) — devalue: Malformed null-prototype object keys bypass __proto__ rejection via property-key coercion (<= 5.9.2; fix 5.9.3) <!-- longclaw:item=ck_897d816b -->
 - [x] #7 [medium] fflate (apps/website) — fflate unzipSync can enter an infinite loop when parsing malformed ZIP64 archives (>= 0.7.0, < 0.7.5; fix 0.7.5) <!-- longclaw:item=ck_cfabc7d9 -->
@@ -500,6 +500,38 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_62c6b161.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c545d1d7
+kind: update
+occurred_at: 2026-10-17T17:51:58.881Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a328f3a0.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1ff15716
+kind: update
+occurred_at: 2026-10-17T17:51:58.948Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_009941f3.checked
     from: "false"
     to: "true"
 -->
