@@ -9,12 +9,12 @@ labels:
   - frontend
   - design
 created_at: 2026-10-16T06:49:12.619Z
-updated_at: 2026-10-16T22:20:25.891Z
+updated_at: 2026-10-22T08:40:36.709Z
 ---
 
-Follow-up to LC-206. Attachments render in place only for images and videos. Every other file is a chip that hands off to the default macOS app:
+Follow-up to LC-206. Blocked by LC-280x for PDFs. Attachments render in place only for images and videos. Every other file is a chip that hands off to the default macOS app:
 
-- **PDF.** Not one of the format's media-type families (`media_type` returns `None` for `%PDF-`), and not on the open allow-list. A PDF attachment is a chip with no type, and **Open** refuses it.
+- **PDF.** Can't be attached at all yet: the format carries only images, text and video. LC-280x makes PDFs attachable and opens them in Preview, and this ticket adds viewing them in the app.
 - **Markdown** (`.md`, `.markdown`). On the allow-list, so Open hands it to another app. Nothing shows it inside LongClaw.
 - **HTML** (prototypes). Kept off the allow-list on purpose, because Safari runs their scripts.
 - **Text** (`.txt`, `.log`, `.csv`, `.json`, …). Opens in another app, with nothing in LongClaw.
@@ -36,7 +36,6 @@ Follow-up to LC-206. Attachments render in place only for images and videos. Eve
 
 ## Acceptance criteria (draft)
 
-- [ ] A PDF attachment is recognised as one: its media type is recorded and shown on the chip and in References.
 - [ ] Activating a PDF, Markdown or HTML attachment link opens it in the in-app browser to the right of the ticket panel.
 - [ ] Markdown is shown rendered by the app's own renderer. Links and remote images inside it are not followed or loaded.
 - [ ] Nothing shown in the browser can reach the network, which `audit:network` confirms.
@@ -93,4 +92,20 @@ changes:
 ### Claude Code updated this ticket
 
 Direction changed: HTML, PDF and Markdown will open in an in-app browser to the right of the ticket panel, to be handled later. HTML is now in scope, through the browser only. Relabelled from ready-for-agent to design, because the pane's design isn't settled.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9ada7fdc
+kind: update
+occurred_at: 2026-10-22T08:40:36.709Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Corrected: a PDF can't be attached at all today, it isn't attached-but-unopenable. Attaching PDFs is now LC-280x, which this ticket's PDF viewing waits on.
 <!-- /longclaw:event -->

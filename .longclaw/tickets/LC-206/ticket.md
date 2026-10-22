@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-15T13:47:19.252Z
+updated_at: 2026-10-22T08:41:03.500Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -142,8 +142,8 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open <!-- longclaw:item=ck_8c2b2bef -->
 - [ ] Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it <!-- longclaw:item=ck_b136d98b -->
 - [ ] Open item · test that an archived ticket's attachment links still render and serve (story 39) <!-- longclaw:item=ck_3c15004e -->
-- [ ] Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens <!-- longclaw:item=ck_858c3bc0 -->
-- [ ] Open item · run npm run audit:network on a built bundle, offline and online, before release (new URI scheme) <!-- longclaw:item=ck_6a95d5b1 -->
+- [x] Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens — done: checked by hand in the running app on 2026-10-22 <!-- longclaw:item=ck_858c3bc0 -->
+- [x] Open item · run npm run audit:network on a built bundle — skipped for this PR by decision (2026-10-22): too much manual work <!-- longclaw:item=ck_6a95d5b1 -->
 - [x] Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html <!-- longclaw:item=ck_fef87636 -->
 - [ ] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass) <!-- longclaw:item=ck_b585edab -->
 - [ ] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — confirm or add rows <!-- longclaw:item=ck_a135eea2 -->
@@ -155,10 +155,10 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile <!-- longclaw:item=ck_876e059e -->
 - [ ] Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict <!-- longclaw:item=ck_bcde4f1c -->
 - [ ] Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group (existing A1–A8 pass) <!-- longclaw:item=ck_53819021 -->
-- [ ] Question · should a doc reference open in its default app? A spec (.md) opens in an editor, but a prototype (.html) opens in Safari, which the file-chip allow-list refuses — decide one rule for chips and doc rows <!-- longclaw:item=ck_3a8834a1 -->
-- [ ] Question · an older installed LongClaw rewrites .longclaw/AGENTS.md from its own template, dropping the attach and reference guidance this branch adds — should a build leave a generated contract newer than itself alone? <!-- longclaw:item=ck_e78aad3a -->
-- [ ] Question · Undo of a Remove re-opens References and pins the restored row past the five, as any landing does — keep, or treat a restore as not news? <!-- longclaw:item=ck_5472f846 -->
-- [ ] Question · 'Added in a comment' is inferred (the earliest comment linking the file, when the description does not) rather than recorded — is that enough, or should an attach record which comment it came in with? <!-- longclaw:item=ck_00b8c65e -->
+- [x] Question · should a doc reference open in its default app? — answered: .html, .pdf and .md will open in an in-app browser to the right of the ticket panel (LC-277x). Doc rows keep today's allow-list until then <!-- longclaw:item=ck_3a8834a1 -->
+- [x] Question · an older installed LongClaw rewrites .longclaw/AGENTS.md — answered: no change needed, it stops once this branch is released and installed <!-- longclaw:item=ck_e78aad3a -->
+- [x] Question · Undo of a Remove re-opens References and pins the restored row past the five — answered: keep as is, it works well in use (2026-10-22) <!-- longclaw:item=ck_5472f846 -->
+- [x] Question · 'Added in a comment' is inferred from the earliest comment linking the file — answered: inference is enough, no record needed (2026-10-22) <!-- longclaw:item=ck_00b8c65e -->
 - [ ] Open item · 'outside project' is decided in the panel from the shape of the stored path (absolute = outside); a hand-written absolute path inside the project would read as outside — Rust should report it, as it does missingReferences <!-- longclaw:item=ck_54a7f2da -->
 - [ ] Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name' <!-- longclaw:item=ck_f2d9dd25 -->
 - [ ] Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach' <!-- longclaw:item=ck_ba83957e -->
@@ -689,4 +689,210 @@ actor:
 ### Claude Code commented
 
 Follow-up filed: LC-277x, for viewing PDF, Markdown and text attachments inside the app.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1a292c11
+kind: update
+occurred_at: 2026-10-22T08:41:03.164Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_858c3bc0.text
+    from: "Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens"
+    to: "Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens — done: checked by hand in the running app on 2026-10-22"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ca83f051
+kind: update
+occurred_at: 2026-10-22T08:41:03.192Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_858c3bc0.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a0518792
+kind: update
+occurred_at: 2026-10-22T08:41:03.221Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5472f846.text
+    from: Question · Undo of a Remove re-opens References and pins the restored row past the five, as any landing does — keep, or treat a restore as not news?
+    to: "Question · Undo of a Remove re-opens References and pins the restored row past the five — answered: keep as is, it works well in use (2026-10-22)"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6bec9727
+kind: update
+occurred_at: 2026-10-22T08:41:03.245Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5472f846.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_91bd1dc6
+kind: update
+occurred_at: 2026-10-22T08:41:03.267Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_00b8c65e.text
+    from: Question · 'Added in a comment' is inferred (the earliest comment linking the file, when the description does not) rather than recorded — is that enough, or should an attach record which comment it came in with?
+    to: "Question · 'Added in a comment' is inferred from the earliest comment linking the file — answered: inference is enough, no record needed (2026-10-22)"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d84a041c
+kind: update
+occurred_at: 2026-10-22T08:41:03.306Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_00b8c65e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_26f88563
+kind: update
+occurred_at: 2026-10-22T08:41:03.341Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3a8834a1.text
+    from: Question · should a doc reference open in its default app? A spec (.md) opens in an editor, but a prototype (.html) opens in Safari, which the file-chip allow-list refuses — decide one rule for chips and doc rows
+    to: "Question · should a doc reference open in its default app? — answered: .html, .pdf and .md will open in an in-app browser to the right of the ticket panel (LC-277x). Doc rows keep today's allow-list until then"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_35a89d43
+kind: update
+occurred_at: 2026-10-22T08:41:03.366Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3a8834a1.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_08b3309a
+kind: update
+occurred_at: 2026-10-22T08:41:03.405Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e78aad3a.text
+    from: Question · an older installed LongClaw rewrites .longclaw/AGENTS.md from its own template, dropping the attach and reference guidance this branch adds — should a build leave a generated contract newer than itself alone?
+    to: "Question · an older installed LongClaw rewrites .longclaw/AGENTS.md — answered: no change needed, it stops once this branch is released and installed"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_55621759
+kind: update
+occurred_at: 2026-10-22T08:41:03.451Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e78aad3a.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_024d6fd0
+kind: update
+occurred_at: 2026-10-22T08:41:03.473Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_6a95d5b1.text
+    from: Open item · run npm run audit:network on a built bundle, offline and online, before release (new URI scheme)
+    to: "Open item · run npm run audit:network on a built bundle — skipped for this PR by decision (2026-10-22): too much manual work"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ea937cc2
+kind: update
+occurred_at: 2026-10-22T08:41:03.500Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_6a95d5b1.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e09843e9
+kind: comment
+occurred_at: 2026-10-22T08:41:09.811Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review on 2026-10-22. The feature works in the running app. Undo of a Remove and the inferred 'Added in a comment' are kept as they are. Opening doc references waits on LC-277x's in-app browser. The AGENTS.md rewrite stops once this branch ships. audit:network is skipped for this PR. Follow-ups filed: LC-280x (attach PDFs), LC-277x (in-app browser), LC-278f (dev build markers).
 <!-- /longclaw:event -->
