@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-22T13:38:59.161Z
+updated_at: 2026-10-22T14:06:18.430Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -77,6 +77,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 | `render.unavailable` | chip text | a link to an attachment whose file is missing | Unavailable | new |
 | `render.unavailable.aria` | aria-label | the same chip | {name}, unavailable | new |
 | `render.unavailable.title` | title | hover on a Removed or Unavailable chip | {name} — not attached to this ticket, or its file is missing | new |
+| `viewer.meta` | meta | the viewer's header, after the file's name | {type} · {size} | new |
 | `viewer.open` | button | the viewer's header | Open | new |
 | `viewer.reveal` | button / menu row | the viewer's header, and each References row's menu | Show in Finder | new |
 | `viewer.close.aria` | aria-label | the viewer's ✕ (Esc also closes) | Close | new |
@@ -143,31 +144,31 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [x] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
 - [x] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
 - [x] Open item · the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded) — decided 2026-10-22: keep it. Done: such a chip now offers Show in Finder (render.chip.aria.reveal, render.chip.title.reveal), its References row has no Open, and refuse.open is in the deck <!-- longclaw:item=ck_8c2b2bef -->
-- [ ] Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it <!-- longclaw:item=ck_b136d98b -->
-- [ ] Open item · test that an archived ticket's attachment links still render and serve (story 39) <!-- longclaw:item=ck_3c15004e -->
+- [x] Open item · viewer header meta ({type} · {size}) is copy outside the deck — done: added as viewer.meta, the same wording as render.chip.meta <!-- longclaw:item=ck_b136d98b -->
+- [x] Open item · test that an archived ticket's attachment links still render and serve (story 39) — done: an_archived_tickets_attachments_are_still_served (Rust) and a panel test drawing them on an archived ticket <!-- longclaw:item=ck_3c15004e -->
 - [x] Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens — done: checked by hand in the running app on 2026-10-22 <!-- longclaw:item=ck_858c3bc0 -->
 - [x] Open item · run npm run audit:network on a built bundle — skipped for this PR by decision (2026-10-22): too much manual work <!-- longclaw:item=ck_6a95d5b1 -->
 - [x] Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html <!-- longclaw:item=ck_fef87636 -->
-- [ ] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass) <!-- longclaw:item=ck_b585edab -->
+- [x] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove — done: row A9, which passes; its --self-test goes red <!-- longclaw:item=ck_b585edab -->
 - [x] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — decided 2026-10-22: keep them as they are <!-- longclaw:item=ck_a135eea2 -->
 - [ ] Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) <!-- longclaw:item=ck_74e5808b -->
 - [x] Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt) — accepted 2026-10-22: the dialog plugin cannot set it <!-- longclaw:item=ck_d5eae1c0 -->
-- [ ] Open item · held files are lost when quick create's 'Open full editor →' carries the draft over <!-- longclaw:item=ck_52202cc1 -->
-- [ ] Open item · held files attached after Create land in References but no link is added to the description <!-- longclaw:item=ck_34a39e99 -->
-- [ ] Open item · a held file refused after Create is reported in a toast (no field is left to show the row under), against 'no toast for an attach' <!-- longclaw:item=ck_fcf8e3d5 -->
-- [ ] Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile <!-- longclaw:item=ck_876e059e -->
-- [ ] Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict <!-- longclaw:item=ck_bcde4f1c -->
-- [ ] Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group (existing A1–A8 pass) <!-- longclaw:item=ck_53819021 -->
+- [x] Open item · held files are lost when quick create's 'Open full editor →' carries the draft over — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_52202cc1 -->
+- [x] Open item · held files attached after Create land in References but no link is added to the description — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_34a39e99 -->
+- [x] Open item · a held file refused after Create is reported in a toast (no field is left to show the row under), against 'no toast for an attach' — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_fcf8e3d5 -->
+- [x] Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_876e059e -->
+- [x] Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_bcde4f1c -->
+- [x] Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group — done: row A9 reaches it with → and Enter raises the picker <!-- longclaw:item=ck_53819021 -->
 - [x] Question · should a doc reference open in its default app? — answered: .html, .pdf and .md will open in an in-app browser to the right of the ticket panel (LC-277x). Doc rows keep today's allow-list until then <!-- longclaw:item=ck_3a8834a1 -->
 - [x] Question · an older installed LongClaw rewrites .longclaw/AGENTS.md — answered: no change needed, it stops once this branch is released and installed <!-- longclaw:item=ck_e78aad3a -->
 - [x] Question · Undo of a Remove re-opens References and pins the restored row past the five — answered: keep as is, it works well in use (2026-10-22) <!-- longclaw:item=ck_5472f846 -->
 - [x] Question · 'Added in a comment' is inferred from the earliest comment linking the file — answered: inference is enough, no record needed (2026-10-22) <!-- longclaw:item=ck_00b8c65e -->
-- [ ] Open item · 'outside project' is decided in the panel from the shape of the stored path (absolute = outside); a hand-written absolute path inside the project would read as outside — Rust should report it, as it does missingReferences <!-- longclaw:item=ck_54a7f2da -->
-- [ ] Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name' <!-- longclaw:item=ck_f2d9dd25 -->
-- [ ] Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach' <!-- longclaw:item=ck_ba83957e -->
+- [x] Open item · 'outside project' was decided in the panel from the shape of the stored path — done: Rust reports outsideReferences by where the path leads, so a hand-written absolute path inside the project reads as inside <!-- longclaw:item=ck_54a7f2da -->
+- [x] Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name' — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_f2d9dd25 -->
+- [x] Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach' — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_ba83957e -->
 - [x] Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt) — accepted 2026-10-22: the dialog plugin cannot set it <!-- longclaw:item=ck_88e6c5a4 -->
-- [ ] Open item · extend a11y:audit with a row for the References Add menu <!-- longclaw:item=ck_a411dde4 -->
-- [ ] Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall <!-- longclaw:item=ck_cf258070 -->
+- [x] Open item · extend a11y:audit with a row for the References Add menu — done: row A9 opens it with Enter, reads both items, and Esc returns focus to Add <!-- longclaw:item=ck_a411dde4 -->
+- [x] Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_cf258070 -->
 
 ## Ticket References
 
@@ -1052,6 +1053,482 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_8c2b2bef.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d8348314
+kind: update
+occurred_at: 2026-10-22T13:59:32.493Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_52202cc1.text
+    from: Open item · held files are lost when quick create's 'Open full editor →' carries the draft over
+    to: Open item · held files are lost when quick create's 'Open full editor →' carries the draft over — moved to LC-281m (2026-10-22)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5fc7b4bf
+kind: update
+occurred_at: 2026-10-22T13:59:32.519Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_52202cc1.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0b589b2e
+kind: update
+occurred_at: 2026-10-22T13:59:32.551Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_34a39e99.text
+    from: Open item · held files attached after Create land in References but no link is added to the description
+    to: Open item · held files attached after Create land in References but no link is added to the description — moved to LC-281m (2026-10-22)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1786428b
+kind: update
+occurred_at: 2026-10-22T13:59:32.572Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_34a39e99.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_577cfe2a
+kind: update
+occurred_at: 2026-10-22T13:59:32.601Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_fcf8e3d5.text
+    from: Open item · a held file refused after Create is reported in a toast (no field is left to show the row under), against 'no toast for an attach'
+    to: Open item · a held file refused after Create is reported in a toast (no field is left to show the row under), against 'no toast for an attach' — moved to LC-281m (2026-10-22)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_44679382
+kind: update
+occurred_at: 2026-10-22T13:59:32.622Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_fcf8e3d5.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3675d21e
+kind: update
+occurred_at: 2026-10-22T13:59:32.659Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_876e059e.text
+    from: Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile
+    to: Open item · full create opens the panel only after every held file is attached, with nothing on screen saying so meanwhile — moved to LC-281m (2026-10-22)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ee2cd1b4
+kind: update
+occurred_at: 2026-10-22T13:59:32.683Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_876e059e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ddfeb895
+kind: update
+occurred_at: 2026-10-22T13:59:32.733Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bcde4f1c.text
+    from: Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict
+    to: Open item · the read after an attach keeps drafts and is treated as the panel's own write, so an outside edit landing in that window is not raised as a conflict — moved to LC-281m (2026-10-22)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_73b6418d
+kind: update
+occurred_at: 2026-10-22T13:59:32.758Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bcde4f1c.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_14b3d57f
+kind: update
+occurred_at: 2026-10-22T13:59:32.789Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f2d9dd25.text
+    from: Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name'
+    to: Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name' — moved to LC-281m (2026-10-22)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f4b8a458
+kind: update
+occurred_at: 2026-10-22T13:59:32.813Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f2d9dd25.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d4c638d0
+kind: update
+occurred_at: 2026-10-22T13:59:32.852Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_ba83957e.text
+    from: Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach'
+    to: Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach' — moved to LC-281m (2026-10-22)
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_734544f5
+kind: update
+occurred_at: 2026-10-22T13:59:32.874Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_ba83957e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7f7443f0
+kind: update
+occurred_at: 2026-10-22T13:59:32.907Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_cf258070.text
+    from: "Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall"
+    to: "Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall — moved to LC-281m (2026-10-22)"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e6bfd4f3
+kind: update
+occurred_at: 2026-10-22T13:59:32.929Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_cf258070.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_67cbee26
+kind: comment
+occurred_at: 2026-10-22T13:59:32.954Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Moved eight open items to LC-281m: the create-with-held-files gaps, the Add-menu refusal toast, the missed conflict after an attach, the drop-label overlay and symlinked references.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7a59a542
+kind: update
+occurred_at: 2026-10-22T13:59:48.422Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8636785a
+kind: update
+occurred_at: 2026-10-22T13:59:48.449Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b136d98b.text
+    from: "Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it"
+    to: "Open item · viewer header meta ({type} · {size}) is copy outside the deck — done: added as viewer.meta, the same wording as render.chip.meta"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d63e16d8
+kind: update
+occurred_at: 2026-10-22T13:59:48.475Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b136d98b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_02bd8950
+kind: update
+occurred_at: 2026-10-22T14:06:18.197Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3c15004e.text
+    from: Open item · test that an archived ticket's attachment links still render and serve (story 39)
+    to: "Open item · test that an archived ticket's attachment links still render and serve (story 39) — done: an_archived_tickets_attachments_are_still_served (Rust) and a panel test drawing them on an archived ticket"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_349937f3
+kind: update
+occurred_at: 2026-10-22T14:06:18.222Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3c15004e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_83d1d94a
+kind: update
+occurred_at: 2026-10-22T14:06:18.249Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b585edab.text
+    from: Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass)
+    to: "Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove — done: row A9, which passes; its --self-test goes red"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1e658207
+kind: update
+occurred_at: 2026-10-22T14:06:18.273Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b585edab.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ff910263
+kind: update
+occurred_at: 2026-10-22T14:06:18.294Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_53819021.text
+    from: Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group (existing A1–A8 pass)
+    to: "Open item · extend a11y:audit with a row for the Attach button in the toolbar's roving group — done: row A9 reaches it with → and Enter raises the picker"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_58a121ec
+kind: update
+occurred_at: 2026-10-22T14:06:18.318Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_53819021.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4bb2cfb4
+kind: update
+occurred_at: 2026-10-22T14:06:18.343Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a411dde4.text
+    from: Open item · extend a11y:audit with a row for the References Add menu
+    to: "Open item · extend a11y:audit with a row for the References Add menu — done: row A9 opens it with Enter, reads both items, and Esc returns focus to Add"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ca2a0b2c
+kind: update
+occurred_at: 2026-10-22T14:06:18.372Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a411dde4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ca7d2ea7
+kind: update
+occurred_at: 2026-10-22T14:06:18.405Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_54a7f2da.text
+    from: Open item · 'outside project' is decided in the panel from the shape of the stored path (absolute = outside); a hand-written absolute path inside the project would read as outside — Rust should report it, as it does missingReferences
+    to: "Open item · 'outside project' was decided in the panel from the shape of the stored path — done: Rust reports outsideReferences by where the path leads, so a hand-written absolute path inside the project reads as inside"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0e2c1b15
+kind: update
+occurred_at: 2026-10-22T14:06:18.430Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_54a7f2da.checked
     from: "false"
     to: "true"
 -->

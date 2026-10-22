@@ -389,6 +389,9 @@ export interface TicketDetail {
   orphanAttachments: OrphanAttachment[];
   /** References whose path does not resolve, by id. The record is kept. */
   missingReferences: string[];
+  /** References whose file lies outside the project, by id — decided in
+   *  Rust from where the path leads, not from its shape. */
+  outsideReferences: string[];
   /** Records whose file macOS might run rather than show, by id: Open
    * refuses them, so their chip offers Show in Finder instead. */
   unopenableAttachments: string[];

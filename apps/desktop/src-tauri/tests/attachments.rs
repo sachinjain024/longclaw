@@ -507,6 +507,35 @@ fn an_orphan_is_reattached_in_place_without_a_copy() {
 }
 
 #[test]
+fn an_archived_tickets_attachments_are_still_served() {
+    let project = Project::new();
+    let shot = project.attached(PNG, "shot.png");
+    project.edited(TicketEdit {
+        archived: Some(true),
+        ..TicketEdit::default()
+    });
+    assert!(project
+        .detail()
+        .ticket
+        .expect("the ticket still reads")
+        .is_archived());
+
+    // Story 39: archived context is still readable — the scheme still serves
+    // the file and Open still reaches it.
+    let (path, record) = attachments::registered_attachment(
+        &project.root,
+        "AT",
+        &project.key,
+        &shot.attachment.file,
+    )
+    .expect("an archived ticket's attachment is still served");
+    assert_eq!(record.id, shot.attachment.id);
+    assert_eq!(fs::read(path).unwrap(), PNG);
+    attachments::attachment_to_open(&project.root, "AT", &project.key, &shot.attachment.file)
+        .expect("and still opens");
+}
+
+#[test]
 fn the_detail_names_the_attachments_open_would_refuse() {
     let project = Project::new();
     let shot = project.attached(PNG, "shot.png");
@@ -663,6 +692,48 @@ fn references(detail: &TicketDetail) -> Vec<String> {
         .iter()
         .map(|reference| reference.path.clone())
         .collect()
+}
+
+#[test]
+fn the_detail_says_which_references_are_outside_the_project() {
+    let project = Project::new();
+    let spec = project.root.join("docs/specs/AT-1-spec.md");
+    fs::create_dir_all(spec.parent().unwrap()).unwrap();
+    fs::write(&spec, "# Spec\n").unwrap();
+    let outside_dir = tempfile::tempdir().unwrap();
+    let outside = outside_dir.path().join("flows.txt");
+    fs::write(&outside, "flows\n").unwrap();
+    commit(&add_reference(&project, spec.to_str().unwrap()).unwrap());
+    commit(&add_reference(&project, outside.to_str().unwrap()).unwrap());
+
+    // Someone writes the spec's path by hand, absolute but still inside the
+    // project. Its shape says outside; the file says inside.
+    let ticket_md = project.ticket_dir().join("ticket.md");
+    let absolute = project
+        .root
+        .canonicalize()
+        .unwrap()
+        .join("docs/specs/AT-1-spec.md");
+    let raw = fs::read_to_string(&ticket_md).unwrap().replace(
+        "path: docs/specs/AT-1-spec.md",
+        &format!("path: {}", absolute.display()),
+    );
+    fs::write(&ticket_md, raw).unwrap();
+
+    let detail = project.detail();
+    let ticket = detail.ticket.as_ref().unwrap();
+    let id_of = |end: &str| {
+        ticket
+            .references
+            .iter()
+            .find(|reference| reference.path.ends_with(end))
+            .unwrap()
+            .id
+            .clone()
+    };
+    assert!(ticket.references[0].path.starts_with('/'));
+    assert_eq!(detail.outside_references, vec![id_of("flows.txt")]);
+    assert!(!detail.outside_references.contains(&id_of("AT-1-spec.md")));
 }
 
 #[test]

@@ -31,6 +31,7 @@ function detail(activity: ActivityEvent[]): TicketDetail {
     missingAttachments: [],
     orphanAttachments: [],
     missingReferences: [],
+    outsideReferences: [],
     unopenableAttachments: [],
     ticket: {
       id: "id",

@@ -119,9 +119,9 @@ export function referenceRows(detail: TicketDetail): ReferenceRow[] {
     key: reference.id,
     reference,
     missing: detail.missingReferences.includes(reference.id),
-    // The format stores a path inside the project relative to it, and only
-    // one outside it absolute — so the shape of the path is the answer.
-    outside: reference.path.startsWith("/"),
+    // Rust follows the path: one written by hand can be absolute and still
+    // lie inside the project.
+    outside: detail.outsideReferences.includes(reference.id),
   }));
   return [...files, ...orphans, ...docs];
 }

@@ -50,7 +50,7 @@ const argument = (name, fallback) => {
  * small enough that a lifecycle step is not waiting on 5,000 rows.
  */
 const TICKETS = Number(argument("tickets", "600"));
-const ONLY = argument("only", "A1,A2,A3,A4,A5,A6,A7,A8").split(",");
+const ONLY = argument("only", "A1,A2,A3,A4,A5,A6,A7,A8,A9").split(",");
 const SELF_TEST = process.argv.includes("--self-test");
 /** 1440×900 is the matrix's window; halving the CSS viewport is A5's 200%. */
 const VIEWPORT = { width: 1_440, height: 900 };
@@ -2074,6 +2074,182 @@ async function auditSidebarOrder(browser) {
   }
 }
 
+/* ---------- A9: attachments and references (LC-206) ---------- */
+
+/**
+ * The controls LC-206 added to the panel, walked with the keyboard alone: the
+ * toolbar's Attach button inside its roving group, the References toggle, its
+ * Add menu, a row's `⋮` menu, and where focus lands after Remove takes the row
+ * (and its `⋮`) away. The pickers are macOS panels; the harness answers each
+ * as cancelled and records that it was raised.
+ */
+async function auditAttachments(browser) {
+  row("A9", "Attachments and References are reachable from the keyboard");
+  const { context, page } = await board(browser, {
+    query: { refs: "1" },
+    // Enter and Space swallowed inside the References section and on the
+    // toolbar: everything is still reachable and still labelled, and nothing
+    // opens. That is what a pointer-only control looks like from here.
+    selfTest: (target) =>
+      target.evaluate(() => {
+        document.addEventListener(
+          "keydown",
+          (event) => {
+            const inside = event.target?.closest?.(
+              ".references, [aria-label='Formatting']",
+            );
+            if (inside && (event.key === "Enter" || event.key === " ")) {
+              event.stopImmediatePropagation();
+              event.preventDefault();
+            }
+          },
+          true,
+        );
+      }),
+  });
+  const raised = () => page.evaluate(() => [...window.__longclawRaised]);
+  const menuItems = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll("[role='menu'] [role='menuitem']")].map(
+        (item) => item.textContent.trim(),
+      ),
+    );
+  try {
+    await focusFirstCard(page);
+    await page.keyboard.press("Enter");
+    await settle(page);
+
+    // References: the toggle is its own Tab stop and says whether it is open.
+    const toggle = await tabTo(page, (at) =>
+      at.className.includes("references-toggle"),
+    );
+    check(
+      "the References toggle is reachable by Tab",
+      toggle.found,
+      `${toggle.presses} presses → ${toggle.at.text || toggle.at.tag}`,
+      "keyboard-focus-map.md:287 — the References heading is its own Tab stop",
+    );
+    if (!toggle.found) return;
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const expanded = await page.evaluate(() =>
+      document
+        .querySelector(".references-toggle")
+        ?.getAttribute("aria-expanded"),
+    );
+    check(
+      "Enter on the toggle expands the section",
+      expanded === "true",
+      `aria-expanded=${expanded}`,
+      "keyboard-focus-map.md:287 — a toggle button (`aria-expanded`)",
+    );
+
+    // Add: the next stop, a menu button whose menu reads both ways in.
+    await page.keyboard.press("Tab");
+    const add = await focused(page);
+    check(
+      "Add follows the toggle",
+      add.className.includes("references-add"),
+      `focus=${add.text || add.className}`,
+      "keyboard-focus-map.md:288 — **Add** after it is a menu button",
+    );
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const addItems = await menuItems();
+    check(
+      "Enter on Add opens its menu with both ways in",
+      addItems.some((text) => text.startsWith("Attach a file")) &&
+        addItems.some((text) => text.startsWith("Add a reference")),
+      JSON.stringify(addItems),
+      "keyboard-focus-map.md:288-289 — _Attach a file…_, _Add a reference…_",
+    );
+    await page.keyboard.press("Escape");
+    await settle(page);
+    const back = await focused(page);
+    check(
+      "Esc closes the Add menu and puts focus back on Add",
+      back.className.includes("references-add") &&
+        (await menuItems()).length === 0,
+      `focus=${back.text || back.className}`,
+      "keyboard-focus-map.md:288 — the app's menu keys",
+    );
+
+    // A row: one Tab stop, its `⋮`, and Remove from its menu.
+    const kebab = await tabTo(page, (at) =>
+      at.label.startsWith("Actions for "),
+    );
+    check(
+      "a References row's ⋮ is reachable by Tab",
+      kebab.found,
+      `${kebab.presses} presses → ${kebab.at.label || kebab.at.tag}`,
+      "keyboard-focus-map.md:290 — each References row is one Tab stop: its ⋮",
+    );
+    if (kebab.found) {
+      await page.keyboard.press("Enter");
+      await settle(page);
+      const rowItems = await menuItems();
+      check(
+        "Enter on ⋮ opens the row's menu",
+        rowItems.some((text) => text.startsWith("Remove")),
+        JSON.stringify(rowItems),
+        "keyboard-focus-map.md:290-291 — opens the row's menu with the app's menu keys",
+      );
+      const remove = await tabTo(
+        page,
+        (at) => at.role === "menuitem" && at.text.startsWith("Remove"),
+        8,
+        "ArrowDown",
+      );
+      if (remove.found) {
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(400);
+      }
+      const after = await focused(page);
+      const gone = await page.evaluate(
+        () => !document.querySelector("[aria-label^='Actions for ']"),
+      );
+      check(
+        "after Remove, the row is gone and focus is on the References toggle",
+        remove.found && gone && after.className.includes("references-toggle"),
+        `removed=${gone} focus=${after.text || after.className || after.tag}`,
+        "keyboard-focus-map.md:290 — focus falls to the nearest control still standing",
+      );
+    }
+
+    // Attach: the seventh button of a formatting toolbar's one roving stop —
+    // here the comment composer's, which is always on screen.
+    const toolbar = await tabTo(page, (at) => at.label === "Bold", 40);
+    let attach = toolbar;
+    if (toolbar.found) {
+      attach = await tabTo(
+        page,
+        (at) => at.label === "Attach files",
+        8,
+        "ArrowRight",
+      );
+    }
+    check(
+      "Attach is reached with → inside the toolbar's one Tab stop",
+      toolbar.found && attach.found,
+      `${toolbar.presses} Tabs → ${toolbar.at.label || toolbar.at.tag}, then → ${attach.at.label || attach.at.tag}`,
+      "keyboard-focus-map.md:282-284 — inside the group's one roving tab stop",
+    );
+    if (attach.found) {
+      await page.keyboard.press("Enter");
+      await settle(page);
+    }
+    const asked = await raised();
+    check(
+      "Enter on Attach raises the file picker",
+      asked.includes("choose_files_to_attach"),
+      JSON.stringify(asked),
+      "keyboard-focus-map.md:284 — `Enter`/`Space` raise the picker",
+    );
+  } finally {
+    await context.close();
+  }
+}
+
 const AUDITS = [
   ["A1", auditLifecycle],
   ["A2", auditFocusOrder],
@@ -2083,6 +2259,7 @@ const AUDITS = [
   ["A6", auditPanelResize],
   ["A7", auditUpdates],
   ["A8", auditSidebarOrder],
+  ["A9", auditAttachments],
 ];
 
 async function main() {

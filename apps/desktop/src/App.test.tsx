@@ -859,6 +859,7 @@ describe("the full create surface (V0-16)", () => {
       missingAttachments: [],
       orphanAttachments: [],
       missingReferences: [],
+      outsideReferences: [],
       unopenableAttachments: [],
       ticket: {
         id: "019c8c7e",
@@ -3049,6 +3050,7 @@ describe("the list and the board agree (V0-14)", () => {
       missingAttachments: [],
       orphanAttachments: [],
       missingReferences: [],
+      outsideReferences: [],
       unopenableAttachments: [],
       ticket: {
         id: `id-${key}`,
@@ -3369,6 +3371,7 @@ describe("archive and unarchive (V0-11)", () => {
       missingAttachments: [],
       orphanAttachments: [],
       missingReferences: [],
+      outsideReferences: [],
       unopenableAttachments: [],
       ticket: {
         id: `id-${key}`,
@@ -4286,6 +4289,7 @@ describe("the header filter (V0-15)", () => {
       missingAttachments: [],
       orphanAttachments: [],
       missingReferences: [],
+      outsideReferences: [],
       unopenableAttachments: [],
       ticket: {
         id: `id-${key}`,
@@ -5876,6 +5880,7 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
       missingAttachments: [],
       orphanAttachments: [],
       missingReferences: [],
+      outsideReferences: [],
       unopenableAttachments: [],
       ticket: {
         id: found.id,
@@ -6643,6 +6648,7 @@ describe("switching project by chord (LC-230)", () => {
       missingAttachments: [],
       orphanAttachments: [],
       missingReferences: [],
+      outsideReferences: [],
       unopenableAttachments: [],
       ticket: {
         id: "019c8c7e",

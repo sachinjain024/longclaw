@@ -130,6 +130,7 @@ function detail(options?: {
   missingAttachments?: string[];
   orphanAttachments?: OrphanAttachment[];
   unopenableAttachments?: string[];
+  outsideReferences?: string[];
   references?: TicketReference[];
   /** The four opt-in properties, as raw as a ticket carries them (LC-227). */
   properties?: Partial<
@@ -149,6 +150,7 @@ function detail(options?: {
     orphanAttachments: options?.orphanAttachments ?? [],
     missingReferences: [],
     unopenableAttachments: options?.unopenableAttachments ?? [],
+    outsideReferences: options?.outsideReferences ?? [],
     ticket: {
       id: "019c8c7e",
       key,
@@ -194,6 +196,7 @@ function degradedDetail(options?: {
     missingAttachments: [],
     orphanAttachments: [],
     missingReferences: [],
+    outsideReferences: [],
     unopenableAttachments: [],
     diagnostic: {
       code: options?.readOnly ? "unsupported_version" : "parse_failed",
@@ -3721,6 +3724,32 @@ describe("attachments where the text links them (LC-206)", () => {
     ).toBe("Unavailable");
   });
 
+  it("still draws an archived ticket's attachments (story 39)", async () => {
+    const base = withAttachments(DESCRIPTION);
+    readTicketMock.mockResolvedValue({
+      ...base,
+      ticket: { ...base.ticket!, archivedAt: "2026-10-01T09:00:00Z" },
+    });
+    render(
+      <>
+        {panel({ archived: true })}
+        <ToastStack />
+      </>,
+    );
+    await ready();
+    screen.getByText("archived");
+
+    const image = screen.getByRole("button", {
+      name: "Failure state, image. Open full size",
+    });
+    expect(image.querySelector("img")?.getAttribute("src")).toBe(
+      "longclaw-attachment://localhost/project-1/LC-1/attachments/att_8e31-failure-state.png",
+    );
+    screen.getByRole("button", {
+      name: "console.log, text/plain, 48 KB. Opens in its default app",
+    });
+  });
+
   it("offers Show in Finder, not Open, for a file macOS might run", async () => {
     const SCRIPT = attachment("att_5c11", "fix.command", "text/plain", 120);
     readTicketMock.mockResolvedValue(
@@ -4424,6 +4453,7 @@ describe("doc references (LC-206)", () => {
     readTicketMock.mockResolvedValue({
       ...detail({ references: [SPEC, OLD, FLOWS] }),
       missingReferences: ["ref_2"],
+      outsideReferences: ["ref_3"],
     });
     render(surface());
     await ready();

@@ -472,6 +472,31 @@ pub(crate) fn missing_references(project_root: &Path, ticket: &ticket::Ticket) -
         .collect()
 }
 
+/// References whose file lies outside the project, by id (LC-206), for the
+/// row's _outside project_ tag. Decided from where the path leads rather than
+/// its shape: a path written by hand can be absolute and still inside. A file
+/// that cannot be resolved is judged by its path as written.
+pub(crate) fn outside_references(project_root: &Path, ticket: &ticket::Ticket) -> Vec<String> {
+    let root = project_root
+        .canonicalize()
+        .unwrap_or_else(|_| project_root.to_path_buf());
+    ticket
+        .references
+        .iter()
+        .filter(|reference| {
+            let path = Path::new(&reference.path);
+            let resolved = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                project_root.join(path)
+            };
+            let resolved = resolved.canonicalize().unwrap_or(resolved);
+            !resolved.starts_with(&root) && !resolved.starts_with(project_root)
+        })
+        .map(|reference| reference.id.clone())
+        .collect()
+}
+
 /// The media type `bytes` hold, judged by their content first. The name only
 /// says which kind of text a text file is, and never makes a file text.
 ///
