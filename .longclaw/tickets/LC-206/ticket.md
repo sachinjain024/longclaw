@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 4f1fe43f-02da-42d0-bcd7-ddd11930190b
 key: LC-206
 title: Add Support for adding attachments
-status: in_progress
+status: done
 priority: p1
 labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-22T14:18:19.754Z
+updated_at: 2026-10-22T14:23:54.659Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -1565,4 +1565,22 @@ changes:
     to: "true"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_73393524
+kind: update
+occurred_at: 2026-10-22T14:23:54.659Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Done. All seven slices are built and reviewed, and all 33 checklist items are settled. Follow-ups: LC-281m, LC-280x, LC-277x, LC-278f, LC-279b. Merged with PR #76.
 <!-- /longclaw:event -->
