@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-22T14:06:18.430Z
+updated_at: 2026-10-22T14:18:19.754Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -151,7 +151,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [x] Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html <!-- longclaw:item=ck_fef87636 -->
 - [x] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove — done: row A9, which passes; its --self-test goes red <!-- longclaw:item=ck_b585edab -->
 - [x] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — decided 2026-10-22: keep them as they are <!-- longclaw:item=ck_a135eea2 -->
-- [ ] Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) <!-- longclaw:item=ck_74e5808b -->
+- [x] Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) — decided 2026-10-22: keep <!-- longclaw:item=ck_74e5808b -->
 - [x] Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt) — accepted 2026-10-22: the dialog plugin cannot set it <!-- longclaw:item=ck_d5eae1c0 -->
 - [x] Open item · held files are lost when quick create's 'Open full editor →' carries the draft over — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_52202cc1 -->
 - [x] Open item · held files attached after Create land in References but no link is added to the description — moved to LC-281m (2026-10-22) <!-- longclaw:item=ck_34a39e99 -->
@@ -1529,6 +1529,38 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_54a7f2da.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_df7125e4
+kind: update
+occurred_at: 2026-10-22T14:18:19.725Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_74e5808b.text
+    from: Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo)
+    to: "Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) — decided 2026-10-22: keep"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4b26312a
+kind: update
+occurred_at: 2026-10-22T14:18:19.754Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_74e5808b.checked
     from: "false"
     to: "true"
 -->
