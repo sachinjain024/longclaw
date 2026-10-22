@@ -85,6 +85,7 @@ export function detail(key: string): TicketDetail {
     missingAttachments: [],
     orphanAttachments: [],
     missingReferences: [],
+    unopenableAttachments: [],
     ticket: {
       id: `perf-detail-${key}`,
       key,

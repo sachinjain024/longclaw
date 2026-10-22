@@ -511,20 +511,29 @@ function RowMenu(props: {
   } else if (row.kind === "file" && !row.missing) {
     const { attachment } = row;
     const image = attachmentKind(attachment.mediaType) === "image";
-    items = [
-      image
-        ? {
+    // A name macOS might run has no Open: Show in Finder is the way to it.
+    const opens = !scope.unopenable.includes(attachment.id);
+    const first: MenuItem[] = image
+      ? [
+          {
             kind: "action",
             id: "view",
             label: "View",
             run: () => scope.onView(attachment),
-          }
-        : {
-            kind: "action",
-            id: "open",
-            label: "Open",
-            run: () => scope.onOpen(attachment),
           },
+        ]
+      : opens
+        ? [
+            {
+              kind: "action",
+              id: "open",
+              label: "Open",
+              run: () => scope.onOpen(attachment),
+            },
+          ]
+        : [];
+    items = [
+      ...first,
       {
         kind: "action",
         id: "reveal",

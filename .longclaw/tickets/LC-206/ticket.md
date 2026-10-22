@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-22T12:44:20.492Z
+updated_at: 2026-10-22T13:38:59.161Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -69,6 +69,9 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 | `render.chip.meta` | chip meta | after a file chip's name | {type} · {size} | new |
 | `render.chip.aria` | aria-label | a file chip | {name}, {type}, {size}. Opens in its default app | new |
 | `render.chip.title` | title | hover on a file chip | Open in the default app | new |
+| `render.chip.aria.reveal` | aria-label | a file chip whose name macOS might run (not on the open allow-list) | {name}, {type}, {size}. Shows in Finder | new |
+| `render.chip.title.reveal` | title | hover on the same chip | Show in Finder | new |
+| `refuse.open` | refusal | toast, when Open reaches a name macOS might run (the CLI or a stale view) | {name} isn’t opened from LongClaw, because macOS might run a file with that name rather than show it. Use Show in Finder instead. | new |
 | `render.removed` | chip text | a link to a file that was removed from the ticket but is still in attachments/ | Removed | new |
 | `render.removed.aria` | aria-label | the same chip | {name}, removed from this ticket | new |
 | `render.unavailable` | chip text | a link to an attachment whose file is missing | Unavailable | new |
@@ -139,16 +142,16 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [x] 5 · References section: collapsed by default with a count, five rows then View all, a ⋮ menu with Show in Finder and Remove, ⌘Z undo, the (Added in comment) link and the agent rail — after 3 <!-- longclaw:item=ck_51e4f1af -->
 - [x] 6 · Inserting: ⌘V paste, drop and the toolbar's Attach button in the description editor, comments and create (held files), with the transient Attaching/Attached rows and refusals that stay until dismissed — after 4 and 5 <!-- longclaw:item=ck_8cbc2320 -->
 - [x] 7 · Doc references: `longclaw ticket reference`, the Add menu's reference row, and missing and outside-project rows in References — after 2 and 5 <!-- longclaw:item=ck_9a64aab2 -->
-- [ ] Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open <!-- longclaw:item=ck_8c2b2bef -->
+- [x] Open item · the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded) — decided 2026-10-22: keep it. Done: such a chip now offers Show in Finder (render.chip.aria.reveal, render.chip.title.reveal), its References row has no Open, and refuse.open is in the deck <!-- longclaw:item=ck_8c2b2bef -->
 - [ ] Open item · viewer header meta ({type} · {size}) is copy outside the deck: add a viewer.meta row or drop it <!-- longclaw:item=ck_b136d98b -->
 - [ ] Open item · test that an archived ticket's attachment links still render and serve (story 39) <!-- longclaw:item=ck_3c15004e -->
 - [x] Open item · exercise the URI scheme in a real webview: an image renders, a video seeks, and the viewer opens — done: checked by hand in the running app on 2026-10-22 <!-- longclaw:item=ck_858c3bc0 -->
 - [x] Open item · run npm run audit:network on a built bundle — skipped for this PR by decision (2026-10-22): too much manual work <!-- longclaw:item=ck_6a95d5b1 -->
 - [x] Open item · a doc reference row's Open and Show in Finder (deferred to slice 7, with the missing and outside-project rows); Open needs the same allow-list decision as file chips, since a prototype is .html <!-- longclaw:item=ck_fef87636 -->
 - [ ] Open item · extend a11y:audit with rows for the References toggle, a row's ⋮ menu, and focus after Remove (the existing A1–A8 pass) <!-- longclaw:item=ck_b585edab -->
-- [ ] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — confirm or add rows <!-- longclaw:item=ck_a135eea2 -->
+- [x] Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — decided 2026-10-22: keep them as they are <!-- longclaw:item=ck_a135eea2 -->
 - [ ] Open item · not-attached rows are listed after all files rather than 'where they fall' (a removed file's old position is only known to Undo) <!-- longclaw:item=ck_74e5808b -->
-- [ ] Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt): the dialog plugin cannot set it <!-- longclaw:item=ck_d5eae1c0 -->
+- [x] Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt) — accepted 2026-10-22: the dialog plugin cannot set it <!-- longclaw:item=ck_d5eae1c0 -->
 - [ ] Open item · held files are lost when quick create's 'Open full editor →' carries the draft over <!-- longclaw:item=ck_52202cc1 -->
 - [ ] Open item · held files attached after Create land in References but no link is added to the description <!-- longclaw:item=ck_34a39e99 -->
 - [ ] Open item · a held file refused after Create is reported in a toast (no field is left to show the row under), against 'no toast for an attach' <!-- longclaw:item=ck_fcf8e3d5 -->
@@ -162,7 +165,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Open item · 'outside project' is decided in the panel from the shape of the stored path (absolute = outside); a hand-written absolute path inside the project would read as outside — Rust should report it, as it does missingReferences <!-- longclaw:item=ck_54a7f2da -->
 - [ ] Open item · a reference to a symlink is stored by its target (the path is canonicalized), which can read as outside project and is not quite 'keeps the file's own name' <!-- longclaw:item=ck_f2d9dd25 -->
 - [ ] Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach' <!-- longclaw:item=ck_ba83957e -->
-- [ ] Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt) <!-- longclaw:item=ck_88e6c5a4 -->
+- [x] Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt) — accepted 2026-10-22: the dialog plugin cannot set it <!-- longclaw:item=ck_88e6c5a4 -->
 - [ ] Open item · extend a11y:audit with a row for the References Add menu <!-- longclaw:item=ck_a411dde4 -->
 - [ ] Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall <!-- longclaw:item=ck_cf258070 -->
 
@@ -909,6 +912,148 @@ actor:
 changes:
   - field: checklist.ck_cf258070.added
     to: "Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_aa34cb17
+kind: update
+occurred_at: 2026-10-22T13:35:45.739Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a135eea2.text
+    from: "Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — confirm or add rows"
+    to: "Open item · deck has no toast for undoing a Remove: a file's undo reuses toast.reattached, a doc's falls back to '{KEY} restored' — decided 2026-10-22: keep them as they are"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_63a8752a
+kind: update
+occurred_at: 2026-10-22T13:35:45.763Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a135eea2.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_22e72e78
+kind: update
+occurred_at: 2026-10-22T13:35:45.786Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d5eae1c0.text
+    from: "Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt): the dialog plugin cannot set it"
+    to: "Open item · the file picker's confirm button reads the system default, not 'Attach' (attach.picker.prompt) — accepted 2026-10-22: the dialog plugin cannot set it"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b267ea3e
+kind: update
+occurred_at: 2026-10-22T13:35:45.808Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d5eae1c0.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_158ecab0
+kind: update
+occurred_at: 2026-10-22T13:35:45.830Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_88e6c5a4.text
+    from: Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt)
+    to: "Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt) — accepted 2026-10-22: the dialog plugin cannot set it"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_004a0809
+kind: update
+occurred_at: 2026-10-22T13:35:45.852Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_88e6c5a4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c34bf86e
+kind: update
+occurred_at: 2026-10-22T13:38:59.076Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_bc64e87e
+kind: update
+occurred_at: 2026-10-22T13:38:59.125Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8c2b2bef.text
+    from: "Open item · decide the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded): keep it as a review decision, add deck rows for the refusal, and reword render.chip.aria/title for files that won't open"
+    to: "Open item · the open-in-default-app extension allow-list (chips for .sh/.py/.rs/.html refuse Open; SVG/XML excluded) — decided 2026-10-22: keep it. Done: such a chip now offers Show in Finder (render.chip.aria.reveal, render.chip.title.reveal), its References row has no Open, and refuse.open is in the deck"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b57b06f4
+kind: update
+occurred_at: 2026-10-22T13:38:59.161Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8c2b2bef.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

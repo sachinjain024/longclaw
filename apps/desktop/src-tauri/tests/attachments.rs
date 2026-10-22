@@ -507,6 +507,21 @@ fn an_orphan_is_reattached_in_place_without_a_copy() {
 }
 
 #[test]
+fn the_detail_names_the_attachments_open_would_refuse() {
+    let project = Project::new();
+    let shot = project.attached(PNG, "shot.png");
+    let script = project.attached(b"#!/bin/sh\necho hi\n", "fix.command");
+    let notes = project.attached(b"# Notes\n", "notes.md");
+
+    let unopenable = project.detail().unopenable_attachments;
+
+    // Only the one macOS would run: the chip says Show in Finder instead.
+    assert_eq!(unopenable, vec![script.attachment.id.clone()]);
+    assert!(!unopenable.contains(&shot.attachment.id));
+    assert!(!unopenable.contains(&notes.attachment.id));
+}
+
+#[test]
 fn a_reattached_orphan_gets_back_the_name_its_removal_recorded() {
     let project = Project::new();
     let shot = project.attached(PNG, "My Screenshot.PNG");

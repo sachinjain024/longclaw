@@ -34,8 +34,11 @@ export interface TicketAttachments {
   index: AttachmentIndex;
   /** The in-app viewer, for an image. */
   onView: (attachment: Attachment) => void;
-  /** The default macOS app, for anything. */
+  /** The default macOS app, for anything it will show rather than run. */
   onOpen: (attachment: Attachment) => void;
+  /** Ids of records Open refuses (`unopenableAttachments`): their chip
+   *  shows the file in Finder instead. */
+  unopenable: string[];
   /** Finder, with the file selected — by `file`, so an orphan has it too. */
   onReveal: (file: string) => void;
 }
@@ -93,14 +96,19 @@ export function AttachmentNodeView({
       />
     );
   }
+  // A name macOS might run is never one click from running: its chip shows
+  // the file in Finder (`render.chip.aria.reveal`, `render.chip.title.reveal`).
+  const reveals = scope.unopenable.includes(attachment.id);
   return (
     <button
       type="button"
       tabIndex={0}
       className="attachment-chip"
-      aria-label={`${attachment.name}, ${attachment.mediaType}, ${describeSize(attachment.size)}. Opens in its default app`}
-      title="Open in the default app"
-      onClick={() => scope.onOpen(attachment)}
+      aria-label={`${attachment.name}, ${attachment.mediaType}, ${describeSize(attachment.size)}. ${reveals ? "Shows in Finder" : "Opens in its default app"}`}
+      title={reveals ? "Show in Finder" : "Open in the default app"}
+      onClick={() =>
+        reveals ? scope.onReveal(attachment.file) : scope.onOpen(attachment)
+      }
     >
       <DocGlyph />
       <span className="name">{attachment.name}</span>

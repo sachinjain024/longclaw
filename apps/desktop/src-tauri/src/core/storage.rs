@@ -548,6 +548,14 @@ pub fn read_ticket_detail(
         .as_ref()
         .map(|ticket| attachments::missing_references(project_root, ticket))
         .unwrap_or_default();
+    let unopenable_attachments = ticket
+        .iter()
+        .flat_map(|ticket| &ticket.attachments)
+        .filter(|attachment| {
+            !attachments::opens_by_name(attachment.file.rsplit('/').next().unwrap_or_default())
+        })
+        .map(|attachment| attachment.id.clone())
+        .collect();
     let truncated = file.raw.len() > RAW_VIEW_LIMIT;
     let raw = truncate_on_char_boundary(file.raw, RAW_VIEW_LIMIT);
     Ok(TicketDetail {
@@ -563,6 +571,7 @@ pub fn read_ticket_detail(
         missing_attachments,
         orphan_attachments,
         missing_references,
+        unopenable_attachments,
     })
 }
 

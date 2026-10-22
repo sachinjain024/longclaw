@@ -428,13 +428,19 @@ pub fn reference_to_open(
     openable(path, &name, &name)
 }
 
+/// Whether a file named `name` (its file name, not its display name) is one
+/// [`OPENABLE_EXTENSIONS`] lets its default app open. The detail read asks it
+/// of every record, so a chip can say what pressing it will do.
+pub(crate) fn opens_by_name(name: &str) -> bool {
+    name.rsplit_once('.')
+        .map(|(_, extension)| extension.to_ascii_lowercase())
+        .is_some_and(|extension| OPENABLE_EXTENSIONS.contains(&extension.as_str()))
+}
+
 /// `path`, when `name` is one LaunchServices opens rather than runs; refused
 /// otherwise, naming the file as the human knows it (`shown`).
 fn openable(path: PathBuf, name: &str, shown: &str) -> AppResult<PathBuf> {
-    let extension = name
-        .rsplit_once('.')
-        .map(|(_, extension)| extension.to_ascii_lowercase());
-    if extension.is_some_and(|extension| OPENABLE_EXTENSIONS.contains(&extension.as_str())) {
+    if opens_by_name(name) {
         return Ok(path);
     }
     Err(AppError::new(

@@ -241,6 +241,9 @@ pub struct TicketDetail {
     /// References whose path does not resolve, by id (LC-206). The record is
     /// kept: the doc may come back, and the row says it is missing meanwhile.
     pub missing_references: Vec<String>,
+    /// Records whose file name macOS might run rather than show, by id
+    /// (LC-206): **Open** refuses them, so their chip offers Show in Finder.
+    pub unopenable_attachments: Vec<String>,
 }
 
 /// A prepared write: the bytes to place, and the changes the edit recorded. The

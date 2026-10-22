@@ -389,6 +389,9 @@ export interface TicketDetail {
   orphanAttachments: OrphanAttachment[];
   /** References whose path does not resolve, by id. The record is kept. */
   missingReferences: string[];
+  /** Records whose file macOS might run rather than show, by id: Open
+   * refuses them, so their chip offers Show in Finder instead. */
+  unopenableAttachments: string[];
 }
 
 export interface Ticket {

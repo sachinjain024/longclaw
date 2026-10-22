@@ -129,6 +129,7 @@ function detail(options?: {
   attachments?: Attachment[];
   missingAttachments?: string[];
   orphanAttachments?: OrphanAttachment[];
+  unopenableAttachments?: string[];
   references?: TicketReference[];
   /** The four opt-in properties, as raw as a ticket carries them (LC-227). */
   properties?: Partial<
@@ -147,6 +148,7 @@ function detail(options?: {
     missingAttachments: options?.missingAttachments ?? [],
     orphanAttachments: options?.orphanAttachments ?? [],
     missingReferences: [],
+    unopenableAttachments: options?.unopenableAttachments ?? [],
     ticket: {
       id: "019c8c7e",
       key,
@@ -192,6 +194,7 @@ function degradedDetail(options?: {
     missingAttachments: [],
     orphanAttachments: [],
     missingReferences: [],
+    unopenableAttachments: [],
     diagnostic: {
       code: options?.readOnly ? "unsupported_version" : "parse_failed",
       message:
@@ -3716,6 +3719,43 @@ describe("attachments where the text links them (LC-206)", () => {
     expect(
       screen.getByRole("img", { name: "before.png, unavailable" }).textContent,
     ).toBe("Unavailable");
+  });
+
+  it("offers Show in Finder, not Open, for a file macOS might run", async () => {
+    const SCRIPT = attachment("att_5c11", "fix.command", "text/plain", 120);
+    readTicketMock.mockResolvedValue(
+      detail({
+        description: "Run [fix.command](./attachments/att_5c11-fix.command).",
+        attachments: [SCRIPT],
+        unopenableAttachments: [SCRIPT.id],
+      }),
+    );
+    render(surface());
+    await ready();
+
+    const chip = screen.getByRole("button", {
+      name: "fix.command, text/plain, 120 B. Shows in Finder",
+    });
+    expect(chip.getAttribute("title")).toBe("Show in Finder");
+    fireEvent.click(chip);
+    expect(revealAttachmentMock).toHaveBeenCalledWith(
+      "project-1",
+      "LC-1",
+      SCRIPT.file,
+    );
+    expect(openAttachmentMock).not.toHaveBeenCalled();
+
+    // Its References row has no Open either: Show in Finder is the way to it.
+    fireEvent.click(screen.getByRole("button", { name: /^References/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Actions for fix.command" }),
+    );
+    const menu = screen.getByRole("menu", { name: "Actions for fix.command" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Show in Finder", "RemoveFile kept"]);
   });
 
   it("opens an image in the viewer, and Esc puts focus back on it", async () => {

@@ -453,6 +453,7 @@ export function TicketPanel(props: TicketPanelProps) {
       },
       onView: setViewing,
       onOpen: (attachment) => open(attachment.file),
+      unopenable: detail.unopenableAttachments,
       onReveal: reach(revealAttachment),
     };
   }, [detail, projectId, ticketKey, raise]);
