@@ -15,7 +15,10 @@ export type ErrorCode =
   | "conflict"
   | "permission_denied"
   | "io"
-  | "internal";
+  | "internal"
+  | "too_large"
+  | "unsupported_media_type"
+  | "not_found";
 
 /**
  * Why a filesystem operation failed, in the only terms the app acts on.
@@ -267,6 +270,18 @@ export interface Attachment {
   addedBy: Actor;
 }
 
+/**
+ * A doc the ticket points at without owning it (LC-206). `path` is relative to
+ * the project, or absolute when the file is outside it; the name shown is the
+ * path's last segment, never stored.
+ */
+export interface TicketReference {
+  id: string;
+  path: string;
+  addedAt: string;
+  addedBy: Actor;
+}
+
 /** A readable ticket row. */
 export interface IndexedTicket {
   state: "indexed";
@@ -329,6 +344,33 @@ export interface DegradedTicket {
 
 export type TicketRow = IndexedTicket | DegradedTicket;
 
+/**
+ * One file the open panel answered with (LC-206): a token for the path Rust
+ * kept, and what the pending row says. Never the path itself.
+ */
+export interface ChosenFile {
+  token: string;
+  name: string;
+  size: number;
+}
+
+/** What attaching one file answers with (LC-206): its record, and the write. */
+export interface AttachedFile {
+  attachment: Attachment;
+  written: WriteResult;
+}
+
+/**
+ * A file in `attachments/` that no record names — what a removal leaves, or an
+ * interrupted attach (LC-206). `mediaType` is sniffed from its bytes, and
+ * absent when it is none the format attaches or too big to have been read.
+ */
+export interface OrphanAttachment {
+  file: string;
+  size: number;
+  mediaType?: string;
+}
+
 /** The full record behind the ticket panel, read fresh from disk. */
 export interface TicketDetail {
   key: string;
@@ -344,7 +386,15 @@ export interface TicketDetail {
   /** Registry entries whose bytes are gone; their metadata is preserved. */
   missingAttachments: string[];
   /** Files with no registry entry. Recoverable, never deleted. */
-  orphanAttachments: string[];
+  orphanAttachments: OrphanAttachment[];
+  /** References whose path does not resolve, by id. The record is kept. */
+  missingReferences: string[];
+  /** References whose file lies outside the project, by id — decided in
+   *  Rust from where the path leads, not from its shape. */
+  outsideReferences: string[];
+  /** Records whose file macOS might run rather than show, by id: Open
+   * refuses them, so their chip offers Show in Finder instead. */
+  unopenableAttachments: string[];
 }
 
 export interface Ticket {
@@ -367,6 +417,7 @@ export interface Ticket {
   description: string;
   checklist: ChecklistItem[];
   attachments: Attachment[];
+  references: TicketReference[];
   activity: ActivityEvent[];
   /**
    * True when the ticket's state is newer than its newest activity entry: someone
@@ -441,6 +492,16 @@ export interface TicketEdit {
   removeComment?: string;
   /** A withdrawn comment put back at the instant it was said, which undoes it. */
   restoreComment?: CommentRestore;
+  /** The attachment to unregister (LC-206). Its bytes stay, as an orphan. */
+  removeAttachment?: string;
+  /** A removed attachment put back where it was; its file is read again. */
+  restoreAttachment?: AttachmentRestore;
+  /** A doc to point at, by path: relative to the project, or absolute. */
+  addReference?: string;
+  /** The reference to take out, by id. The file is never touched. */
+  removeReference?: string;
+  /** A removed reference put back where it was. */
+  restoreReference?: ReferenceRestore;
 }
 
 /**
@@ -463,6 +524,29 @@ export interface CommentRestore {
   text: string;
   occurredAt: string;
   editedAt?: string;
+}
+
+/**
+ * What a removed attachment's record said, sent back by its undo. The media
+ * type and size are not here: Rust reads them off the file again.
+ */
+export interface AttachmentRestore {
+  id: string;
+  file: string;
+  name: string;
+  addedAt: string;
+  addedBy: Actor;
+  /** The attachment it sat after; absent is the top. */
+  after?: string;
+}
+
+/** A removed reference, put back where it was with the attribution it had. */
+export interface ReferenceRestore {
+  id: string;
+  path: string;
+  addedAt: string;
+  addedBy: Actor;
+  after?: string;
 }
 
 export interface EditTicketRequest {

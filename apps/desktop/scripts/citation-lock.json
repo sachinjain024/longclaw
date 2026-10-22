@@ -200,7 +200,14 @@
     "259": "| Settings / waitlist / confirm / raw view | The opener (the side panel's gear since LC-239w, footer button, degraded card) |",
     "260": "| Folder picker (create flow) | The create form's name field |",
     "267": "- No drag-and-drop keyboard equivalent **for a ticket** — reordering within",
-    "274": "sidebar (LC-260j) — each bind `⌥↑`/`⌥↓` on the focused row."
+    "274": "sidebar (LC-260j) — each bind `⌥↑`/`⌥↓` on the focused row.",
+    "282": "- **Attach** is the seventh button of the formatting toolbar, after a hairline,",
+    "284": "editor, the composer and the create panel. `Enter`/`Space` raise the picker.",
+    "287": "- **References** heading is a toggle button (`aria-expanded`), its own Tab",
+    "288": "stop; **Add** after it is a menu button (_Attach a file…_, _Add a",
+    "289": "reference…_).",
+    "290": "- Each References row is one Tab stop: its **⋮** menu button, which opens the",
+    "291": "row's menu with the app's menu keys. _Added in a comment_ is a second stop on"
   },
   "components.md": {
     "3": "> Phase 0, Step 1 deliverable. Everything below consumes `--lc-*` tokens from",

@@ -57,6 +57,13 @@ vi.mock("./api", () => ({
   openProject: vi.fn(),
   readPreferences: vi.fn(),
   readTicket: vi.fn(),
+  openAttachment: vi.fn(),
+  revealAttachment: vi.fn(),
+  attachSource: vi.fn(),
+  chooseReference: vi.fn(),
+  addChosenReference: vi.fn(),
+  openReference: vi.fn(),
+  revealReference: vi.fn(),
   rebuildIndex: vi.fn(),
   reconcileProject: vi.fn(),
   registerProject: vi.fn(),
@@ -443,6 +450,50 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     );
   });
 
+  /**
+   * LC-206, story 40: a file pasted into quick create waits in a tray, and is
+   * attached once the ticket exists — against the hash the create left.
+   */
+  it("attaches a file quick create held, after the ticket is written", async () => {
+    vi.mocked(api.createTicket).mockResolvedValue(created());
+    vi.mocked(api.attachSource).mockResolvedValue({
+      attachment: {
+        id: "att_8e31",
+        file: "attachments/att_8e31-failure-state.png",
+        name: "failure-state.png",
+        mediaType: "image/png",
+        size: 4,
+        addedAt: "2026-07-31T09:00:00Z",
+        addedBy: { type: "human", id: "local" },
+      },
+      written: { ...created(), generation: 3 },
+    });
+    await openBoard();
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Dropped card lands one row high" },
+    });
+    const shot = new File([new Uint8Array(4)], "failure-state.png", {
+      type: "image/png",
+    });
+    fireEvent.paste(screen.getByLabelText("Description"), {
+      clipboardData: { files: [shot], types: ["Files"], getData: () => "" },
+    });
+    screen.getByText("Attached when the ticket is created:");
+    expect(api.attachSource).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Create"));
+
+    await waitFor(() =>
+      expect(api.attachSource).toHaveBeenCalledWith(
+        project.id,
+        "LC-1",
+        "hash-created",
+        expect.objectContaining({ kind: "file", file: shot }),
+      ),
+    );
+  });
+
   it("undoes a create by archiving, because v0 never deletes a ticket file", async () => {
     vi.mocked(api.createTicket).mockResolvedValue(created());
     vi.mocked(api.editTicket).mockResolvedValue({
@@ -807,6 +858,9 @@ describe("the full create surface (V0-16)", () => {
       rawTruncated: false,
       missingAttachments: [],
       orphanAttachments: [],
+      missingReferences: [],
+      outsideReferences: [],
+      unopenableAttachments: [],
       ticket: {
         id: "019c8c7e",
         key: "LC-7",
@@ -819,6 +873,7 @@ describe("the full create surface (V0-16)", () => {
         description: "Check whether the round trip holds.",
         checklist: [],
         attachments: [],
+        references: [],
         activity: [],
         historyIncomplete: false,
         unknownKeys: [],
@@ -2994,6 +3049,9 @@ describe("the list and the board agree (V0-14)", () => {
       rawTruncated: false,
       missingAttachments: [],
       orphanAttachments: [],
+      missingReferences: [],
+      outsideReferences: [],
+      unopenableAttachments: [],
       ticket: {
         id: `id-${key}`,
         key,
@@ -3006,6 +3064,7 @@ describe("the list and the board agree (V0-14)", () => {
         description: "",
         checklist: [],
         attachments: [],
+        references: [],
         activity: [],
         historyIncomplete: false,
         unknownKeys: [],
@@ -3311,6 +3370,9 @@ describe("archive and unarchive (V0-11)", () => {
       rawTruncated: false,
       missingAttachments: [],
       orphanAttachments: [],
+      missingReferences: [],
+      outsideReferences: [],
+      unopenableAttachments: [],
       ticket: {
         id: `id-${key}`,
         key,
@@ -3324,6 +3386,7 @@ describe("archive and unarchive (V0-11)", () => {
         description: "",
         checklist: [],
         attachments: [],
+        references: [],
         activity: [],
         historyIncomplete: false,
         unknownKeys: [],
@@ -4225,6 +4288,9 @@ describe("the header filter (V0-15)", () => {
       rawTruncated: false,
       missingAttachments: [],
       orphanAttachments: [],
+      missingReferences: [],
+      outsideReferences: [],
+      unopenableAttachments: [],
       ticket: {
         id: `id-${key}`,
         key,
@@ -4237,6 +4303,7 @@ describe("the header filter (V0-15)", () => {
         description: "",
         checklist: [],
         attachments: [],
+        references: [],
         activity: [],
         historyIncomplete: false,
         unknownKeys: [],
@@ -5812,6 +5879,9 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
       rawTruncated: false,
       missingAttachments: [],
       orphanAttachments: [],
+      missingReferences: [],
+      outsideReferences: [],
+      unopenableAttachments: [],
       ticket: {
         id: found.id,
         key: found.key,
@@ -5824,6 +5894,7 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
         description: "",
         checklist: [],
         attachments: [],
+        references: [],
         activity: [],
         historyIncomplete: false,
         unknownKeys: [],
@@ -6576,6 +6647,9 @@ describe("switching project by chord (LC-230)", () => {
       rawTruncated: false,
       missingAttachments: [],
       orphanAttachments: [],
+      missingReferences: [],
+      outsideReferences: [],
+      unopenableAttachments: [],
       ticket: {
         id: "019c8c7e",
         key: "L01-1",
@@ -6588,6 +6662,7 @@ describe("switching project by chord (LC-230)", () => {
         description: "",
         checklist: [],
         attachments: [],
+        references: [],
         activity: [],
         historyIncomplete: false,
         unknownKeys: [],

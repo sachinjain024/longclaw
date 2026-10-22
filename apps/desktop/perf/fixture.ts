@@ -84,6 +84,9 @@ export function detail(key: string): TicketDetail {
     rawTruncated: false,
     missingAttachments: [],
     orphanAttachments: [],
+    missingReferences: [],
+    outsideReferences: [],
+    unopenableAttachments: [],
     ticket: {
       id: `perf-detail-${key}`,
       key,
@@ -108,6 +111,7 @@ export function detail(key: string): TicketDetail {
         { id: "ck_2", text: "Pin it in a test", checked: false },
       ],
       attachments: [],
+      references: [],
       activity: [
         {
           id: "evt_1",

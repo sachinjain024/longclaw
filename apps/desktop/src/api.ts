@@ -1,7 +1,10 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { AttachSource } from "./attaching";
 import type {
+  AttachedFile,
+  ChosenFile,
   CommandLineStatus,
   CreateTicketRequest,
   EditTicketRequest,
@@ -283,6 +286,148 @@ export async function openTicketFile(
   ticketKey: string,
 ): Promise<void> {
   return invoke("open_ticket_file", { projectId, ticketKey });
+}
+
+/**
+ * Opens one attachment in its default app (LC-206), from a file chip or the
+ * viewer's **Open**. The webview names the record's `file` and nothing else;
+ * Rust holds it to the ticket's registry and its `attachments/` folder, and
+ * refuses a name macOS would run rather than show.
+ */
+export async function openAttachment(
+  projectId: string,
+  ticketKey: string,
+  file: string,
+): Promise<void> {
+  return invoke("open_attachment", { projectId, ticketKey, file });
+}
+
+/**
+ * The open panel the toolbar's Attach button raises (LC-206): files, several
+ * at once, titled for the ticket they will land in. Rust raises it and keeps
+ * the paths; what comes back is a token per file, with the name and size the
+ * pending row says. An empty list is a cancelled panel, not a failure.
+ */
+export async function chooseFilesToAttach(
+  ticketKey: string,
+): Promise<ChosenFile[]> {
+  return invoke("choose_files_to_attach", { ticketKey });
+}
+
+/**
+ * Attaches a pasted or dropped file (LC-206). The bytes go as the request body
+ * — not as JSON, which would spell ten megabytes as an array of numbers — and
+ * the names as headers, percent-encoded so a file name in any script arrives
+ * as it was.
+ */
+export async function attachBytes(
+  projectId: string,
+  ticketKey: string,
+  expectedHash: string,
+  file: File,
+): Promise<AttachedFile> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return invoke("attach_bytes", bytes, {
+    headers: {
+      "x-project-id": encodeURIComponent(projectId),
+      "x-ticket-key": encodeURIComponent(ticketKey),
+      "x-expected-hash": encodeURIComponent(expectedHash),
+      "x-file-name": encodeURIComponent(file.name),
+    },
+  });
+}
+
+/** Attaches a file the open panel answered with, by its token. */
+export async function attachChosen(
+  projectId: string,
+  ticketKey: string,
+  token: string,
+  expectedHash: string,
+): Promise<AttachedFile> {
+  return invoke("attach_chosen", { projectId, ticketKey, token, expectedHash });
+}
+
+/**
+ * The open panel **Add a reference…** raises (LC-206), titled for the ticket.
+ * One file, as a token; empty when cancelled.
+ */
+export async function chooseReference(
+  ticketKey: string,
+): Promise<ChosenFile[]> {
+  return invoke("choose_reference", { ticketKey });
+}
+
+/** Records the file a token names as a doc reference, where it is. */
+export async function addChosenReference(
+  projectId: string,
+  ticketKey: string,
+  token: string,
+  expectedHash: string,
+): Promise<WriteResult> {
+  return invoke("add_chosen_reference", {
+    projectId,
+    ticketKey,
+    token,
+    expectedHash,
+  });
+}
+
+/** Opens a doc reference in its default app, named by its id. */
+export async function openReference(
+  projectId: string,
+  ticketKey: string,
+  referenceId: string,
+): Promise<void> {
+  return invoke("open_reference", { projectId, ticketKey, referenceId });
+}
+
+/** Shows a doc reference selected in Finder, named by its id. */
+export async function revealReference(
+  projectId: string,
+  ticketKey: string,
+  referenceId: string,
+): Promise<void> {
+  return invoke("reveal_reference", { projectId, ticketKey, referenceId });
+}
+
+/** One file, whichever way it arrived — the one place that tells them apart. */
+export function attachSource(
+  projectId: string,
+  ticketKey: string,
+  expectedHash: string,
+  source: AttachSource,
+): Promise<AttachedFile> {
+  return source.kind === "file"
+    ? attachBytes(projectId, ticketKey, expectedHash, source.file)
+    : attachChosen(projectId, ticketKey, source.token, expectedHash);
+}
+
+/**
+ * Registers a file already in the ticket's `attachments/` — **Re-attach** on a
+ * not-attached row (LC-206). Carries the hash the panel read, so a ticket that
+ * moved underneath is refused as stale like any other edit.
+ */
+export async function reattachAttachment(
+  projectId: string,
+  ticketKey: string,
+  file: string,
+  expectedHash: string,
+): Promise<WriteResult> {
+  return invoke("reattach_attachment", {
+    projectId,
+    ticketKey,
+    file,
+    expectedHash,
+  });
+}
+
+/** Shows one attachment selected in Finder (LC-206) — registered or not. */
+export async function revealAttachment(
+  projectId: string,
+  ticketKey: string,
+  file: string,
+): Promise<void> {
+  return invoke("reveal_attachment", { projectId, ticketKey, file });
 }
 
 /**

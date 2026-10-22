@@ -33,14 +33,16 @@ use chrono::{SecondsFormat, Utc};
 use notify::{Config, Event, PollWatcher, RecursiveMode, Watcher};
 use parking_lot::Mutex;
 
+use crate::core::attachments;
 use crate::core::storage::{
     self, atomic_write, content_hash, directory_key, prepare_new_ticket, prepare_ticket_edit,
     read_project, reconcile_agent_instructions, ticket_file_path, NewTicket,
 };
-use crate::core::ticket::TicketEdit;
+use crate::core::ticket::{Actor, TicketEdit};
 use crate::core::{
-    AppError, AppResult, ErrorCode, EventSource, ProjectEvent, ProjectReference, ProjectSnapshot,
-    RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex, TicketRow, WriteResult,
+    AppError, AppResult, AttachedFile, ErrorCode, EventSource, ProjectEvent, ProjectReference,
+    ProjectSnapshot, RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex,
+    TicketRow, WriteResult,
 };
 use crate::platform::macos;
 
@@ -440,6 +442,46 @@ impl ProjectEngine {
         storage::resolve_ticket_path(&self.root, key)
     }
 
+    /// A file in a ticket's `attachments/`, proven inside it, for **Show in
+    /// Finder** (LC-206) — an orphan as much as a registered one, since Finder
+    /// only selects it. The webview names the `file`; it is never joined onto
+    /// a path unchecked.
+    pub fn attachment_to_reveal(&self, key: &str, file: &str) -> AppResult<PathBuf> {
+        attachments::attachment_in_folder(&self.root, key, file)
+    }
+
+    /// A doc reference's file, for **Show in Finder** (LC-206). The webview
+    /// names the reference by its id; the path is the record's, read here.
+    pub fn reference_to_reveal(&self, key: &str, id: &str) -> AppResult<PathBuf> {
+        attachments::reference_file(&self.root, &self.project().key, key, id)
+    }
+
+    /// The same, for opening, held to the rule a file chip is.
+    pub fn reference_to_open(&self, key: &str, id: &str) -> AppResult<PathBuf> {
+        attachments::reference_to_open(&self.root, &self.project().key, key, id)
+    }
+
+    /// Records a doc reference to a file the human chose (LC-206, **Add a
+    /// reference…**). An ordinary edit of the record, attributed to the human.
+    pub fn add_reference(
+        &self,
+        key: &str,
+        path: &Path,
+        expected_hash: &str,
+    ) -> AppResult<WriteResult> {
+        let edit = TicketEdit {
+            add_reference: Some(path.display().to_string()),
+            ..TicketEdit::default()
+        };
+        self.edit_ticket(key, &edit, expected_hash)
+    }
+
+    /// The same, for opening in the default app, which also refuses a name
+    /// macOS would run rather than show. See `attachments::attachment_to_open`.
+    pub fn attachment_to_open(&self, key: &str, file: &str) -> AppResult<PathBuf> {
+        attachments::attachment_to_open(&self.root, &self.project().key, key, file)
+    }
+
     /// A write is held to what the project configures before it is prepared.
     ///
     /// This is the seam the CLI has always had and the app did not: `apply_as`
@@ -458,6 +500,79 @@ impl ProjectEngine {
         let write =
             prepare_ticket_edit(&self.root, &project.key, key, edit, expected_hash, &now())?;
         self.commit(write, false)
+    }
+
+    /// Attaches bytes the webview holds — a pasted or dropped file (LC-206) —
+    /// as the human at the keyboard. Copied, checked and registered by the
+    /// core operation the CLI uses; refused as stale like any other edit.
+    pub fn attach_bytes(
+        &self,
+        key: &str,
+        bytes: &[u8],
+        name: &str,
+        expected_hash: &str,
+    ) -> AppResult<AttachedFile> {
+        let prepared = attachments::prepare_attachment(
+            &self.root,
+            &self.project().key,
+            key,
+            bytes,
+            name,
+            expected_hash,
+            &now(),
+            &Actor::local_human(),
+        )?;
+        let written = self.commit(prepared.write, false)?;
+        Ok(AttachedFile {
+            attachment: prepared.attachment,
+            written,
+        })
+    }
+
+    /// The same, for a file the human chose in the open panel the Attach
+    /// button raises. Read from where it is; its own name is kept.
+    pub fn attach_path(
+        &self,
+        key: &str,
+        source: &Path,
+        expected_hash: &str,
+    ) -> AppResult<AttachedFile> {
+        let prepared = attachments::prepare_attachment_file(
+            &self.root,
+            &self.project().key,
+            key,
+            source,
+            None,
+            expected_hash,
+            &now(),
+            &Actor::local_human(),
+        )?;
+        let written = self.commit(prepared.write, false)?;
+        Ok(AttachedFile {
+            attachment: prepared.attachment,
+            written,
+        })
+    }
+
+    /// Registers a file already in the ticket's `attachments/` — an orphan —
+    /// without copying it again (LC-206, **Re-attach**). Attributed to the
+    /// human at the keyboard, and refused as stale like any other edit.
+    pub fn reattach_attachment(
+        &self,
+        key: &str,
+        file: &str,
+        expected_hash: &str,
+    ) -> AppResult<WriteResult> {
+        let prepared = attachments::prepare_reattachment(
+            &self.root,
+            &self.project().key,
+            key,
+            file,
+            expected_hash,
+            &now(),
+            &Actor::local_human(),
+        )?;
+        self.commit(prepared.write, false)
     }
 
     pub fn create_ticket(&self, request: &NewTicket) -> AppResult<WriteResult> {

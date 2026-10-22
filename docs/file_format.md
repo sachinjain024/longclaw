@@ -171,10 +171,10 @@ Ticket frontmatter uses a deliberately constrained YAML subset:
 - key order has no semantic meaning;
 - unknown supported keys are preserved during round trips.
 
-The Markdown body remains ordinary CommonMark apart from three reserved sections:
+The Markdown body remains ordinary CommonMark apart from four reserved sections:
 
 - `## Checklist`, containing Markdown tasks with invisible `longclaw:item` markers;
-- `## Attachments`, containing bounded `longclaw:attachment` records;
+- `## Attachments` and `## Ticket References`, containing bounded `longclaw:attachment` and `longclaw:reference` records ([References](#references));
 - `## Activity`, containing bounded `longclaw:event` records.
 
 Other headings, such as `## Approach` or `## Discoveries`, are normal description content.
@@ -352,7 +352,7 @@ Attachment rules:
 - Index supported text content with an explicit size limit. Index only metadata for images and videos.
 - Store generated image thumbnails, video poster frames, transcoding output, and other previews in disposable application cache rather than the project.
 - Serve videos with byte-range support so seeking does not require loading the complete file.
-- Warn when large files may be unsuitable for ordinary git storage or may benefit from Git LFS. LongClaw does not modify git configuration automatically.
+- A doc the ticket points at without owning it — a spec, a prototype, a file outside the project — is a [reference](#references), not an attachment, and is never copied.
 
 An unsupported media type already present on disk remains preserved as an opaque attachment rather than being executed or rendered as trusted content. The v0 app does not create a new registry entry for it.
 
@@ -388,7 +388,7 @@ None of this data should enter git or cloud sync. Deleting it must never lose ca
 - Files using a newer unsupported format version are shown read-only rather than migrated or rewritten automatically.
 - An unparseable ticket remains visible as a degraded ticket with access to its raw contents and parse error.
 - A ticket key's prefix is the project that owns it. A reader settles ownership from the directory name before it believes the contents, so a directory whose key names another project — copied in, or left behind by a project that was renamed — degrades with a diagnostic naming both keys instead of being indexed as this project's ticket. It is never renamed, moved, or rewritten into conformity, and it is never a candidate for an app write.
-- The parser validates embedded attachment and activity records independently. An invalid record degrades only that attachment or timeline entry when the rest of `ticket.md` remains safely parseable.
+- The parser validates embedded attachment, reference and activity records independently. An invalid record degrades only that attachment, reference or timeline entry when the rest of `ticket.md` remains safely parseable.
 - Ticket creation scans canonical active, archived, and recoverably deleted tickets while holding an exclusive project-scoped creation lock. It never trusts the disposable index alone when allocating a key.
 
 Current state and embedded activity share one atomic `ticket.md` write in v0. Their recovery rule remains asymmetric:
@@ -482,3 +482,35 @@ Before agents can create tickets or team sync is introduced, the allocation poli
 14. An invalid embedded record degrades locally when the rest of the ticket remains safely parseable.
 15. Future component extraction preserves the ticket directory and `ticket.md` path.
 16. A value the project's current configuration cannot interpret — a disabled property, or an estimate written under another system — is preserved rather than corrected. Invariant 11 covers a key this build does not know; this one covers a key it knows and a value this configuration cannot read.
+17. A reference names a file and never owns it. Removing one never touches the file, and a path that climbs out of the project is written absolute, so a reference cannot leave the project without saying so.
+
+## References
+
+A ticket may point at docs written for it — a spec, a UX prototype, a design — without copying them in. Each is a bounded `longclaw:reference` record under a `## Ticket References` section of `ticket.md`, after `## Attachments` and before `## Activity` ([ADR 0017](adr/0017-a-reference-points-at-a-file-it-does-not-own.md)):
+
+```md
+## Ticket References
+
+<!-- longclaw:reference
+id: ref_3c1d9a2e
+path: docs/specs/LC-206-attachments.md
+added_at: 2026-10-15T09:00:00Z
+added_by:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+[LC-206-attachments.md](../../../docs/specs/LC-206-attachments.md)
+<!-- /longclaw:reference -->
+```
+
+Reference rules:
+
+- `path` is relative to the project root, with forward slashes, when the file is inside the project, and absolute when it is not. A relative path never contains `..`; a record that does degrades.
+- The name a reader sees is the path's last segment. It is never stored, so there is nothing to rename and no second spelling to go stale.
+- Nothing is copied and nothing is read except to check that the path resolves. A reference whose path does not resolve is a missing reference: its record is kept and the app says the file was not found.
+- Removing a reference drops its record and never touches the file.
+- The same path is referenced at most once per ticket.
+- The Markdown under the header is a link from the ticket's own folder, so a reader of the raw file can follow it. Readers ignore it; the header is the record.
+
+Attachments and references narrate themselves in activity as `attachments.<id>.added`, `.removed` and `.reattached` (an orphan registered in place), and `references.<id>.added` and `.removed`, each carrying the file's name so the entry still reads once the record is gone.

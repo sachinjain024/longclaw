@@ -9,8 +9,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { Block, Inline } from "./markdown";
+import type { AttachmentIndex, Block, Inline } from "./markdown";
 import { linkHref, parseMarkdown } from "./markdown";
+import type { Attachment } from "./types";
 
 /** Everything a block would put on screen, as one string. */
 function textOf(nodes: Inline[]): string {
@@ -23,6 +24,10 @@ function textOf(nodes: Inline[]): string {
           return node.value;
         case "break":
           return "\n";
+        case "attachment":
+          return `[${node.kind}: ${node.alt}]`;
+        case "unavailableAttachment":
+          return `[${node.removed ? "removed" : "unavailable"}: ${node.name}]`;
         default:
           return textOf(node.children);
       }
@@ -359,7 +364,10 @@ describe("which destinations become an anchor", () => {
     ["JaVaScRiPt:alert(1)", "case does not help"],
     ["java\tscript:alert(1)", "nor does a control character"],
     ["data:text/html;base64,PHNjcmlwdD4=", "nor a data URL"],
-    ["./attachments/att_7d2a-log.txt", "v0 has no attachment UI (ADR 0005)"],
+    [
+      "./attachments/att_7d2a-log.txt",
+      "a relative path is never an anchor; an attachment is its own node",
+    ],
     ["//evil.example", "protocol-relative resolves against tauri://"],
     ["", "nothing to follow"],
   ])("refuses %s — %s", (destination) => {
@@ -386,6 +394,143 @@ describe("which destinations become an anchor", () => {
         href: "https://example.com",
         children: [{ type: "text", value: "x" }],
       },
+    ]);
+  });
+});
+
+/** A record as the registry holds it, by the parts the renderer reads. */
+function record(id: string, file: string, mediaType: string): Attachment {
+  return {
+    id,
+    file: `attachments/${file}`,
+    name: file.replace(/^att_[0-9a-f]+-/, ""),
+    mediaType,
+    size: 2_400_000,
+    addedAt: "2026-10-15T10:00:00Z",
+    addedBy: { type: "human", id: "local" },
+  };
+}
+
+const INDEX: AttachmentIndex = {
+  attachments: [
+    record("att_8e31", "att_8e31-failure-state.png", "image/png"),
+    record("att_1c07", "att_1c07-drag-repro.mov", "video/quicktime"),
+    record("att_7d2a", "att_7d2a-console.log", "text/plain"),
+    record("att_42bf", "att_42bf-before.png", "image/png"),
+  ],
+  missing: ["att_42bf"],
+  orphans: ["attachments/att_9a10-notes.txt"],
+};
+
+/** The one inline a source line becomes, against the index above. */
+function inlineOf(source: string, index?: AttachmentIndex) {
+  const [paragraph] = parseMarkdown(source, index);
+  if (paragraph.type !== "paragraph") throw new Error("expected a paragraph");
+  return paragraph.children;
+}
+
+describe("which destinations become an attachment (LC-206)", () => {
+  it.each([
+    [
+      "an image link",
+      "![Failure state](./attachments/att_8e31-failure-state.png)",
+      "[image: Failure state]",
+    ],
+    [
+      "a plain link to an image",
+      "[failure-state.png](./attachments/att_8e31-failure-state.png)",
+      "[image: failure-state.png]",
+    ],
+    [
+      "a video",
+      "[drag-repro.mov](./attachments/att_1c07-drag-repro.mov)",
+      "[video: drag-repro.mov]",
+    ],
+    [
+      "a text file, never inlined",
+      "![log](attachments/att_7d2a-console.log)",
+      "[file: log]",
+    ],
+    [
+      "a link with no text, by the record's name",
+      "[](./attachments/att_7d2a-console.log)",
+      "[file: console.log]",
+    ],
+    [
+      "a removed file, still on disk",
+      "[notes](./attachments/att_9a10-notes.txt)",
+      "[removed: att_9a10-notes.txt]",
+    ],
+    [
+      "a registered file whose bytes are gone",
+      "![before](./attachments/att_42bf-before.png)",
+      "[unavailable: before.png]",
+    ],
+    [
+      "a file nothing knows",
+      "[gone](./attachments/att_0000-gone.png)",
+      "[unavailable: att_0000-gone.png]",
+    ],
+  ])("renders %s", (_name, source, shown) => {
+    expect(textOf(inlineOf(source, INDEX))).toBe(shown);
+  });
+
+  it("carries the record a registered destination names", () => {
+    const [node] = inlineOf(
+      "![shot](./attachments/att_8e31-failure-state.png)",
+      INDEX,
+    );
+    expect(node).toMatchObject({
+      type: "attachment",
+      kind: "image",
+      attachment: { id: "att_8e31", mediaType: "image/png" },
+    });
+  });
+
+  it.each([
+    ["a way out of the folder", "[x](./attachments/../ticket.md)"],
+    ["the folder itself", "[x](./attachments/..)"],
+    ["a folder inside it", "[x](./attachments/sub/att_8e31-failure-state.png)"],
+    ["an absolute path", "[x](/attachments/att_8e31-failure-state.png)"],
+    [
+      "another ticket's attachment",
+      "[x](../LC-2/attachments/att_8e31-failure-state.png)",
+    ],
+    ["protocol-relative", "[x](//attachments/att_8e31-failure-state.png)"],
+    ["an external image", "![x](https://example.com/x.png)"],
+  ])("still refuses %s, and keeps its markdown", (_name, source) => {
+    expect(inlineOf(source, INDEX)).toEqual([{ type: "text", value: source }]);
+  });
+
+  it("keeps an external link an anchor", () => {
+    expect(inlineOf("[docs](https://example.com)", INDEX)[0]).toMatchObject({
+      type: "link",
+      href: "https://example.com",
+    });
+  });
+
+  it("resolves nothing without a ticket to resolve it against", () => {
+    const source = "![shot](./attachments/att_8e31-failure-state.png)";
+    expect(inlineOf(source)).toEqual([{ type: "text", value: source }]);
+  });
+
+  it("resolves inside a list, a quote and a table cell", () => {
+    const blocks = parseMarkdown(
+      [
+        "- [log](./attachments/att_7d2a-console.log)",
+        "",
+        "> ![shot](./attachments/att_8e31-failure-state.png)",
+        "",
+        "| file |",
+        "| --- |",
+        "| [log](./attachments/att_7d2a-console.log) |",
+      ].join("\n"),
+      INDEX,
+    );
+    expect(blocks.map(shownText)).toEqual([
+      "[file: log]",
+      "[image: shot]",
+      "file\n[file: log]",
     ]);
   });
 });

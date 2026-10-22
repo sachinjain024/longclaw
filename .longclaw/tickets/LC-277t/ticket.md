@@ -3,7 +3,7 @@ format: longclaw.ticket/v1
 id: 46331735-5887-4134-ad49-da41a81d23e5
 key: LC-277t
 title: Resolve open Dependabot alerts (2026-10-17)
-status: todo
+status: in_progress
 priority: none
 labels:
   - platform
@@ -456,6 +456,21 @@ changes:
     to: "true"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_eb8aa33e
+kind: update
+occurred_at: 2026-10-17T17:39:19.343Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
 
 <!-- longclaw:event

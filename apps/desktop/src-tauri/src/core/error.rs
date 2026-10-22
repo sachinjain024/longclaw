@@ -19,6 +19,13 @@ pub enum ErrorCode {
     PermissionDenied,
     Io,
     Internal,
+    /// A file over the 10 MB attachment limit (LC-206).
+    TooLarge,
+    /// A file whose content is not an image, text or video (LC-206).
+    UnsupportedMediaType,
+    /// A file a write names that is not there: an orphan to restore, or a doc
+    /// to reference. A ticket that is not there is `TicketNotFound`.
+    NotFound,
 }
 
 #[derive(Debug, Clone, Serialize)]

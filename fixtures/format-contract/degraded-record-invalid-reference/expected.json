@@ -1,0 +1,18 @@
+{
+  "summary": "A reference whose relative path climbs out of the project with `..` degrades locally, while the valid reference beside it stays (LC-206). An absolute path is how a reference says it is outside the project.",
+  "key": "LC-207",
+  "outcome": "valid",
+  "ticket": {
+    "references": [
+      {
+        "id": "ref_0002",
+        "path": "docs/plan.md",
+        "name": "plan.md",
+        "outsideProject": false,
+        "addedByType": "human",
+        "addedById": "local"
+      }
+    ],
+    "recordDiagnostics": ["reference record"]
+  }
+}

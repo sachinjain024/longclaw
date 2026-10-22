@@ -49,6 +49,12 @@ export function failureTitle(error: AppError): string {
       return "Newer format";
     case "cancelled":
       return "Cancelled";
+    case "too_large":
+      return "File too large";
+    case "unsupported_media_type":
+      return "Can’t attach that file";
+    case "not_found":
+      return "File not found";
     default:
       return "Something went wrong";
   }

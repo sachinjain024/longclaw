@@ -30,6 +30,9 @@ function detail(activity: ActivityEvent[]): TicketDetail {
     rawTruncated: false,
     missingAttachments: [],
     orphanAttachments: [],
+    missingReferences: [],
+    outsideReferences: [],
+    unopenableAttachments: [],
     ticket: {
       id: "id",
       key: "LC-1",
@@ -42,6 +45,7 @@ function detail(activity: ActivityEvent[]): TicketDetail {
       description: "",
       checklist: [],
       attachments: [],
+      references: [],
       activity,
       historyIncomplete: false,
       unknownKeys: [],

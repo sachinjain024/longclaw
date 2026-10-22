@@ -39,6 +39,7 @@ use chrono::{SecondsFormat, Utc};
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
+use crate::core::attachments;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
 use crate::core::ticket::{
@@ -83,6 +84,16 @@ TICKETS
                     [--edit-item <item-id> --item-text <text>]
                     [--remove-item <item-id>]
                     [--archive | --unarchive] [--path <dir>]
+  ticket attach <KEY> <FILE> [--name <name>] [--path <dir>]
+                    Copy a text, image or video file of up to 10 MB into the
+                    ticket, register it, and print the record and the Markdown
+                    link to paste where you write about it. The type is judged
+                    from the file's content, not its name.
+  ticket reference <KEY> <PATH> [--path <dir>]
+                    Record a doc written for the ticket — a spec, a prototype —
+                    where it is, by its own name. Nothing is copied. A file
+                    outside the project is allowed and kept by its absolute
+                    path; one inside is kept relative to the project.
   ticket list       [--path <dir>]
   ticket show <KEY> [--path <dir>]
   ticket renumber <KEY> --id <uuid> [--path <dir>]
@@ -159,6 +170,8 @@ pub fn dispatch(arguments: &[String]) -> AppResult<Option<Value>> {
         ("label", "add") => label_add(rest).map(Some),
         ("ticket", "create") => ticket_create(rest).map(Some),
         ("ticket", "edit") => ticket_edit(rest).map(Some),
+        ("ticket", "attach") => ticket_attach(rest).map(Some),
+        ("ticket", "reference") => ticket_reference(rest).map(Some),
         ("ticket", "list") => ticket_list(rest).map(Some),
         ("ticket", "show") => ticket_show(rest).map(Some),
         ("ticket", "renumber") => ticket_renumber(rest).map(Some),
@@ -362,6 +375,15 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         edit_comment: None,
         remove_comment: None,
         restore_comment: None,
+        // Attachments and references get verbs of their own — `ticket attach`
+        // and `ticket reference` (LC-206) — because both read a file off the
+        // disk first, which an edit of the record never does.
+        remove_attachment: None,
+        restore_attachment: None,
+        register_attachment: None,
+        add_reference: None,
+        remove_reference: None,
+        restore_reference: None,
     };
 
     // Read, then write against the hash that read saw. The gap between them is
@@ -388,6 +410,115 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         &project_key,
         &key
     )?))
+}
+
+/// The copy deck's `cli.attach.usage`, which is also the answer to a call
+/// missing either of its two positionals.
+const ATTACH_USAGE: &str = "Usage: longclaw ticket attach <KEY> <FILE> [--name <NAME>] \
+                            --agent-id <ID> [--agent-name <NAME>]";
+
+/// LC-206's agent surface. A thin wrapper: the core reads, judges, copies and
+/// prepares the registration, and this places it — exactly what `ticket edit`
+/// does with the write it is handed — and prints what an agent needs next.
+fn ticket_attach(arguments: &[String]) -> AppResult<Value> {
+    let options = Options::parse(arguments, &["path", "name", "agent-id", "agent-name"], &[])?;
+    let [key, file] = options.positional.as_slice() else {
+        return Err(usage_error(ATTACH_USAGE));
+    };
+    let name = options.one("name")?;
+    if let Some(name) = name {
+        single_line("name", name)?;
+    }
+    let (root, document) = open_project(&options)?;
+    let project_key = document.project().key.clone();
+    let current = storage::read_ticket_detail(&root, &project_key, key)?;
+    let prepared = attachments::prepare_attachment_file(
+        &root,
+        &project_key,
+        key,
+        Path::new(file),
+        name,
+        &current.content_hash,
+        &now(),
+        &author(&options)?,
+    )?;
+    // The bytes are in. If this write is refused, they stay as an orphan the
+    // panel offers to re-attach — the order the format asks for.
+    storage::atomic_replace(
+        &prepared.write.path,
+        &prepared.write.bytes,
+        prepared.write.expected_hash.as_deref().unwrap_or_default(),
+    )?;
+    Ok(json!({
+        "attachment": prepared.attachment,
+        "markdown": prepared.markdown_link,
+    }))
+}
+
+/// The copy deck's `cli.reference.usage`.
+const REFERENCE_USAGE: &str = "Usage: longclaw ticket reference <KEY> <PATH> --agent-id <ID> \
+                               [--agent-name <NAME>]";
+
+/// Records a doc reference (LC-206). The path is made absolute against the
+/// shell's working directory — where an agent typed it from — and the core
+/// stores it relative to the project when it is inside it. Prints the record.
+fn ticket_reference(arguments: &[String]) -> AppResult<Value> {
+    let options = Options::parse(arguments, &["path", "agent-id", "agent-name"], &[])?;
+    let [key, doc] = options.positional.as_slice() else {
+        return Err(usage_error(REFERENCE_USAGE));
+    };
+    let typed = Path::new(doc);
+    let absolute = if typed.is_absolute() {
+        typed.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|error| AppError::io("Reading the working directory", Path::new("."), error))?
+            .join(typed)
+    };
+    let (root, document) = open_project(&options)?;
+    let project_key = document.project().key.clone();
+    let current = storage::read_ticket_detail(&root, &project_key, key)?;
+    let edit = TicketEdit {
+        add_reference: Some(absolute.display().to_string()),
+        ..TicketEdit::default()
+    };
+    let write = storage::prepare_ticket_edit_as(
+        &root,
+        &project_key,
+        key,
+        &edit,
+        &current.content_hash,
+        &now(),
+        &author(&options)?,
+    )?;
+    storage::atomic_replace(
+        &write.path,
+        &write.bytes,
+        write.expected_hash.as_deref().unwrap_or_default(),
+    )?;
+    // The id the write minted, from the change it recorded — not from a
+    // second read, which another writer could have moved on in between.
+    let id = write
+        .changes
+        .iter()
+        .find_map(|change| {
+            change
+                .field
+                .strip_prefix("references.")
+                .and_then(|rest| rest.strip_suffix(".added"))
+        })
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            AppError::new(ErrorCode::Internal, "The reference was not recorded", false)
+        })?;
+    let after = storage::read_ticket_detail(&root, &project_key, key)?;
+    let reference = after
+        .ticket
+        .iter()
+        .flat_map(|ticket| ticket.references.iter())
+        .find(|reference| reference.id == id)
+        .cloned();
+    Ok(json!({ "reference": reference }))
 }
 
 fn ticket_list(arguments: &[String]) -> AppResult<Value> {

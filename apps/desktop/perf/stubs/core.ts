@@ -47,6 +47,17 @@ const board = snapshot(
   requested !== "" && Number.isFinite(size) && size >= 0 ? size : undefined,
 );
 
+/**
+ * `?refs=1`: every ticket carries one doc reference (LC-206), so the
+ * References section has a row whose `⋮` and Remove a keyboard can reach.
+ * Removing it under `?rw=1` takes it out of the next read.
+ */
+const REFS = params.get("refs") === "1";
+const removedReferences = new Set<string>();
+/** The pickers raised so far, by command — they open nothing here. */
+const raised: string[] = [];
+(window as unknown as { __longclawRaised: string[] }).__longclawRaised = raised;
+
 /** `?rw=1`: serve the write commands as well as the read ones. */
 const WRITABLE = params.get("rw") === "1";
 /** `?fail=edit`: the next `edit_ticket` fails once, recoverably. */
@@ -220,6 +231,7 @@ function editTicket(request: EditTicketRequest): WriteResult {
   // update decay rather than the write — which is the one thing `drag-probe`
   // exists to tell apart.
   if (edit.rank !== undefined) row.rank = edit.rank ?? undefined;
+  if (edit.removeReference) removedReferences.add(request.ticketKey);
   if (edit.archived !== undefined) {
     row.archivedAt = edit.archived
       ? new Date(Date.UTC(2026, 7, 4)).toISOString()
@@ -304,6 +316,17 @@ function ticketDetail(key: string): TicketDetail {
       priority: row.priority,
       labels: row.labels,
       archivedAt: row.archivedAt,
+      references:
+        REFS && !removedReferences.has(key)
+          ? [
+              {
+                id: "ref_spec",
+                path: `docs/specs/${key}-storage.md`,
+                addedAt: "2026-07-29T09:00:00Z",
+                addedBy: { type: "human", id: "sachin", name: "Sachin" },
+              },
+            ]
+          : base.ticket.references,
     },
   };
 }
@@ -462,6 +485,12 @@ export async function invoke<T>(
   if (command === "open_download_page") return undefined as T;
   if (command === "open_project" || command === "rebuild_index") {
     return { ...board, tickets: [...rows.values()], generation } as T;
+  }
+  // The pickers are macOS panels; a harness has none to raise. Each answers
+  // _cancelled_ and says it was asked, which is what a keyboard row checks.
+  if (command === "choose_files_to_attach" || command === "choose_reference") {
+    raised.push(command);
+    return [] as T;
   }
   // The theme matrix (V0-37) opens the panel and raises the error banner.
   if (command === "read_ticket")

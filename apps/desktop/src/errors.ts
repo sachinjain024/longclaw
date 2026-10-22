@@ -11,6 +11,9 @@ const ERROR_CODES = new Set<ErrorCode>([
   "permission_denied",
   "io",
   "internal",
+  "too_large",
+  "unsupported_media_type",
+  "not_found",
 ]);
 
 function isAppError(error: unknown): error is AppError {

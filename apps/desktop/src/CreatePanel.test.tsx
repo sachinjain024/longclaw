@@ -123,18 +123,21 @@ describe("every approved field, in one create", () => {
 
     fireEvent.click(screen.getByText("Create ticket"));
 
-    expect(onCreate).toHaveBeenCalledWith({
-      title: "Prove the agent round trip",
-      status: "in_review",
-      priority: "p1",
-      labels: ["backend", "reliability"],
-      description: "Check whether the round trip holds.",
-      properties: {},
-      checklist: openRows(
-        "Let an agent read this ticket",
-        "Review what it changed",
-      ),
-    });
+    expect(onCreate).toHaveBeenCalledWith(
+      {
+        title: "Prove the agent round trip",
+        status: "in_review",
+        priority: "p1",
+        labels: ["backend", "reliability"],
+        description: "Check whether the round trip holds.",
+        properties: {},
+        checklist: openRows(
+          "Let an agent read this ticket",
+          "Review what it changed",
+        ),
+      },
+      [],
+    );
   });
 
   it("picks labels from the project's definitions, never from typed text", () => {
@@ -313,6 +316,7 @@ describe("nothing here claims the file exists yet", () => {
           { text: "Write", checked: false },
         ],
       }),
+      [],
     );
   });
 
@@ -404,6 +408,7 @@ describe("nothing here claims the file exists yet", () => {
           { text: "Parse the file", checked: true },
         ],
       }),
+      [],
     );
   });
 
@@ -422,6 +427,7 @@ describe("nothing here claims the file exists yet", () => {
 
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ checklist: openRows("First", "Third") }),
+      [],
     );
   });
 
@@ -447,6 +453,7 @@ describe("nothing here claims the file exists yet", () => {
 
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ checklist: openRows("First", "Second") }),
+      [],
     );
   });
 
@@ -466,6 +473,7 @@ describe("nothing here claims the file exists yet", () => {
 
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ checklist: openRows("First") }),
+      [],
     );
   });
 
@@ -490,6 +498,7 @@ describe("nothing here claims the file exists yet", () => {
 
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ checklist: openRows("First", "Second") }),
+      [],
     );
   });
 
@@ -548,6 +557,7 @@ describe("nothing here claims the file exists yet", () => {
         expect.objectContaining({
           checklist: openRows("Third", "First", "Second"),
         }),
+        [],
       );
     });
 
@@ -719,6 +729,7 @@ describe("full create prototype parity", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ labels: ["platform-infra"] }),
+      [],
     );
   });
 
@@ -754,6 +765,7 @@ describe("full create prototype parity", () => {
     // Defining the slug it was already carrying must not take it off.
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ labels: ["reliability-2"] }),
+      [],
     );
   });
 
@@ -784,6 +796,7 @@ describe("committing and leaving", () => {
 
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Chorded" }),
+      [],
     );
   });
 
@@ -896,6 +909,7 @@ describe("the properties a project turned on", () => {
       expect.objectContaining({
         properties: { type: "bug", estimate: "m", due: "2026-09-28" },
       }),
+      [],
     );
   });
 
@@ -917,6 +931,7 @@ describe("the properties a project turned on", () => {
     // against bytes already on disk.
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ properties: {} }),
+      [],
     );
   });
 
@@ -960,6 +975,7 @@ describe("the properties a project turned on", () => {
     fireEvent.keyDown(due, { key: "Enter", metaKey: true });
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ properties: { due: "2026-09-28" } }),
+      [],
     );
   });
 });

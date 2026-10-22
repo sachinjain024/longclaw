@@ -918,3 +918,246 @@ fn setting_and_clearing_one_property_in_one_command_disagree() {
     );
     assert!(refused.contains("disagree"), "{refused}");
 }
+
+// ------------------------------------------------------------ ticket attach
+
+const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\x08\x06\0\0\0";
+
+/// A file somewhere outside the project, the way an agent has one: written to
+/// a scratch folder, then attached.
+fn scratch_file(dir: &Path, name: &str, bytes: &[u8]) -> String {
+    let path = dir.join(name);
+    fs::write(&path, bytes).expect("a scratch file");
+    path.display().to_string()
+}
+
+fn attachments_of(root: &Path, key: &str) -> Vec<String> {
+    let folder = common::ticket_path(root, key)
+        .parent()
+        .unwrap()
+        .join("attachments");
+    match fs::read_dir(folder) {
+        Ok(entries) => entries
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// LC-206's agent surface: one command copies, checks and registers a file,
+/// and prints the record and the link to paste — the link form, always.
+#[test]
+fn attach_registers_a_file_and_prints_the_link_to_paste() {
+    let (_temp, root) = common::new_project("attach", "LC");
+    let scratch = tempfile::tempdir().unwrap();
+    let key = key_of(&run(
+        &root,
+        &["ticket", "create", "--title", "Has a screenshot"],
+    ));
+
+    let shot = scratch_file(scratch.path(), "Failure state.png", PNG);
+    let printed = run(
+        &root,
+        &[
+            "ticket",
+            "attach",
+            &key,
+            &shot,
+            "--agent-id",
+            "claude-code",
+            "--agent-name",
+            "Claude Code",
+        ],
+    );
+    let attachment = &printed["attachment"];
+    let id = attachment["id"].as_str().expect("an id");
+    let file = attachment["file"].as_str().expect("a file");
+    assert_eq!(file, format!("attachments/{id}-failure-state.png"));
+    assert_eq!(attachment["name"], "Failure state.png");
+    assert_eq!(attachment["mediaType"], "image/png");
+    assert_eq!(attachment["size"], PNG.len());
+    assert_eq!(attachment["addedBy"]["type"], "agent");
+    assert_eq!(attachment["addedBy"]["id"], "claude-code");
+    // `cli.attach.markdown`: the link form even for an image (review 1). The
+    // renderer decides from the registry how it looks.
+    assert_eq!(
+        printed["markdown"],
+        format!("[Failure state.png](./{file})")
+    );
+
+    let raw = read(&root, &key);
+    assert!(raw.contains(&format!("id: {id}\n")), "{raw}");
+    assert!(raw.contains(&format!("attachments.{id}.added")), "{raw}");
+    assert!(raw.contains("### Claude Code updated this ticket"), "{raw}");
+    assert_eq!(attachments_of(&root, &key), vec![file[12..].to_owned()]);
+    // The source is copied, never moved.
+    assert!(Path::new(&shot).is_file());
+
+    // `ticket show` carries the registry and its state.
+    let shown = run(&root, &["ticket", "show", &key]);
+    assert_eq!(shown["ticket"]["attachments"][0]["id"], id);
+    assert_eq!(shown["missingAttachments"], serde_json::json!([]));
+    assert_eq!(shown["orphanAttachments"], serde_json::json!([]));
+    assert_eq!(shown["missingReferences"], serde_json::json!([]));
+}
+
+#[test]
+fn attach_takes_a_display_name_and_links_text_without_the_bang() {
+    let (_temp, root) = common::new_project("attach-name", "LC");
+    let scratch = tempfile::tempdir().unwrap();
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Has a log"]));
+    let log = scratch_file(scratch.path(), "out.txt", b"line one\n");
+
+    let printed = run(
+        &root,
+        &["ticket", "attach", &key, &log, "--name", "Build log.txt"],
+    );
+    let file = printed["attachment"]["file"].as_str().unwrap();
+    assert!(file.ends_with("-build-log.txt"), "{file}");
+    assert_eq!(printed["attachment"]["name"], "Build log.txt");
+    assert_eq!(printed["attachment"]["mediaType"], "text/plain");
+    // `attach.link.file`, and the person who typed it when no agent is named.
+    assert_eq!(printed["markdown"], format!("[Build log.txt](./{file})"));
+    assert_eq!(printed["attachment"]["addedBy"]["type"], "human");
+}
+
+#[test]
+fn attach_refuses_in_the_deck_s_words_and_leaves_nothing_behind() {
+    let (_temp, root) = common::new_project("attach-refuse", "LC");
+    let scratch = tempfile::tempdir().unwrap();
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Refuses"]));
+    let before = read(&root, &key);
+
+    // Over the limit, judged from its size before a byte of it is read: a
+    // sparse file is 10 MB to the file system and nothing on the disk.
+    let huge = scratch.path().join("huge.mov");
+    fs::File::create(&huge)
+        .unwrap()
+        .set_len(10_000_001)
+        .unwrap();
+    let message = refuse(&root, &["ticket", "attach", &key, huge.to_str().unwrap()]);
+    assert_eq!(
+        message,
+        "huge.mov is 10.0 MB. Attachments can be up to 10 MB."
+    );
+
+    let pdf = scratch_file(scratch.path(), "spec.pdf", b"%PDF-1.7\n");
+    let message = refuse(&root, &["ticket", "attach", &key, &pdf]);
+    assert_eq!(
+        message,
+        "spec.pdf can’t be attached. Only images, text files and videos are supported."
+    );
+
+    let gone = scratch.path().join("gone.png");
+    let message = refuse(&root, &["ticket", "attach", &key, gone.to_str().unwrap()]);
+    assert!(message.contains("gone.png"), "{message}");
+    let message = refuse(
+        &root,
+        &["ticket", "attach", &key, scratch.path().to_str().unwrap()],
+    );
+    assert!(message.contains("folder"), "{message}");
+
+    assert_eq!(read(&root, &key), before);
+    assert!(attachments_of(&root, &key).is_empty());
+}
+
+#[test]
+fn attach_without_its_arguments_says_how_it_is_called() {
+    let (_temp, root) = common::new_project("attach-usage", "LC");
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Usage"]));
+    let usage = "Usage: longclaw ticket attach <KEY> <FILE> [--name <NAME>] \
+                 --agent-id <ID> [--agent-name <NAME>]";
+    assert_eq!(refuse(&root, &["ticket", "attach"]), usage);
+    assert_eq!(refuse(&root, &["ticket", "attach", &key]), usage);
+}
+
+/// LC-206's other agent verb: a doc written for a ticket is recorded where it
+/// is, by its own name, attributed — and never copied or touched.
+#[test]
+fn reference_records_a_doc_where_it_is_and_prints_the_record() {
+    let (_temp, root) = common::new_project("reference", "LC");
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Has a spec"]));
+    fs::create_dir_all(root.join("docs/specs")).unwrap();
+    let spec = root.join("docs/specs/LC-1-round-trip.md");
+    fs::write(&spec, "# The round trip\n").unwrap();
+
+    let printed = run(
+        &root,
+        &[
+            "ticket",
+            "reference",
+            &key,
+            spec.to_str().unwrap(),
+            "--agent-id",
+            "claude-code",
+            "--agent-name",
+            "Claude Code",
+        ],
+    );
+    let reference = &printed["reference"];
+    let id = reference["id"].as_str().expect("an id");
+    assert!(id.starts_with("ref_"), "{id}");
+    // Inside the project, so stored relative to it: it travels with the repo.
+    assert_eq!(reference["path"], "docs/specs/LC-1-round-trip.md");
+    assert_eq!(reference["addedBy"]["type"], "agent");
+    assert_eq!(reference["addedBy"]["id"], "claude-code");
+
+    let raw = read(&root, &key);
+    assert!(raw.contains(&format!("references.{id}.added")), "{raw}");
+    assert_eq!(fs::read_to_string(&spec).unwrap(), "# The round trip\n");
+    let shown = run(&root, &["ticket", "show", &key]);
+    assert_eq!(shown["ticket"]["references"][0]["id"], id);
+    assert_eq!(shown["missingReferences"], serde_json::json!([]));
+}
+
+#[test]
+fn reference_to_a_file_outside_the_project_keeps_its_absolute_path() {
+    let (_temp, root) = common::new_project("reference-outside", "LC");
+    let scratch = tempfile::tempdir().unwrap();
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Elsewhere"]));
+    let flows = scratch_file(scratch.path(), "flows v2.pdf", b"%PDF-1.7\n");
+
+    let printed = run(&root, &["ticket", "reference", &key, &flows]);
+    // Any kind of file: a reference is pointed at, not opened or judged.
+    let stored = printed["reference"]["path"].as_str().unwrap();
+    assert!(Path::new(stored).is_absolute(), "{stored}");
+    assert!(stored.ends_with("flows v2.pdf"), "{stored}");
+    assert_eq!(printed["reference"]["addedBy"]["type"], "human");
+}
+
+#[test]
+fn reference_refuses_what_is_not_a_file_and_writes_nothing() {
+    let (_temp, root) = common::new_project("reference-refuse", "LC");
+    let scratch = tempfile::tempdir().unwrap();
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Refuses"]));
+    let before = read(&root, &key);
+
+    let gone = scratch.path().join("gone.md");
+    let message = refuse(
+        &root,
+        &["ticket", "reference", &key, gone.to_str().unwrap()],
+    );
+    assert!(message.contains("gone.md"), "{message}");
+    let message = refuse(
+        &root,
+        &[
+            "ticket",
+            "reference",
+            &key,
+            scratch.path().to_str().unwrap(),
+        ],
+    );
+    assert!(message.contains("folder"), "{message}");
+    assert_eq!(read(&root, &key), before);
+}
+
+#[test]
+fn reference_without_its_arguments_says_how_it_is_called() {
+    let (_temp, root) = common::new_project("reference-usage", "LC");
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Usage"]));
+    // `cli.reference.usage`.
+    let usage = "Usage: longclaw ticket reference <KEY> <PATH> --agent-id <ID> \
+                 [--agent-name <NAME>]";
+    assert_eq!(refuse(&root, &["ticket", "reference"]), usage);
+    assert_eq!(refuse(&root, &["ticket", "reference", &key]), usage);
+}

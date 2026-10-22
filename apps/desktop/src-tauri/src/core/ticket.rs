@@ -12,8 +12,8 @@
 //! document returns its input exactly; an edit rewrites the lines it owns and
 //! leaves the rest alone.
 //!
-//! Reserved-section rule: `## Checklist`, `## Attachments`, and `## Activity`
-//! each run until the next reserved heading or the end of the file. Ordinary
+//! Reserved-section rule: `## Checklist`, `## Attachments`, `## Ticket References`
+//! and `## Activity` each run until the next reserved heading or the end of the file. Ordinary
 //! headings, fenced code, and bounded records never end a section, so an agent
 //! can quote `## Checklist` inside a comment without changing what the file means.
 
@@ -30,6 +30,19 @@ const EVENT_OPEN: &str = "<!-- longclaw:event";
 const EVENT_CLOSE: &str = "<!-- /longclaw:event -->";
 const ATTACHMENT_OPEN: &str = "<!-- longclaw:attachment";
 const ATTACHMENT_CLOSE: &str = "<!-- /longclaw:attachment -->";
+const REFERENCE_OPEN: &str = "<!-- longclaw:reference";
+const REFERENCE_CLOSE: &str = "<!-- /longclaw:reference -->";
+/// Every heading that starts a section the app owns, in the order it writes
+/// them. A description may not contain one, because it would end there.
+const RESERVED_HEADINGS: [&str; 4] = [
+    "## Checklist",
+    "## Attachments",
+    "## Ticket References",
+    "## Activity",
+];
+/// Where a ticket's own folder sits below the project root, as a link
+/// prefix: `.longclaw/tickets/<KEY>/`. A reference's body links from there.
+const TICKET_TO_PROJECT: &str = "../../../";
 const HEADER_TERMINATOR: &str = "-->";
 const ITEM_MARKER_OPEN: &str = "<!-- longclaw:item=";
 const ITEM_MARKER_CLOSE: &str = "-->";
@@ -121,7 +134,7 @@ impl Priority {
 
 /// Whether an actor is a person or a program. The app never infers this from a
 /// name; a record that does not say degrades instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ActorType {
     Human,
@@ -146,14 +159,14 @@ impl ActorType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Actor {
     #[serde(rename = "type")]
     pub actor_type: ActorType,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
@@ -296,6 +309,103 @@ pub struct Attachment {
     pub size: u64,
     pub added_at: String,
     pub added_by: Actor,
+}
+
+/// A doc the ticket points at without owning it (LC-206): a spec, a prototype,
+/// a design an agent wrote for this ticket or a person picked off the disk.
+///
+/// Nothing is copied, which is the whole difference from an attachment. The
+/// path is project-relative when the file is inside the project and absolute
+/// when it is not, and the name is the file's own, read off the path rather than
+/// stored — so there is no second spelling of it to go stale, and nothing to
+/// rename.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Reference {
+    pub id: String,
+    pub path: String,
+    pub added_at: String,
+    pub added_by: Actor,
+}
+
+impl Reference {
+    /// What the row says: the last segment of the path.
+    pub fn name(&self) -> &str {
+        reference_name(&self.path)
+    }
+
+    /// Whether the person chose a file the project does not hold. The app marks
+    /// such a row, because it is the one reference a teammate's clone cannot
+    /// follow.
+    pub fn is_outside_project(&self) -> bool {
+        self.path.starts_with('/')
+    }
+}
+
+fn reference_name(path: &str) -> &str {
+    path.trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or(path)
+}
+
+/// Where a new or restored record goes among the ones already in its section —
+/// an attachment's or a reference's.
+///
+/// `End` is an attach. The other two exist for undo, which owes the person the
+/// row back where it was rather than at the bottom of the list — the reason
+/// `ChecklistRestore` names a neighbour.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordSlot {
+    End,
+    First,
+    After(String),
+}
+
+/// A record the core has already proven: its bytes are under `attachments/`,
+/// its media type was read off them, and its size is theirs.
+///
+/// Never on the wire — `TicketEdit` skips it — because nothing that crosses
+/// IPC has looked at the disk. `core::attachments` is the one writer, and it
+/// fills this only after checking the file it names.
+#[derive(Debug, Clone)]
+pub struct AttachmentRegistration {
+    pub attachment: Attachment,
+    pub slot: RecordSlot,
+    /// The bytes were already in `attachments/` — an orphan registered in
+    /// place — so the activity says _re-attached_ rather than _attached_.
+    pub reattached: bool,
+}
+
+/// A removed attachment, asked back by the undo that removed it.
+///
+/// It carries what the record said and not what the file is: the media type and
+/// size are read off the bytes again when the project settles the request into
+/// an [`AttachmentRegistration`], so an undo can restore a row but never vouch
+/// for a file.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AttachmentRestore {
+    pub id: String,
+    pub file: String,
+    pub name: String,
+    pub added_at: String,
+    pub added_by: Actor,
+    /// The attachment it sat after; absent is the top.
+    #[serde(default)]
+    pub after: Option<String>,
+}
+
+/// A removed reference, put back where it was with the attribution it had.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReferenceRestore {
+    pub id: String,
+    pub path: String,
+    pub added_at: String,
+    pub added_by: Actor,
+    #[serde(default)]
+    pub after: Option<String>,
 }
 
 /// One of the four opt-in properties, named by the frontmatter key it writes.
@@ -502,6 +612,8 @@ pub struct Ticket {
     pub description: String,
     pub checklist: Vec<ChecklistItem>,
     pub attachments: Vec<Attachment>,
+    /// Docs the ticket points at (LC-206), in the order the file lists them.
+    pub references: Vec<Reference>,
     pub activity: Vec<ActivityEvent>,
     /// True when the ticket's state is newer than its newest activity entry,
     /// meaning someone changed it without narrating the change. State stands and
@@ -606,6 +718,27 @@ pub struct TicketEdit {
     /// substitute: a plain comment lands at the end of the stream, which is not
     /// where the one just withdrawn was.
     pub restore_comment: Option<CommentRestore>,
+    /// The attachment to unregister, by id. Its bytes stay where they are and
+    /// become an orphan by the format's own definition (LC-206): removal is
+    /// never a delete, and a purge is a separate operation (LC-276x).
+    pub remove_attachment: Option<String>,
+    /// A removed attachment, asked back by its undo. A request, not a record:
+    /// the project checks the file and settles it into `register_attachment`
+    /// before anything is applied, and a document handed it unsettled refuses.
+    pub restore_attachment: Option<AttachmentRestore>,
+    /// A record whose bytes the core has already placed and read. See
+    /// [`AttachmentRegistration`] for why it never crosses IPC.
+    #[serde(skip)]
+    pub register_attachment: Option<AttachmentRegistration>,
+    /// A doc to point at, by path. The project normalizes what a caller typed —
+    /// relative to the project when the file is inside it, absolute when it is
+    /// not — before it reaches here; a document holds the stored form to the
+    /// rule that it cannot leave the project without saying so.
+    pub add_reference: Option<String>,
+    /// The reference to take out, by id. The file it points at is not touched.
+    pub remove_reference: Option<String>,
+    /// A removed reference put back where it was.
+    pub restore_reference: Option<ReferenceRestore>,
 }
 
 /// Reads a field that may be absent or explicitly null as two distinct answers.
@@ -751,6 +884,12 @@ impl TicketEdit {
             && self.edit_comment.is_none()
             && self.remove_comment.is_none()
             && self.restore_comment.is_none()
+            && self.remove_attachment.is_none()
+            && self.restore_attachment.is_none()
+            && self.register_attachment.is_none()
+            && self.add_reference.is_none()
+            && self.remove_reference.is_none()
+            && self.restore_reference.is_none()
     }
 
     /// What this edit asks of each of the four properties, paired with the
@@ -786,6 +925,7 @@ enum Role {
     Text,
     Checklist,
     Attachments,
+    References,
     Activity,
 }
 
@@ -911,11 +1051,15 @@ impl TicketDocument {
             .flat_map(|chunk| parse_checklist(&chunk.raw))
             .collect();
         let mut attachments = Vec::new();
+        let mut references = Vec::new();
         let mut activity = Vec::new();
         for chunk in &chunks {
             match chunk.role {
                 Role::Attachments => {
                     collect_attachments(chunk, &mut attachments, &mut record_diagnostics)
+                }
+                Role::References => {
+                    collect_references(chunk, &mut references, &mut record_diagnostics)
                 }
                 Role::Activity => collect_activity(chunk, &mut activity, &mut record_diagnostics),
                 Role::Text | Role::Checklist => {}
@@ -967,6 +1111,7 @@ impl TicketDocument {
                 description,
                 checklist,
                 attachments,
+                references,
                 activity,
                 history_incomplete,
                 unknown_keys,
@@ -1251,6 +1396,148 @@ impl TicketDocument {
         // write is what makes that item addressable afterwards.
         next.adopt_checklist_ids();
 
+        // Attachments and references (LC-206). Removal before registration, so
+        // an edit that does both — which no surface sends, but nothing forbids
+        // — restores into the list as the removal left it.
+        if let Some(attachment_id) = &edit.remove_attachment {
+            let attachment = current
+                .attachments
+                .iter()
+                .find(|attachment| &attachment.id == attachment_id)
+                .ok_or_else(|| {
+                    Diagnostic::parse(format!(
+                        "Attachment {attachment_id} is not registered in this ticket"
+                    ))
+                })?;
+            if !next.remove_record(
+                Role::Attachments,
+                ATTACHMENT_OPEN,
+                ATTACHMENT_CLOSE,
+                attachment_id,
+            ) {
+                return Err(record_vanished(attachment_id));
+            }
+            changes.push(FieldChange::new(
+                format!("attachments.{attachment_id}.removed"),
+                Some(attachment.name.clone()),
+                None,
+            ));
+        }
+        if edit.restore_attachment.is_some() {
+            return Err(Diagnostic::parse(
+                "An attachment is restored through its project, which has checked the file \
+                 it names; this edit was never checked",
+            ));
+        }
+        if let Some(registration) = &edit.register_attachment {
+            let attachment = &registration.attachment;
+            registrable(
+                attachment,
+                &current.attachments,
+                edit.remove_attachment.as_deref(),
+            )?;
+            let record = render_attachment(attachment);
+            if !next.insert_record(
+                Role::Attachments,
+                ATTACHMENT_OPEN,
+                ATTACHMENT_CLOSE,
+                &registration.slot,
+                &record,
+            ) {
+                return Err(slot_missing(&registration.slot, "Attachment"));
+            }
+            let what = if registration.reattached {
+                "reattached"
+            } else {
+                "added"
+            };
+            changes.push(FieldChange::new(
+                format!("attachments.{}.{what}", attachment.id),
+                None,
+                Some(attachment.name.clone()),
+            ));
+        }
+        if let Some(reference_id) = &edit.remove_reference {
+            let reference = current
+                .references
+                .iter()
+                .find(|reference| &reference.id == reference_id)
+                .ok_or_else(|| {
+                    Diagnostic::parse(format!("Reference {reference_id} is not in this ticket"))
+                })?;
+            if !next.remove_record(
+                Role::References,
+                REFERENCE_OPEN,
+                REFERENCE_CLOSE,
+                reference_id,
+            ) {
+                return Err(record_vanished(reference_id));
+            }
+            changes.push(FieldChange::new(
+                format!("references.{reference_id}.removed"),
+                Some(reference.name().to_owned()),
+                None,
+            ));
+        }
+        let mut added_references = Vec::new();
+        if let Some(restored) = &edit.restore_reference {
+            validate_timestamp("added_at", &restored.added_at)?;
+            let reference = Reference {
+                id: restored.id.clone(),
+                path: stored_reference_path(&restored.path)?.to_owned(),
+                added_at: restored.added_at.clone(),
+                added_by: restored.added_by.clone(),
+            };
+            let slot = match &restored.after {
+                Some(after) => RecordSlot::After(after.clone()),
+                None => RecordSlot::First,
+            };
+            added_references.push((reference, slot));
+        }
+        if let Some(path) = &edit.add_reference {
+            let reference = Reference {
+                id: mint_id("ref"),
+                path: stored_reference_path(path)?.to_owned(),
+                added_at: now.to_owned(),
+                added_by: author.clone(),
+            };
+            added_references.push((reference, RecordSlot::End));
+        }
+        for (reference, slot) in added_references {
+            let kept = current
+                .references
+                .iter()
+                .filter(|kept| edit.remove_reference.as_deref() != Some(kept.id.as_str()));
+            for kept in kept {
+                if kept.id == reference.id {
+                    return Err(Diagnostic::parse(format!(
+                        "Reference {} is already in this ticket",
+                        reference.id
+                    )));
+                }
+                if kept.path == reference.path {
+                    return Err(Diagnostic::parse(format!(
+                        "This ticket already references {}",
+                        reference.path
+                    )));
+                }
+            }
+            if !next.insert_record(
+                Role::References,
+                REFERENCE_OPEN,
+                REFERENCE_CLOSE,
+                &slot,
+                &render_reference(&reference),
+            ) {
+                return Err(slot_missing(&slot, "Reference"));
+            }
+            changes.push(FieldChange::new(
+                format!("references.{}.added", reference.id),
+                None,
+                Some(reference.name().to_owned()),
+            ));
+        }
+
         // What this edit did to comments already in the history, kept apart from
         // `changes` on purpose (LC-241q). `changes` is what the appended update
         // event narrates and what moves `updated_at`, and a comment's words are
@@ -1383,7 +1670,7 @@ impl TicketDocument {
                 return Err(Diagnostic::parse(format!(
                     "A description cannot contain a reserved heading ({}), because \
                      that starts a section. Indent it or wrap it in a code fence.",
-                    joined(["## Checklist", "## Attachments", "## Activity"])
+                    joined(RESERVED_HEADINGS)
                 )));
             }
         }
@@ -1587,7 +1874,7 @@ impl TicketDocument {
                 let position = self
                     .chunks
                     .iter()
-                    .position(|chunk| matches!(chunk.role, Role::Attachments | Role::Activity))
+                    .position(|chunk| section_order(chunk.role) > section_order(Role::Checklist))
                     .unwrap_or(self.chunks.len());
                 self.chunks.insert(
                     position,
@@ -1791,6 +2078,151 @@ impl TicketDocument {
         false
     }
 
+    /// Takes one bounded record out of a registry section, whole, with the
+    /// blank line that separated it from its neighbour — the one after it, or
+    /// the one before it when it was last. Answers whether it found the record.
+    ///
+    /// The records around it are not re-rendered: an agent's field this build
+    /// does not read, or a line break its author chose, comes back as it was.
+    fn remove_record(&mut self, role: Role, open: &str, close: &str, id: &str) -> bool {
+        for chunk in self.chunks.iter_mut().filter(|chunk| chunk.role == role) {
+            let mut lines = chunk_lines(&chunk.raw);
+            let Some((from, to)) = bounded_record_span(&lines, open, close, id) else {
+                continue;
+            };
+            let mut from = from;
+            let mut to = to + 1;
+            if lines.get(to).is_some_and(|line| line.trim().is_empty()) {
+                to += 1;
+            } else if from > 0 && lines[from - 1].trim().is_empty() {
+                from -= 1;
+            }
+            let took_the_last_ending = to == lines.len() && !lines[to - 1].ends_with('\n');
+            lines.drain(from..to);
+            if took_the_last_ending {
+                if let Some(last) = lines.last_mut() {
+                    while last.ends_with('\n') {
+                        last.pop();
+                    }
+                }
+            }
+            chunk.raw = lines.concat();
+            return true;
+        }
+        false
+    }
+
+    /// Puts a rendered record into its section at `slot`, opening the section
+    /// where the format orders it when the ticket has none. Answers whether the
+    /// slot's neighbour was there to land beside.
+    fn insert_record(
+        &mut self,
+        role: Role,
+        open: &str,
+        close: &str,
+        slot: &RecordSlot,
+        record: &str,
+    ) -> bool {
+        if !self.chunks.iter().any(|chunk| chunk.role == role) {
+            if let RecordSlot::After(_) = slot {
+                return false;
+            }
+            self.open_section(role, record);
+            return true;
+        }
+        let record_lines = chunk_lines(record);
+        let indices: Vec<usize> = self
+            .chunks
+            .iter()
+            .enumerate()
+            .filter(|(_, chunk)| chunk.role == role)
+            .map(|(index, _)| index)
+            .collect();
+        for &index in &indices {
+            let chunk = &mut self.chunks[index];
+            if !chunk.raw.ends_with('\n') {
+                chunk.raw.push('\n');
+            }
+            let mut lines = chunk_lines(&chunk.raw);
+            let first_open = lines.iter().position(|line| line.trim().starts_with(open));
+            let at = match slot {
+                RecordSlot::After(after) => {
+                    bounded_record_span(&lines, open, close, after).map(|(_, end)| (end + 1, true))
+                }
+                // The first section that holds a record, or the first section.
+                RecordSlot::First => match first_open {
+                    Some(at) => Some((at, false)),
+                    None if index == indices[0] => Some((heading_end(&lines), true)),
+                    None => None,
+                },
+                RecordSlot::End if index == *indices.last().unwrap() => {
+                    match lines.iter().rposition(|line| line.trim() == close) {
+                        Some(at) => Some((at + 1, true)),
+                        None => Some((heading_end(&lines), true)),
+                    }
+                }
+                RecordSlot::End => None,
+            };
+            let Some((at, blank_before)) = at else {
+                continue;
+            };
+            let mut inserted = Vec::with_capacity(record_lines.len() + 1);
+            if blank_before {
+                inserted.push("\n".to_owned());
+                inserted.extend(record_lines.iter().cloned());
+            } else {
+                inserted.extend(record_lines.iter().cloned());
+                inserted.push("\n".to_owned());
+            }
+            lines.splice(at..at, inserted);
+            chunk.raw = lines.concat();
+            return true;
+        }
+        // `First` with a record somewhere other than the first section is
+        // answered above; reaching here means an `After` whose neighbour no
+        // section holds.
+        false
+    }
+
+    /// A new registry section holding one record, placed where the format
+    /// orders the reserved sections: before the first one that comes after it.
+    fn open_section(&mut self, role: Role, record: &str) {
+        let heading = match role {
+            Role::Attachments => "## Attachments",
+            Role::References => "## Ticket References",
+            Role::Checklist => "## Checklist",
+            Role::Activity => "## Activity",
+            Role::Text => unreachable!("the description is not a section"),
+        };
+        let position = self
+            .chunks
+            .iter()
+            .position(|chunk| section_order(chunk.role) > section_order(role))
+            .unwrap_or(self.chunks.len());
+        let mut leading = String::new();
+        if let Some(previous) = position.checked_sub(1).map(|index| &mut self.chunks[index]) {
+            if !previous.raw.ends_with('\n') {
+                previous.raw.push('\n');
+            }
+            if !previous.raw.ends_with("\n\n") {
+                leading.push('\n');
+            }
+        }
+        let trailing = if position < self.chunks.len() {
+            "\n"
+        } else {
+            ""
+        };
+        self.chunks.insert(
+            position,
+            Chunk {
+                role,
+                raw: format!("{leading}{heading}\n\n{record}{trailing}"),
+                start_line: 0,
+            },
+        );
+    }
+
     fn append_activity(&mut self, record: &str) {
         match self.chunk_mut(Role::Activity) {
             Some(chunk) => {
@@ -1874,6 +2306,110 @@ fn render_event(
     record.push_str(EVENT_CLOSE);
     record.push('\n');
     record
+}
+
+/// One `longclaw:attachment` record, in the layout the format documents.
+fn render_attachment(attachment: &Attachment) -> String {
+    let mut record = String::new();
+    record.push_str(ATTACHMENT_OPEN);
+    record.push('\n');
+    record.push_str(&format!("id: {}\n", encode_scalar(&attachment.id)));
+    record.push_str(&format!("file: {}\n", encode_scalar(&attachment.file)));
+    record.push_str(&format!("name: {}\n", encode_scalar(&attachment.name)));
+    record.push_str(&format!(
+        "media_type: {}\n",
+        encode_scalar(&attachment.media_type)
+    ));
+    record.push_str(&format!("size: {}\n", attachment.size));
+    record.push_str(&format!(
+        "added_at: {}\n",
+        encode_scalar(&attachment.added_at)
+    ));
+    render_actor(&mut record, "added_by", &attachment.added_by);
+    record.push_str(HEADER_TERMINATOR);
+    record.push('\n');
+    record.push_str(&format!(
+        "[{}]({})\n",
+        link_text(&attachment.name),
+        attachment_href(&attachment.file)
+    ));
+    record.push_str(ATTACHMENT_CLOSE);
+    record.push('\n');
+    record
+}
+
+/// One `longclaw:reference` record. The body links from the ticket's own
+/// folder, so a person reading the raw file on a code host can follow it.
+fn render_reference(reference: &Reference) -> String {
+    let mut record = String::new();
+    record.push_str(REFERENCE_OPEN);
+    record.push('\n');
+    record.push_str(&format!("id: {}\n", encode_scalar(&reference.id)));
+    record.push_str(&format!("path: {}\n", encode_scalar(&reference.path)));
+    record.push_str(&format!(
+        "added_at: {}\n",
+        encode_scalar(&reference.added_at)
+    ));
+    render_actor(&mut record, "added_by", &reference.added_by);
+    record.push_str(HEADER_TERMINATOR);
+    record.push('\n');
+    let target = if reference.is_outside_project() {
+        reference.path.clone()
+    } else {
+        format!("{TICKET_TO_PROJECT}{}", reference.path)
+    };
+    record.push_str(&format!(
+        "[{}]({})\n",
+        link_text(reference.name()),
+        link_destination(&target)
+    ));
+    record.push_str(REFERENCE_CLOSE);
+    record.push('\n');
+    record
+}
+
+fn render_actor(record: &mut String, key: &str, actor: &Actor) {
+    record.push_str(&format!("{key}:\n  type: {}\n", actor.actor_type.as_str()));
+    if let Some(id) = &actor.id {
+        record.push_str(&format!("  id: {}\n", encode_scalar(id)));
+    }
+    if let Some(name) = &actor.name {
+        record.push_str(&format!("  name: {}\n", encode_scalar(name)));
+    }
+}
+
+/// Link text with the three characters that would end or bend it escaped.
+pub(crate) fn link_text(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for character in text.chars() {
+        if matches!(character, '\\' | '[' | ']') {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped
+}
+
+/// Where a link to an attachment points, from the description, a comment or
+/// the record itself: `./attachments/…`, as a destination.
+pub(crate) fn attachment_href(file: &str) -> String {
+    link_destination(&format!("./{file}"))
+}
+
+/// A link destination, bare when it can be — the form the copy deck shows and
+/// a person types — and in `<…>` when CommonMark would end or bend a bare one:
+/// a space, a parenthesis, an angle bracket, a backslash or a control
+/// character.
+pub(crate) fn link_destination(path: &str) -> String {
+    let bare = !path.is_empty()
+        && !path.chars().any(|c| {
+            c.is_whitespace() || c.is_control() || matches!(c, '(' | ')' | '<' | '>' | '\\')
+        });
+    if bare {
+        path.to_owned()
+    } else {
+        format!("<{}>", path.replace('<', "\\<").replace('>', "\\>"))
+    }
 }
 
 /// Renders a brand-new ticket in the documented key order. This is the one place
@@ -2070,7 +2606,7 @@ fn render_ticket(
     rendered
 }
 
-fn mint_id(prefix: &str) -> String {
+pub(crate) fn mint_id(prefix: &str) -> String {
     let uuid = Uuid::new_v4().simple().to_string();
     format!("{prefix}_{}", &uuid[..8])
 }
@@ -2255,6 +2791,7 @@ fn reserved_role(trimmed: &str) -> Option<Role> {
     match trimmed {
         "## Checklist" => Some(Role::Checklist),
         "## Attachments" => Some(Role::Attachments),
+        "## Ticket References" => Some(Role::References),
         "## Activity" => Some(Role::Activity),
         _ => None,
     }
@@ -2339,6 +2876,9 @@ fn record_opener(trimmed: &str) -> Option<(&'static str, Role, &'static str)> {
     if trimmed.starts_with(ATTACHMENT_OPEN) {
         return Some((ATTACHMENT_CLOSE, Role::Attachments, "## Attachments"));
     }
+    if trimmed.starts_with(REFERENCE_OPEN) {
+        return Some((REFERENCE_CLOSE, Role::References, "## Ticket References"));
+    }
     None
 }
 
@@ -2346,6 +2886,7 @@ fn label_of(role: Role) -> &'static str {
     match role {
         Role::Activity => "activity",
         Role::Attachments => "attachment",
+        Role::References => "reference",
         Role::Text | Role::Checklist => "unknown",
     }
 }
@@ -2641,6 +3182,173 @@ fn record_span(lines: &[String], event_id: &str) -> Option<RecordSpan> {
     None
 }
 
+/// Just enough of any record's header to know whose it is.
+#[derive(Deserialize)]
+struct IdHeader {
+    id: String,
+}
+
+/// The first and last line of the bounded record carrying `id`, matched by
+/// reading its header rather than by an `id:` line, for the reason
+/// [`record_span`] gives.
+fn bounded_record_span(
+    lines: &[String],
+    open: &str,
+    close: &str,
+    id: &str,
+) -> Option<(usize, usize)> {
+    let mut start = None;
+    let mut header = String::new();
+    let mut in_header = false;
+    for (index, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with(open) {
+            start = Some(index);
+            header.clear();
+            in_header = true;
+            continue;
+        }
+        let Some(from) = start else { continue };
+        if in_header {
+            if trimmed == HEADER_TERMINATOR {
+                in_header = false;
+            } else {
+                header.push_str(line);
+            }
+            continue;
+        }
+        if trimmed == close {
+            let names_it = validate_subset(&header).is_ok()
+                && serde_yaml::from_str::<IdHeader>(&header).is_ok_and(|parsed| parsed.id == id);
+            if names_it {
+                return Some((from, index));
+            }
+            start = None;
+        }
+    }
+    None
+}
+
+/// The line after a section's heading, where a section's first record goes.
+fn heading_end(lines: &[String]) -> usize {
+    lines
+        .iter()
+        .position(|line| line.trim_start().starts_with("## "))
+        .map_or(0, |index| index + 1)
+}
+
+/// The order the format lays reserved sections out in, which is where a new
+/// one is opened.
+fn section_order(role: Role) -> u8 {
+    match role {
+        Role::Text => 0,
+        Role::Checklist => 1,
+        Role::Attachments => 2,
+        Role::References => 3,
+        Role::Activity => 4,
+    }
+}
+
+/// Whether a proven record may join this registry: its own id, its own file,
+/// a single-line name, and a file inside the ticket's `attachments/` folder.
+/// `removed` is an id this same edit takes out, so an undo that removes and
+/// restores in one write is not refused for colliding with itself.
+fn registrable(
+    attachment: &Attachment,
+    registered: &[Attachment],
+    removed: Option<&str>,
+) -> Result<(), Diagnostic> {
+    let id = attachment.id.trim();
+    if id.is_empty() || id.contains(char::is_whitespace) {
+        return Err(Diagnostic::parse(
+            "An attachment id is one word with no spaces",
+        ));
+    }
+    let name = attachment.name.trim();
+    if name.is_empty() || name.contains('\n') {
+        return Err(Diagnostic::parse(
+            "An attachment's name is a single non-empty line",
+        ));
+    }
+    let inside = attachment
+        .file
+        .strip_prefix("attachments/")
+        .is_some_and(|rest| {
+            !rest.is_empty()
+                && !rest.contains('/')
+                && !rest.contains('\\')
+                && !rest.contains('\n')
+                && rest != ".."
+        });
+    if !inside {
+        return Err(Diagnostic::parse(format!(
+            "An attachment's file is a name directly inside attachments/; found {}",
+            attachment.file
+        )));
+    }
+    validate_timestamp("added_at", &attachment.added_at)?;
+    for kept in registered
+        .iter()
+        .filter(|kept| removed != Some(kept.id.as_str()))
+    {
+        if kept.id == attachment.id {
+            return Err(Diagnostic::parse(format!(
+                "Attachment {} is already registered in this ticket",
+                attachment.id
+            )));
+        }
+        if kept.file == attachment.file {
+            return Err(Diagnostic::parse(format!(
+                "{} is already registered in this ticket as {}",
+                attachment.file, kept.id
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// The refusal for a restore whose neighbour is no longer in the list.
+fn slot_missing(slot: &RecordSlot, what: &str) -> Diagnostic {
+    match slot {
+        RecordSlot::After(after) => Diagnostic::parse(format!(
+            "{what} {after} is not in this ticket to restore after"
+        )),
+        RecordSlot::First | RecordSlot::End => {
+            Diagnostic::parse(format!("{what} could not be placed in this ticket"))
+        }
+    }
+}
+
+/// A reference's path as it is stored, or the refusal. Absolute is allowed and
+/// means outside the project; relative is to the project root and may not climb
+/// out of it, because a relative path that left the project would leave it
+/// without the row saying so.
+pub fn stored_reference_path(path: &str) -> Result<&str, Diagnostic> {
+    let path = path.trim();
+    if path.is_empty() {
+        return Err(Diagnostic::parse("A reference needs a path"));
+    }
+    if path.chars().any(char::is_control) {
+        return Err(Diagnostic::parse(
+            "A reference path is a single line with no control characters",
+        ));
+    }
+    if path.contains('\\') {
+        return Err(Diagnostic::parse("A reference path uses forward slashes"));
+    }
+    if path.split('/').any(|segment| segment == "..") {
+        return Err(Diagnostic::parse(format!(
+            "A reference path may not contain `..`; found {path}"
+        )));
+    }
+    if reference_name(path).is_empty() || reference_name(path) == "." {
+        return Err(Diagnostic::parse(format!(
+            "A reference names a file; found {path}"
+        )));
+    }
+    Ok(path)
+}
+
 /// Sets or replaces `edited_at` in one record's header, directly under
 /// `occurred_at` — the place `render_event` writes it, so a reworded record and
 /// a restored one are laid out the same way.
@@ -2871,6 +3579,57 @@ fn collect_attachments(
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct ReferenceHeader {
+    id: String,
+    path: String,
+    added_at: String,
+    added_by: ActorHeader,
+}
+
+fn collect_references(
+    chunk: &Chunk,
+    references: &mut Vec<Reference>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for record in collect_raw_records(
+        chunk,
+        REFERENCE_OPEN,
+        REFERENCE_CLOSE,
+        "reference",
+        diagnostics,
+    ) {
+        match parse_reference(&record) {
+            Ok(reference) => references.push(reference),
+            Err(diagnostic) => diagnostics.push(diagnostic),
+        }
+    }
+}
+
+fn parse_reference(record: &RawRecord) -> Result<Reference, Diagnostic> {
+    let describe = |message: String| {
+        Diagnostic::parse_at(
+            format!("A reference record is invalid: {message}"),
+            record.header_line,
+        )
+    };
+    validate_subset(&record.header).map_err(|error| describe(error.message))?;
+    let header: ReferenceHeader =
+        serde_yaml::from_str(&record.header).map_err(|error| describe(error.to_string()))?;
+    require_non_empty("id", &header.id).map_err(|error| describe(error.message))?;
+    validate_timestamp("added_at", &header.added_at).map_err(|error| describe(error.message))?;
+    let path = stored_reference_path(&header.path)
+        .map_err(|error| describe(error.message))?
+        .to_owned();
+    let added_by = header.added_by.into_actor().map_err(describe)?;
+    Ok(Reference {
+        id: header.id,
+        path,
+        added_at: header.added_at,
+        added_by,
+    })
+}
+
 fn parse_attachment(record: &RawRecord) -> Result<Attachment, Diagnostic> {
     let describe = |message: String| {
         Diagnostic::parse_at(
@@ -3084,21 +3843,85 @@ mod tests {
                         occurred_at: "2026-07-29T01:00:00Z".to_owned(),
                         edited_at: None,
                     }),
+                    // Removals need something to remove, so they are the
+                    // second write below, against what this one registered.
+                    remove_attachment: None,
+                    // Settled into `register_attachment` before it reaches a
+                    // document, so it writes no field of its own.
+                    restore_attachment: None,
+                    register_attachment: Some(super::AttachmentRegistration {
+                        attachment: super::Attachment {
+                            id: "att_0001".to_owned(),
+                            file: "attachments/att_0001-failure-state.png".to_owned(),
+                            name: "failure-state.png".to_owned(),
+                            media_type: "image/png".to_owned(),
+                            size: 2048,
+                            added_at: NOW.to_owned(),
+                            added_by: Actor::agent("fixture-agent", None),
+                        },
+                        slot: super::RecordSlot::End,
+                        reattached: false,
+                    }),
+                    add_reference: Some("docs/specs/LC-1-loading.md".to_owned()),
+                    remove_reference: None,
+                    // Writes `references.<id>.added`, which the add above
+                    // already pins.
+                    restore_reference: None,
                 },
                 NOW,
                 &Actor::agent("fixture-agent", None),
             )
             .expect("the every-field edit should be accepted");
+        let reference_id = applied.document.ticket().references[0].id.clone();
+        let removed = applied
+            .document
+            .apply(
+                &TicketEdit {
+                    remove_attachment: Some("att_0001".to_owned()),
+                    remove_reference: Some(reference_id),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("removing what the first write registered should be accepted");
+        // And the orphan that removal left, registered in place again.
+        let mut reattach = applied.document.ticket().attachments[0].clone();
+        reattach.added_at = NOW.to_owned();
+        let reattached = removed
+            .document
+            .apply(
+                &TicketEdit {
+                    register_attachment: Some(super::AttachmentRegistration {
+                        attachment: reattach,
+                        slot: super::RecordSlot::End,
+                        reattached: true,
+                    }),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("re-attaching the orphan should be accepted");
 
-        let mut actual =
-            serde_json::to_value(&applied.changes).expect("field changes must serialize");
-        // An appended item's id is minted per write, so the fixture pins the
-        // shape of the dotted path rather than the id inside it.
+        let mut actual = serde_json::to_value(
+            applied
+                .changes
+                .iter()
+                .chain(&removed.changes)
+                .chain(&reattached.changes)
+                .collect::<Vec<_>>(),
+        )
+        .expect("field changes must serialize");
+        // An appended item's or reference's id is minted per write, so the
+        // fixture pins the shape of the dotted path rather than the id inside it.
         for change in actual.as_array_mut().expect("an array of changes") {
             let field = change["field"].as_str().expect("a field name").to_owned();
-            if field.ends_with(".added") {
-                change["field"] = serde_json::json!("checklist.ck_minted.added");
+            let mut segments: Vec<&str> = field.split('.').collect();
+            match segments.as_slice() {
+                ["checklist", _, "added"] => segments[1] = "ck_minted",
+                ["references", _, _] => segments[1] = "ref_minted",
+                _ => {}
             }
+            change["field"] = serde_json::json!(segments.join("."));
         }
 
         let fixture: serde_json::Value =
@@ -4678,5 +5501,647 @@ mod tests {
         let parsed = TicketDocument::parse(&rendered, "LC-9").expect("the create should parse");
         assert_eq!(parsed.ticket().due.as_deref(), Some("2026-09-28"));
         assert_eq!(parsed.ticket().estimate, None);
+    }
+}
+
+/// Attachment and reference records: what an edit does to the two registries
+/// LC-206 lets the app write. Kept apart from the module above because each
+/// test here is about records, not about the frontmatter or the checklist.
+#[cfg(test)]
+mod record_tests {
+    use super::{
+        Actor, Attachment, AttachmentRegistration, AttachmentRestore, RecordSlot, ReferenceRestore,
+        TicketDocument, TicketEdit,
+    };
+
+    const NOW: &str = "2026-10-15T10:00:00.000Z";
+
+    const TICKET: &str = concat!(
+        "---\n",
+        "format: longclaw.ticket/v1\n",
+        "id: 019c8ca0-0000-7000-8000-000000000206\n",
+        "key: LC-206\n",
+        "title: Attachments\n",
+        "status: todo\n",
+        "priority: p2\n",
+        "created_at: 2026-10-01T00:00:00Z\n",
+        "updated_at: 2026-10-01T00:00:00Z\n",
+        "---\n",
+        "\n",
+        "See ![shot](./attachments/att_0001-shot.png).\n",
+        "\n",
+        "## Attachments\n",
+        "\n",
+        "<!-- longclaw:attachment\n",
+        "id: att_0001\n",
+        "file: attachments/att_0001-shot.png\n",
+        "name: shot.png\n",
+        "media_type: image/png\n",
+        "size: 120\n",
+        "added_at: 2026-10-01T00:01:00Z\n",
+        "added_by:\n",
+        "  type: human\n",
+        "  id: local\n",
+        "-->\n",
+        "[shot.png](./attachments/att_0001-shot.png)\n",
+        "<!-- /longclaw:attachment -->\n",
+        "\n",
+        "<!-- longclaw:attachment\n",
+        "id: att_0002\n",
+        "file: attachments/att_0002-log.txt\n",
+        "name: log.txt\n",
+        "media_type: text/plain\n",
+        "size: 9\n",
+        "added_at: 2026-10-01T00:02:00Z\n",
+        "added_by:\n",
+        "  type: agent\n",
+        "  id: claude-code\n",
+        "x_origin: kept\n",
+        "-->\n",
+        "[log.txt](./attachments/att_0002-log.txt)\n",
+        "<!-- /longclaw:attachment -->\n",
+        "\n",
+        "## Activity\n",
+        "\n",
+        "<!-- longclaw:event\n",
+        "id: evt_0001\n",
+        "kind: create\n",
+        "occurred_at: 2026-10-01T00:00:00Z\n",
+        "actor:\n",
+        "  type: human\n",
+        "  id: local\n",
+        "-->\n",
+        "### You created this ticket\n",
+        "<!-- /longclaw:event -->\n",
+    );
+
+    /// The same ticket with no registry at all, as most tickets are.
+    const BARE: &str = concat!(
+        "---\n",
+        "format: longclaw.ticket/v1\n",
+        "id: 019c8ca0-0000-7000-8000-000000000207\n",
+        "key: LC-207\n",
+        "title: Nothing attached yet\n",
+        "status: todo\n",
+        "priority: p2\n",
+        "created_at: 2026-10-01T00:00:00Z\n",
+        "updated_at: 2026-10-01T00:00:00Z\n",
+        "---\n",
+        "\n",
+        "Plain.\n",
+        "\n",
+        "## Checklist\n",
+        "\n",
+        "- [ ] one <!-- longclaw:item=ck_0001 -->\n",
+        "\n",
+        "## Activity\n",
+        "\n",
+        "<!-- longclaw:event\n",
+        "id: evt_0001\n",
+        "kind: create\n",
+        "occurred_at: 2026-10-01T00:00:00Z\n",
+        "actor:\n",
+        "  type: human\n",
+        "  id: local\n",
+        "-->\n",
+        "### You created this ticket\n",
+        "<!-- /longclaw:event -->\n",
+    );
+
+    fn parse(raw: &str) -> TicketDocument {
+        let key = if raw.contains("key: LC-206\n") {
+            "LC-206"
+        } else {
+            "LC-207"
+        };
+        TicketDocument::parse(raw, key).expect("the fixture should parse")
+    }
+
+    fn apply(raw: &str, edit: TicketEdit) -> (String, TicketDocument) {
+        let applied = parse(raw)
+            .apply(&edit, NOW)
+            .expect("the edit should be accepted");
+        (
+            String::from_utf8(applied.bytes).expect("UTF-8 output"),
+            applied.document,
+        )
+    }
+
+    fn refuse(raw: &str, edit: TicketEdit) -> String {
+        parse(raw)
+            .apply(&edit, NOW)
+            .expect_err("the edit should be refused")
+            .message
+    }
+
+    fn picture(id: &str) -> Attachment {
+        Attachment {
+            id: id.to_owned(),
+            file: format!("attachments/{id}-failure state.png"),
+            name: "Failure state.png".to_owned(),
+            media_type: "image/png".to_owned(),
+            size: 2048,
+            added_at: NOW.to_owned(),
+            added_by: Actor::agent("claude-code", Some("Claude Code")),
+        }
+    }
+
+    fn register(attachment: Attachment, slot: RecordSlot) -> TicketEdit {
+        TicketEdit {
+            register_attachment: Some(AttachmentRegistration {
+                attachment,
+                slot,
+                reattached: false,
+            }),
+            ..TicketEdit::default()
+        }
+    }
+
+    fn ids(document: &TicketDocument) -> Vec<&str> {
+        document
+            .ticket()
+            .attachments
+            .iter()
+            .map(|attachment| attachment.id.as_str())
+            .collect()
+    }
+
+    /// Everything from `## Attachments` to the next reserved heading.
+    fn section<'a>(raw: &'a str, heading: &str) -> &'a str {
+        let start = raw.find(heading).expect("the section exists");
+        let rest = &raw[start + heading.len()..];
+        let end = [
+            "\n## Ticket References\n",
+            "\n## Activity\n",
+            "\n## Attachments\n",
+        ]
+        .iter()
+        .filter_map(|next| rest.find(next))
+        .min()
+        .map_or(rest.len(), |offset| offset + 1);
+        &raw[start..start + heading.len() + end]
+    }
+
+    #[test]
+    fn a_registered_attachment_is_appended_with_its_link_and_narrated() {
+        let (rendered, next) = apply(TICKET, register(picture("att_0003"), RecordSlot::End));
+        assert_eq!(ids(&next), ["att_0001", "att_0002", "att_0003"]);
+        let added = &next.ticket().attachments[2];
+        assert_eq!(added, &picture("att_0003"));
+        // A link a reader of the raw file can follow, with the destination in
+        // angle brackets because a sanitized name is not promised to be free of
+        // everything CommonMark ends a destination on.
+        assert!(
+            rendered.contains("[Failure state.png](<./attachments/att_0003-failure state.png>)\n"),
+            "{rendered}"
+        );
+        let event = next.ticket().last_activity().expect("an event");
+        assert_eq!(event.changes.len(), 1);
+        assert_eq!(event.changes[0].field, "attachments.att_0003.added");
+        assert_eq!(event.changes[0].to.as_deref(), Some("Failure state.png"));
+        assert_eq!(event.actor, Actor::local_human());
+        assert_eq!(next.ticket().updated_at, NOW);
+    }
+
+    #[test]
+    fn the_first_attachment_opens_a_section_above_the_activity() {
+        let (rendered, next) = apply(BARE, register(picture("att_0003"), RecordSlot::End));
+        assert_eq!(ids(&next), ["att_0003"]);
+        let checklist = rendered.find("## Checklist").unwrap();
+        let attachments = rendered.find("## Attachments").unwrap();
+        let activity = rendered.find("## Activity").unwrap();
+        assert!(
+            checklist < attachments && attachments < activity,
+            "{rendered}"
+        );
+        // The checklist still ends where it did, and the section is separated
+        // from both neighbours by one blank line.
+        assert!(
+            rendered.contains("- [ ] one <!-- longclaw:item=ck_0001 -->\n\n## Attachments\n\n<!-- longclaw:attachment\n"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("<!-- /longclaw:attachment -->\n\n## Activity\n"));
+    }
+
+    #[test]
+    fn a_registration_that_reuses_an_id_or_a_file_is_refused() {
+        let message = refuse(TICKET, register(picture("att_0001"), RecordSlot::End));
+        assert!(message.contains("att_0001"), "{message}");
+        let mut same_file = picture("att_0009");
+        same_file.file = "attachments/att_0002-log.txt".to_owned();
+        let message = refuse(TICKET, register(same_file, RecordSlot::End));
+        assert!(message.contains("att_0002-log.txt"), "{message}");
+    }
+
+    #[test]
+    fn removing_an_attachment_takes_its_record_whole_and_names_it() {
+        let (rendered, next) = apply(
+            TICKET,
+            TicketEdit {
+                remove_attachment: Some("att_0001".to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(ids(&next), ["att_0002"]);
+        assert!(!rendered.contains("id: att_0001\n"));
+        // The record beside it comes back byte for byte, field it does not
+        // understand and all.
+        let kept = section(TICKET, "## Attachments")
+            .split("<!-- longclaw:attachment\nid: att_0002")
+            .nth(1)
+            .unwrap();
+        assert!(rendered.contains(kept), "{rendered}");
+        assert!(rendered.contains("x_origin: kept\n"));
+        // The description's link is the description's: removal unregisters, it
+        // does not edit prose.
+        assert!(rendered.contains("See ![shot](./attachments/att_0001-shot.png).\n"));
+        let event = next.ticket().last_activity().expect("an event");
+        assert_eq!(event.changes[0].field, "attachments.att_0001.removed");
+        assert_eq!(event.changes[0].from.as_deref(), Some("shot.png"));
+        // No gap where it was: one blank line between the heading and the next.
+        assert!(
+            rendered.contains("## Attachments\n\n<!-- longclaw:attachment\nid: att_0002\n"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn removing_the_last_attachment_leaves_the_heading() {
+        let once = apply(
+            TICKET,
+            TicketEdit {
+                remove_attachment: Some("att_0001".to_owned()),
+                ..TicketEdit::default()
+            },
+        )
+        .0;
+        let (rendered, next) = apply(
+            &once,
+            TicketEdit {
+                remove_attachment: Some("att_0002".to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert!(next.ticket().attachments.is_empty());
+        assert!(
+            rendered.contains("## Attachments\n\n## Activity\n"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn removing_an_attachment_the_file_does_not_register_is_refused() {
+        let message = refuse(
+            TICKET,
+            TicketEdit {
+                remove_attachment: Some("att_9999".to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert!(message.contains("att_9999"), "{message}");
+    }
+
+    #[test]
+    fn a_restored_attachment_lands_where_it_was_taken_from() {
+        let removed = apply(
+            TICKET,
+            TicketEdit {
+                remove_attachment: Some("att_0001".to_owned()),
+                ..TicketEdit::default()
+            },
+        )
+        .0;
+        let mut first = picture("att_0001");
+        first.file = "attachments/att_0001-shot.png".to_owned();
+        let (_, next) = apply(&removed, register(first.clone(), RecordSlot::First));
+        assert_eq!(ids(&next), ["att_0001", "att_0002"]);
+        assert_eq!(next.ticket().attachments[0], first);
+
+        let three = apply(TICKET, register(picture("att_0003"), RecordSlot::End)).0;
+        let middle = apply(
+            &three,
+            TicketEdit {
+                remove_attachment: Some("att_0002".to_owned()),
+                ..TicketEdit::default()
+            },
+        )
+        .0;
+        let mut log = picture("att_0002");
+        log.file = "attachments/att_0002-log.txt".to_owned();
+        let (_, next) = apply(
+            &middle,
+            register(log, RecordSlot::After("att_0001".to_owned())),
+        );
+        assert_eq!(ids(&next), ["att_0001", "att_0002", "att_0003"]);
+    }
+
+    #[test]
+    fn a_restore_after_an_attachment_the_file_lacks_is_refused() {
+        let message = refuse(
+            TICKET,
+            register(
+                picture("att_0003"),
+                RecordSlot::After("att_9999".to_owned()),
+            ),
+        );
+        assert!(message.contains("att_9999"), "{message}");
+    }
+
+    #[test]
+    fn a_restore_that_never_met_the_disk_is_refused() {
+        // `restore_attachment` is the request; the project turns it into a
+        // registration after checking the file. A document asked to apply the
+        // request itself has checked nothing, so it says so.
+        let message = refuse(
+            TICKET,
+            TicketEdit {
+                restore_attachment: Some(AttachmentRestore {
+                    id: "att_0003".to_owned(),
+                    file: "attachments/att_0003-x.png".to_owned(),
+                    name: "x.png".to_owned(),
+                    added_at: NOW.to_owned(),
+                    added_by: Actor::local_human(),
+                    after: None,
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        assert!(message.contains("checked"), "{message}");
+    }
+
+    // ------------------------------------------------------------ references
+
+    fn add_reference(path: &str) -> TicketEdit {
+        TicketEdit {
+            add_reference: Some(path.to_owned()),
+            ..TicketEdit::default()
+        }
+    }
+
+    fn reference_paths(document: &TicketDocument) -> Vec<&str> {
+        document
+            .ticket()
+            .references
+            .iter()
+            .map(|reference| reference.path.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn a_reference_opens_its_own_section_after_the_attachments() {
+        let (rendered, next) = apply(TICKET, add_reference("docs/specs/LC-206-attachments.md"));
+        assert_eq!(reference_paths(&next), ["docs/specs/LC-206-attachments.md"]);
+        let reference = &next.ticket().references[0];
+        assert!(reference.id.starts_with("ref_"), "{}", reference.id);
+        assert_eq!(reference.added_at, NOW);
+        assert_eq!(reference.added_by, Actor::local_human());
+        assert_eq!(reference.name(), "LC-206-attachments.md");
+        let attachments = rendered.find("## Attachments").unwrap();
+        let references = rendered.find("## Ticket References").unwrap();
+        let activity = rendered.find("## Activity").unwrap();
+        assert!(
+            attachments < references && references < activity,
+            "{rendered}"
+        );
+        // A link from the ticket's own folder to the file, so the raw file on a
+        // code host reaches it too.
+        assert!(
+            rendered
+                .contains("[LC-206-attachments.md](../../../docs/specs/LC-206-attachments.md)\n"),
+            "{rendered}"
+        );
+        let event = next.ticket().last_activity().expect("an event");
+        assert_eq!(
+            event.changes[0].field,
+            format!("references.{}.added", reference.id)
+        );
+        assert_eq!(
+            event.changes[0].to.as_deref(),
+            Some("LC-206-attachments.md")
+        );
+        // An attachment record is no part of this.
+        assert_eq!(
+            section(&rendered, "## Attachments"),
+            section(TICKET, "## Attachments")
+        );
+    }
+
+    #[test]
+    fn a_path_outside_the_project_is_kept_absolute() {
+        let (rendered, next) = apply(BARE, add_reference("/Users/sam/Design/flows v2.pdf"));
+        assert_eq!(reference_paths(&next), ["/Users/sam/Design/flows v2.pdf"]);
+        assert!(next.ticket().references[0].is_outside_project());
+        assert!(
+            rendered.contains("[flows v2.pdf](</Users/sam/Design/flows v2.pdf>)\n"),
+            "{rendered}"
+        );
+        // With no Attachments section to follow, it goes above the activity.
+        assert!(rendered.contains("<!-- /longclaw:reference -->\n\n## Activity\n"));
+    }
+
+    #[test]
+    fn a_reference_path_that_could_leave_the_project_unsaid_is_refused() {
+        for path in ["", "   ", "../secrets.md", "docs/../../x.md", "docs\nx.md"] {
+            let message = refuse(BARE, add_reference(path));
+            assert!(message.contains("reference"), "{path:?}: {message}");
+        }
+    }
+
+    #[test]
+    fn the_same_path_is_referenced_once() {
+        let once = apply(BARE, add_reference("docs/a.md")).0;
+        let message = refuse(&once, add_reference("docs/a.md"));
+        assert!(message.contains("docs/a.md"), "{message}");
+    }
+
+    #[test]
+    fn removing_and_restoring_a_reference_round_trips() {
+        let two = apply(
+            &apply(BARE, add_reference("docs/a.md")).0,
+            add_reference("docs/b.md"),
+        )
+        .0;
+        let document = parse(&two);
+        let first = document.ticket().references[0].clone();
+        let (removed, next) = apply(
+            &two,
+            TicketEdit {
+                remove_reference: Some(first.id.clone()),
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(reference_paths(&next), ["docs/b.md"]);
+        // Every write here shares one instant, so the newest record is found
+        // by what it says rather than by `last_activity`'s tie-break on id.
+        let removal = next
+            .ticket()
+            .activity
+            .iter()
+            .flat_map(|event| &event.changes)
+            .find(|change| change.field == format!("references.{}.removed", first.id))
+            .expect("the removal is narrated");
+        assert_eq!(removal.from.as_deref(), Some("a.md"));
+
+        let (_, restored) = apply(
+            &removed,
+            TicketEdit {
+                restore_reference: Some(ReferenceRestore {
+                    id: first.id.clone(),
+                    path: first.path.clone(),
+                    added_at: first.added_at.clone(),
+                    added_by: first.added_by.clone(),
+                    after: None,
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(reference_paths(&restored), ["docs/a.md", "docs/b.md"]);
+        assert_eq!(restored.ticket().references[0], first);
+    }
+
+    #[test]
+    fn removing_a_reference_the_file_lacks_is_refused() {
+        let message = refuse(
+            BARE,
+            TicketEdit {
+                remove_reference: Some("ref_9999".to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert!(message.contains("ref_9999"), "{message}");
+    }
+
+    #[test]
+    fn a_reference_record_is_read_and_a_bad_one_degrades_alone() {
+        let raw = BARE.replace(
+            "\n## Activity\n",
+            concat!(
+                "\n## Ticket References\n",
+                "\n",
+                "<!-- longclaw:reference\n",
+                "id: ref_0001\n",
+                "path: docs/specs/a.md\n",
+                "added_at: 2026-10-01T00:03:00Z\n",
+                "added_by:\n",
+                "  type: agent\n",
+                "  id: claude-code\n",
+                "note: a field this build does not read\n",
+                "-->\n",
+                "[a.md](<../../../docs/specs/a.md>)\n",
+                "<!-- /longclaw:reference -->\n",
+                "\n",
+                "<!-- longclaw:reference\n",
+                "id: ref_0002\n",
+                "path: ../outside.md\n",
+                "added_at: 2026-10-01T00:04:00Z\n",
+                "added_by:\n",
+                "  type: human\n",
+                "-->\n",
+                "<!-- /longclaw:reference -->\n",
+                "\n## Activity\n",
+            ),
+        );
+        let document = parse(&raw);
+        assert_eq!(reference_paths(&document), ["docs/specs/a.md"]);
+        assert_eq!(document.ticket().record_diagnostics.len(), 1);
+        assert!(document.ticket().record_diagnostics[0]
+            .message
+            .contains("reference record"));
+        // Nothing about it moves on an unrelated write.
+        let applied = document
+            .apply(
+                &TicketEdit {
+                    title: Some("Renamed".to_owned()),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .unwrap();
+        let rendered = String::from_utf8(applied.bytes).unwrap();
+        assert_eq!(
+            section(&rendered, "## Ticket References"),
+            section(&raw, "## Ticket References")
+        );
+    }
+
+    #[test]
+    fn a_reference_record_in_another_section_is_reported() {
+        let raw = BARE.replace(
+            "Plain.\n",
+            concat!(
+                "Plain.\n",
+                "\n",
+                "<!-- longclaw:reference\n",
+                "id: ref_0001\n",
+                "path: docs/a.md\n",
+                "added_at: 2026-10-01T00:03:00Z\n",
+                "added_by:\n",
+                "  type: human\n",
+                "-->\n",
+                "<!-- /longclaw:reference -->\n",
+            ),
+        );
+        let document = parse(&raw);
+        assert!(document
+            .ticket()
+            .record_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("## Ticket References")));
+    }
+
+    #[test]
+    fn a_first_checklist_item_opens_its_section_above_the_references() {
+        // No checklist and no attachments, only references: the new section
+        // goes where the format orders it, not merely above the activity.
+        let raw = apply(
+            &BARE.replace(
+                "\n## Checklist\n\n- [ ] one <!-- longclaw:item=ck_0001 -->\n",
+                "",
+            ),
+            add_reference("docs/a.md"),
+        )
+        .0;
+        let (rendered, next) = apply(
+            &raw,
+            TicketEdit {
+                add_checklist_items: vec!["first task".to_owned()],
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(next.ticket().checklist.len(), 1);
+        let checklist = rendered.find("## Checklist").unwrap();
+        let references = rendered.find("## Ticket References").unwrap();
+        assert!(checklist < references, "{rendered}");
+    }
+
+    #[test]
+    fn a_description_may_not_open_the_references_section() {
+        let message = refuse(
+            BARE,
+            TicketEdit {
+                description: Some("Intro\n\n## Ticket References\n\n- a link".to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert!(message.contains("## Ticket References"), "{message}");
+    }
+
+    #[test]
+    fn a_plain_references_heading_is_still_the_description_s() {
+        // The common heading stays prose: reserving it would end every
+        // description that lists its links under one (ADR 0017).
+        let description = "Intro\n\n## References\n\n- [a link](https://example.com)";
+        let (rendered, next) = apply(
+            BARE,
+            TicketEdit {
+                description: Some(description.to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(next.ticket().description, description);
+        assert!(next.ticket().references.is_empty());
+        assert!(next.ticket().record_diagnostics.is_empty());
+        let reparsed = parse(&rendered);
+        assert_eq!(reparsed.ticket().description, description);
     }
 }
