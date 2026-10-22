@@ -25,6 +25,7 @@ import {
 } from "react";
 import { describeSize } from "./AttachmentView";
 import { normalizeError } from "./errors";
+import { attachmentKind } from "./markdown";
 import type { AppError, Attachment, ChosenFile } from "./types";
 
 /** The limit Rust enforces, stated so an over-limit paste is not sent at all. */
@@ -79,7 +80,7 @@ function linkText(name: string): string {
  */
 export function attachmentLink(attachment: Attachment): string {
   const text = `[${linkText(attachment.name)}](./${attachment.file})`;
-  return attachment.mediaType.startsWith("image/") ? `!${text}` : text;
+  return attachmentKind(attachment.mediaType) === "image" ? `!${text}` : text;
 }
 
 /** `attach.placeholder.image` / `attach.placeholder.file`. */

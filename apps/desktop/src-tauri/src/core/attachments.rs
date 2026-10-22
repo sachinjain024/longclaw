@@ -165,8 +165,9 @@ pub fn prepare_attachment_file(
 /// copying it, held to the same type and size rules as an attach.
 ///
 /// A file whose name starts with an `att_…` id the ticket does not already use
-/// gets that id and the rest of its name back, which is what an orphan left by
-/// a removal looks like. Any other file keeps its name and gets a fresh id.
+/// gets that id back, and the name its removal recorded (the rest of the file
+/// name when there is none), which is what an orphan left by a removal looks
+/// like. Any other file keeps its name and gets a fresh id.
 #[allow(clippy::too_many_arguments)]
 pub fn prepare_reattachment(
     project_root: &Path,
@@ -187,8 +188,24 @@ pub fn prepare_reattachment(
             .as_ref()
             .is_some_and(|ticket| ticket.attachments.iter().any(|kept| kept.id == id))
     };
+    // The file name holds a sanitized stem; the name the record had, which
+    // links show (story 9), is the one its last removal recorded.
+    let removed_as = |id: &str| {
+        let field = format!("attachments.{id}.removed");
+        detail.ticket.as_ref().and_then(|ticket| {
+            ticket
+                .activity
+                .iter()
+                .flat_map(|event| &event.changes)
+                .rfind(|change| change.field == field)
+                .and_then(|change| change.from.clone())
+        })
+    };
     let (id, name) = match recovered_identity(file_name(file)) {
-        Some((id, name)) if !taken(id) => (id.to_owned(), name.to_owned()),
+        Some((id, stem)) if !taken(id) => (
+            id.to_owned(),
+            removed_as(id).unwrap_or_else(|| stem.to_owned()),
+        ),
         _ => (ticket::mint_id("att"), file_name(file).to_owned()),
     };
     let attachment = Attachment {
@@ -310,13 +327,7 @@ pub(crate) fn describe_orphan(ticket_path: &Path, file: &str) -> OrphanAttachmen
     let described = existing_attachment(ticket_path, file)
         .ok()
         .and_then(|path| {
-            let size = fs::metadata(&path).ok()?.len();
-            let mut prefix = Vec::with_capacity(SNIFF_PREFIX.min(size as usize));
-            fs::File::open(&path)
-                .ok()?
-                .take(SNIFF_PREFIX as u64)
-                .read_to_end(&mut prefix)
-                .ok()?;
+            let (size, mut prefix) = held_prefix(&path)?;
             if (prefix.len() as u64) < size {
                 if let Err(error) = std::str::from_utf8(&prefix) {
                     if error.error_len().is_none() {
@@ -734,18 +745,62 @@ fn existing_attachment(ticket_path: &Path, file: &str) -> AppResult<PathBuf> {
 }
 
 /// The media type and size of an existing file, or the refusal an attach of
-/// the same bytes would get. The size is checked before anything is read.
+/// the same bytes would get. The size is checked before anything is read, and
+/// the file is read through [`open_without_following`]: `existing_attachment`
+/// proved it a regular file, and a link swapped in since is refused here
+/// rather than read through (ADR 0016).
 fn read_and_judge(path: &Path, name: &str) -> AppResult<(String, u64)> {
-    let size = fs::metadata(path)
-        .map_err(|error| AppError::io("Reading an attachment", path, error))?
-        .len();
+    let (file, size) =
+        open_held(path).map_err(|error| AppError::io("Reading an attachment", path, error))?;
     if size > ATTACHMENT_SIZE_LIMIT {
         return Err(too_large(name, size));
     }
-    let bytes =
-        fs::read(path).map_err(|error| AppError::io("Reading an attachment", path, error))?;
+    let mut bytes = Vec::with_capacity(size as usize);
+    file.take(ATTACHMENT_SIZE_LIMIT + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| AppError::io("Reading an attachment", path, error))?;
+    if bytes.len() as u64 > ATTACHMENT_SIZE_LIMIT {
+        return Err(too_large(name, bytes.len() as u64));
+    }
     let media_type = media_type(&bytes, name).ok_or_else(|| unsupported(name))?;
     Ok((media_type.to_owned(), bytes.len() as u64))
+}
+
+/// A held file's size and its first [`SNIFF_PREFIX`] bytes, read the same
+/// way, or `None` when it cannot be read or is no longer a regular file.
+fn held_prefix(path: &Path) -> Option<(u64, Vec<u8>)> {
+    let (file, size) = open_held(path).ok()?;
+    let mut prefix = Vec::with_capacity(SNIFF_PREFIX.min(size as usize));
+    file.take(SNIFF_PREFIX as u64)
+        .read_to_end(&mut prefix)
+        .ok()?;
+    Some((size, prefix))
+}
+
+/// `path` opened without following a link, and its size — asked of the
+/// handle, so what was measured is what is read.
+fn open_held(path: &Path) -> std::io::Result<(fs::File, u64)> {
+    let file = open_without_following(path)?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() {
+        return Err(std::io::Error::other("not a regular file"));
+    }
+    Ok((file, metadata.len()))
+}
+
+/// Opens `path` refusing a link as the last component, so a file swapped for
+/// a symlink between a containment check and this open is an error rather
+/// than a read of whatever it points at. The caller has already proven the
+/// folder above it inside the ticket.
+pub(crate) fn open_without_following(path: &Path) -> std::io::Result<fs::File> {
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(target_os = "macos")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    options.open(path)
 }
 
 /// A path a caller gave for a reference, in its stored form: relative to the
@@ -870,7 +925,24 @@ fn megabytes(size: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{media_type, recovered_identity, sanitized_name};
+    use super::{held_prefix, media_type, read_and_judge, recovered_identity, sanitized_name};
+
+    /// A registered file swapped for a link after `existing_attachment` checked
+    /// it is what these read: they must refuse the link, not read through it.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_file_swapped_for_a_link_is_not_read_through() {
+        let temp = tempfile::tempdir().unwrap();
+        let outside = temp.path().join("secret.txt");
+        std::fs::write(&outside, "outside the ticket").unwrap();
+        let folder = temp.path().join("LC-1").join("attachments");
+        std::fs::create_dir_all(&folder).unwrap();
+        let link = folder.join("att_1-notes.txt");
+        std::os::unix::fs::symlink(&outside, &link).unwrap();
+
+        assert!(read_and_judge(&link, "notes.txt").is_err());
+        assert!(held_prefix(&link).is_none());
+    }
 
     #[test]
     fn audio_and_documents_are_not_attachments() {

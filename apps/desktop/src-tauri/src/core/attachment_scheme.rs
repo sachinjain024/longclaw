@@ -18,7 +18,6 @@
 //! Text attachments are not served: the spec never inlines one, and a chip
 //! opens it in its default app, which reads the disk itself.
 
-use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
@@ -183,7 +182,7 @@ enum Body {
 }
 
 fn read(path: &Path, range: Option<&str>) -> std::io::Result<Body> {
-    let mut file = open_without_following(path)?;
+    let mut file = attachments::open_without_following(path)?;
     let metadata = file.metadata()?;
     // Asked of the handle, not the path: what was opened is what is read.
     if !metadata.is_file() {
@@ -305,21 +304,6 @@ fn plain(status: u16, message: String) -> Served {
         ],
         body: message.into_bytes(),
     }
-}
-
-/// Opens `path` refusing a link as the last component, so a registered file
-/// swapped for a symlink between the containment check and this open is an
-/// error rather than a read of whatever it points at. The folder above it was
-/// proven inside the ticket by `attachments::registered_attachment`.
-fn open_without_following(path: &Path) -> std::io::Result<File> {
-    let mut options = OpenOptions::new();
-    options.read(true);
-    #[cfg(target_os = "macos")]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.custom_flags(libc::O_NOFOLLOW);
-    }
-    options.open(path)
 }
 
 /// `%XX` decoding for one path segment, or `None` for a malformed escape or a

@@ -32,6 +32,7 @@ import {
 } from "./AttachmentView";
 import { PaperclipGlyph } from "./attaching";
 import { classes } from "./classes";
+import { attachmentKind } from "./markdown";
 import { ChevronGlyph } from "./Menu";
 import type { MenuItem } from "./MenuList";
 import { MenuList } from "./MenuList";
@@ -457,7 +458,8 @@ function Thumb({
   if (row.kind === "file" && row.missing) return <WarnGlyph />;
   const mediaType =
     row.kind === "file" ? row.attachment.mediaType : row.orphan.mediaType;
-  if (row.kind === "file" && row.attachment.mediaType.startsWith("image/")) {
+  const kind = mediaType ? attachmentKind(mediaType) : "file";
+  if (row.kind === "file" && kind === "image") {
     const src = attachmentSrc(
       scope.projectId,
       scope.ticketKey,
@@ -465,7 +467,7 @@ function Thumb({
     );
     if (src) return <img src={src} alt="" loading="lazy" />;
   }
-  return mediaType?.startsWith("video/") ? <FilmGlyph /> : <DocGlyph />;
+  return kind === "video" ? <FilmGlyph /> : <DocGlyph />;
 }
 
 /** One row's `⋮` menu, with every action the row has (story 55). */
@@ -508,7 +510,7 @@ function RowMenu(props: {
     ];
   } else if (row.kind === "file" && !row.missing) {
     const { attachment } = row;
-    const image = attachment.mediaType.startsWith("image/");
+    const image = attachmentKind(attachment.mediaType) === "image";
     items = [
       image
         ? {

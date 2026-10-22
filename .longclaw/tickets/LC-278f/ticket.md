@@ -8,8 +8,9 @@ priority: none
 labels:
   - frontend
   - platform
+  - ready-for-agent
 created_at: 2026-10-16T22:21:53.182Z
-updated_at: 2026-10-22T08:40:54.535Z
+updated_at: 2026-10-22T12:44:20.471Z
 ---
 
 A dev build (`npm run dev`) and the installed release build look identical. They share the `LongClaw` name, the owl icon in the Dock and ⌘-Tab, the window title, and the bundle identifier `io.longclaw.desktop`. With both running, there's no telling which window is which. A change gets checked in the wrong one, or a project gets edited by the older build without anyone noticing. This happened during LC-206: the installed app rewrote the branch's `.longclaw/AGENTS.md` again and again.
@@ -44,11 +45,11 @@ Ranked by how quickly each one tells the builds apart.
 - [ ] Any in-window marker passes the tile-contrast guard and `matrix` in both appearances, and is not a tab stop.
 - [ ] The CLI linked by *Settings → Command line* still points at the installed app's binary, never at a dev build.
 
-## Open questions
+## Decisions (2026-10-22)
 
-- Which markers to use? The recommendation is 1, 2, 3 and 5, with 6.
-- The icon colour: amber or orange is the suggestion. It needs to stay distinct from all five accent themes.
-- Should the dev identifier be split now, given dev would then start with empty settings?
+- **Markers: 1, 2, 3 and 5, with 6**, as recommended. That is the icon recoloured amber or orange with a "DEV" band, the app name "LongClaw Dev", an in-app "DEV · branch · commit" badge, and the bundle identifier `io.longclaw.desktop.dev`.
+- **Not doing:** 4 (branch in the window title), unless two dev builds are often open at once, and 7 (a window-edge strip).
+- **Separate identifier now.** Dev starts once with empty settings, which is accepted.
 
 ## Activity
 
@@ -78,4 +79,23 @@ changes:
 ### Claude Code updated this ticket
 
 Added ranked marker suggestions (icon colour, a DEV band on the icon, the app name, the window title, an in-app badge, a separate app ID, and a window strip, which isn't recommended) and a recommendation: 1, 2, 3 and 5, with 6.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0327504e
+kind: update
+occurred_at: 2026-10-22T12:44:20.471Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: labels
+    from: frontend, platform
+    to: frontend, platform, ready-for-agent
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Decided: go with the recommendation, markers 1, 2, 3 and 5 plus the separate dev identifier (6). Marked ready-for-agent.
 <!-- /longclaw:event -->

@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useId, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import type { Attachment } from "./types";
 import type { TicketAttachments } from "./AttachmentView";
 import type { AttachSource, FileDestination } from "./attaching";
@@ -196,7 +196,17 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
           : "description-editor"
       }
       onKeyDown={onKeyDown}
-      {...(files && tab === "write" ? attaching.dropHandlers : {})}
+      {...(files
+        ? {
+            ...attaching.dropHandlers,
+            // A drop on Preview still lands: back in Write, at the caret the
+            // field kept while it was hidden (story 3).
+            onDrop(event: DragEvent) {
+              setTab("write");
+              attaching.dropHandlers.onDrop(event);
+            },
+          }
+        : {})}
     >
       <div className="editor-tabstrip">
         {/* No Preview until the ticket exists (`screen-specs.md:280`). */}

@@ -276,7 +276,7 @@ order back, because the numbers on the rows *are* the order.
 
 ## Attachments and References (LC-206)
 
-Settled in LC-206's prototype review (2026-10-15); not built yet. The decisions
+Settled in LC-206's prototype review (2026-10-15); built in its slices 4–7. The decisions
 and copy are in `.longclaw/tickets/LC-206/ticket.md`.
 
 - **Attach** is the seventh button of the formatting toolbar, after a hairline,

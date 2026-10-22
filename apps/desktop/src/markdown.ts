@@ -743,8 +743,12 @@ function attachmentNode(
   };
 }
 
-/** Text is never inlined, and nor is anything that is not a picture or a film. */
-function attachmentKind(mediaType: string): AttachmentNode["kind"] {
+/**
+ * Which of the three ways an attachment is shown: a picture, a film, or a file
+ * chip. Text is never inlined, and nor is anything that is not a picture or a
+ * film. The one place the panel decides it.
+ */
+export function attachmentKind(mediaType: string): AttachmentNode["kind"] {
   if (mediaType.startsWith("image/")) return "image";
   if (mediaType.startsWith("video/")) return "video";
   return "file";

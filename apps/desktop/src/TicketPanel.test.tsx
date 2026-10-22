@@ -4215,6 +4215,24 @@ describe("attaching where it is written about (LC-206)", () => {
     );
   });
 
+  it("takes a drop on the Preview tab, back in Write at the caret", async () => {
+    attachSourceMock.mockResolvedValue(attached(SHOT));
+    const field = await openTheEditor("Before after");
+    field.setSelectionRange(7, 7);
+    fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
+
+    drop(screen.getByRole("tabpanel", { name: "Preview" }), [png()]);
+
+    expect(
+      screen.getByRole("tab", { name: "Write" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    await waitFor(() =>
+      expect(field.value).toBe(
+        "Before ![failure-state.png](./attachments/att_8e31-failure-state.png)after",
+      ),
+    );
+  });
+
   it("drops several files into a comment, lands those that pass and says so once", async () => {
     attachSourceMock.mockResolvedValue(attached(NOTES));
     render(surface());

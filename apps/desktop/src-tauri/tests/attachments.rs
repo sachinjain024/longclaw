@@ -507,6 +507,28 @@ fn an_orphan_is_reattached_in_place_without_a_copy() {
 }
 
 #[test]
+fn a_reattached_orphan_gets_back_the_name_its_removal_recorded() {
+    let project = Project::new();
+    let shot = project.attached(PNG, "My Screenshot.PNG");
+    assert_ne!(
+        shot.attachment.file,
+        format!("attachments/{}-My Screenshot.PNG", shot.attachment.id),
+        "the file name is sanitized, so the name has to come from elsewhere"
+    );
+    project.edited(TicketEdit {
+        remove_attachment: Some(shot.attachment.id.clone()),
+        ..TicketEdit::default()
+    });
+
+    let again = project
+        .reattach(&shot.attachment.file)
+        .expect("an orphan can be reattached");
+
+    // Story 9's link text, not the sanitized stem the file is stored under.
+    assert_eq!(again.attachment.name, "My Screenshot.PNG");
+}
+
+#[test]
 fn reattaching_a_registered_file_is_refused() {
     let project = Project::new();
     let first = project.attached(PNG, "first.png");

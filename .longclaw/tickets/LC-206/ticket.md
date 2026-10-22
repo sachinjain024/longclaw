@@ -9,7 +9,7 @@ labels:
   - ready-for-agent
 due: 2026-10-16
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-10-22T08:41:03.500Z
+updated_at: 2026-10-22T12:44:20.492Z
 ---
 
 Users should be able to add attachments in description and comments: paste (⌘V), drop or pick a file in the description editor, the comment composer and the create panel; see images and videos inline and other files as chips; and list, open, remove and re-attach them from a References section in the panel, which also lists the docs written for the ticket. Agents get the same operations as `longclaw ticket attach` and `longclaw ticket reference`.
@@ -164,6 +164,7 @@ Settled 2026-10-15. Text is shown with its sample values filled in; `{name}`-sty
 - [ ] Open item · 'Attach a file…' from the References Add menu has no field to show a refusal under, so refusals are toasts without the refuse.* hint line — against 'no toast for an attach' <!-- longclaw:item=ck_ba83957e -->
 - [ ] Open item · the reference picker's confirm button reads the system default, not 'Add reference' (reference.picker.prompt) <!-- longclaw:item=ck_88e6c5a4 -->
 - [ ] Open item · extend a11y:audit with a row for the References Add menu <!-- longclaw:item=ck_a411dde4 -->
+- [ ] Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall <!-- longclaw:item=ck_cf258070 -->
 
 ## Ticket References
 
@@ -895,4 +896,19 @@ actor:
 ### Claude Code commented
 
 Review on 2026-10-22. The feature works in the running app. Undo of a Remove and the inferred 'Added in a comment' are kept as they are. Opening doc references waits on LC-277x's in-app browser. The AGENTS.md rewrite stops once this branch ships. audit:network is skipped for this PR. Follow-ups filed: LC-280x (attach PDFs), LC-277x (in-app browser), LC-278f (dev build markers).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_347d1d35
+kind: update
+occurred_at: 2026-10-22T12:44:20.492Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_cf258070.added
+    to: "Open item · the drop label (attach.drop.label, 'inside the field') sits in normal flow under the field rather than over it — Grok, PR #76. An overlay needs a visual check in all three fields; the composer is one line tall"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

@@ -10,7 +10,7 @@ labels:
   - format
   - ready-for-agent
 created_at: 2026-10-22T08:40:12.574Z
-updated_at: 2026-10-22T08:40:12.574Z
+updated_at: 2026-10-22T12:44:20.385Z
 ---
 
 Follow-up to LC-206. Attaching a PDF (paste, drop, the paperclip button or `longclaw ticket attach`) is refused with *"x.pdf can't be attached. Only images, text files and videos are supported."* The format only allows `image/*`, `text/*` and `video/*` (`docs/file_format.md`, *Attachments*), and the content check returns no media type for `%PDF-` on purpose. The LC-206 spec lists other media types as out of scope.
@@ -19,7 +19,7 @@ Let a PDF be attached like any other file: copied into the ticket, registered, l
 
 ## Acceptance criteria
 
-- [ ] A file whose content starts with `%PDF-` is accepted by every attach path (paste, drop, toolbar, References → *Attach a file…*, create's held files, and the CLI) and registered as `application/pdf`. The 25 MB limit and the content-first check still apply. A file named `.pdf` that isn't one is still refused.
+- [ ] A file whose content starts with `%PDF-` is accepted by every attach path (paste, drop, toolbar, References → *Attach a file…*, create's held files, and the CLI) and registered as `application/pdf`. The 10 MB limit (`docs/file_format.md`, ADR 0016) and the content-first check still apply. A file named `.pdf` that isn't one is still refused.
 - [ ] `docs/file_format.md` adds `application/pdf` to the supported attachment media types, with the citation lock re-pointed. Older apps that don't know it keep preserving it as an opaque attachment (the existing rule).
 - [ ] The inserted link is an ordinary link, not an image link, and renders as a file chip showing name, type ("PDF") and size. References lists it the same way.
 - [ ] `pdf` joins the open-in-default-app allow-list, so **Open** on the chip and in the row's ⋮ menu hands it to Preview. **Show in Finder** works.
@@ -44,4 +44,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b815e502
+kind: update
+occurred_at: 2026-10-22T12:44:20.385Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Corrected the limit to 10 MB, as the format and ADR 0016 set it. The ticket said 25 MB; caught by Grok's review on PR #76.
 <!-- /longclaw:event -->

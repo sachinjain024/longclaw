@@ -661,9 +661,11 @@ fn edit_ticket(
 /// Attaches a pasted or dropped file (LC-206). The bytes arrive as the raw
 /// request body rather than as JSON — ten megabytes as an array of numbers is
 /// the wrong price for a paste — and the four names travel as headers, each
-/// percent-encoded so a file name in any script survives the trip.
+/// percent-encoded so a file name in any script survives the trip. Async, as
+/// every attach is: a plain command runs on the main thread, and copying ten
+/// megabytes there would freeze the editor it was pasted into (story 11).
 #[tauri::command]
-fn attach_bytes(
+async fn attach_bytes(
     request: tauri::ipc::Request<'_>,
     app: AppHandle,
     state: State<'_, AppState>,
@@ -855,9 +857,10 @@ fn hand_to_macos(accepted: bool, verb: &str, path: &Path) -> AppResult<()> {
 }
 
 /// Attaches one file the open panel answered with, by its token. Read from
-/// where it is, judged by its bytes and copied into the ticket.
+/// where it is, judged by its bytes and copied into the ticket. Async, off the
+/// main thread, for the reason `attach_bytes` is.
 #[tauri::command]
-fn attach_chosen(
+async fn attach_chosen(
     project_id: String,
     ticket_key: String,
     token: String,
@@ -874,8 +877,9 @@ fn attach_chosen(
 /// **Re-attach** on a not-attached row (LC-206): registers an orphan in place.
 /// The webview names the file and the hash it read; Rust proves the file is in
 /// the ticket's folder and judges its bytes again before writing a record.
+/// Async, off the main thread: it reads the whole file again.
 #[tauri::command]
-fn reattach_attachment(
+async fn reattach_attachment(
     project_id: String,
     ticket_key: String,
     file: String,
