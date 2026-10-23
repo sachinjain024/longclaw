@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 684b2158-bd79-433e-b77e-2ebfe35930d4
 key: LC-276f
 title: "Add the lc-build-prototype skill: a reviewable HTML UX prototype from a spec or ticket"
-status: in_review
+status: done
 priority: none
 labels:
   - design
 created_at: 2026-10-14T08:08:19.257Z
-updated_at: 2026-10-14T08:13:18.759Z
+updated_at: 2026-10-23T22:22:22.449Z
 ---
 
 A prototype under `docs/ux/prototypes/` is meant to let a person see a feature standing in the real app, and give design and product feedback, before any of `src/` changes. Each one so far was built from memory and from the last one. The vendored `prototype` skill aims somewhere else: it builds variants as a route inside the app and keeps them on a throwaway branch.
@@ -54,4 +54,19 @@ changes:
 ### Claude Code updated this ticket
 
 Skill, template and REVIEW.md written. The template was smoke-tested in Chrome: tokens load, light and dark, theme switch, arrow keys between scenes, feedback saved and exported as Markdown, no console errors. npm run verify is green.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e61aa7d1
+kind: update
+occurred_at: 2026-10-23T22:22:22.449Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

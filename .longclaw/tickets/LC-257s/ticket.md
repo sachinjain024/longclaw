@@ -3,7 +3,7 @@ format: longclaw.ticket/v1
 id: 566fa940-7de2-453c-8afe-85ec5b5543b8
 key: LC-257s
 title: Show a GitHub star control, with star count, in the app chrome
-status: in_review
+status: done
 priority: none
 labels:
   - frontend
@@ -11,7 +11,7 @@ labels:
   - design
 type: feature
 created_at: 2026-09-16T07:40:54.137Z
-updated_at: 2026-09-21T15:04:01.259Z
+updated_at: 2026-10-23T22:22:10.042Z
 ---
 
 A persistent star control in the app chrome, showing the repository's live star
@@ -498,4 +498,19 @@ Worth recording, since it is the part a later reader cannot reconstruct: the sta
 ### Gates
 
 `npm run verify` green after the fix: 56 files / 1547 tests, 269 Rust tests, the native watcher 2/2, `release-audit` 131 files clean. The `automatic-off` phase of `audit:network` still needs a person and a built bundle — it is the release gate, unchanged — but it is no longer the only thing that would have caught this.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e46b19dc
+kind: update
+occurred_at: 2026-10-23T22:22:10.042Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

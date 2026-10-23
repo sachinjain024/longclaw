@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: c7d9c94a-9710-4e3e-bf8d-e1cc66e21c22
 key: LC-212
 title: Implement a Skill to generate the Product Spec and UX Prototypes especially for frontend tickets
-status: todo
+status: done
 priority: urgent
 created_at: 2026-08-11T14:54:25.438Z
-updated_at: 2026-08-11T14:54:25.438Z
+updated_at: 2026-10-23T22:22:42.787Z
 ---
 
 - Update Agents Instruction and Implement skill to evalaute whether it is a frontend change
@@ -23,4 +23,19 @@ actor:
   id: local
 -->
 ### You created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_bf8039dc
+kind: update
+occurred_at: 2026-10-23T22:22:42.787Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
