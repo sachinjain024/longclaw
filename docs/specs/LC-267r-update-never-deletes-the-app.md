@@ -268,14 +268,40 @@ returned success.**
 3. **The updater adapter's existing tests**, unchanged in purpose: a failed
    install leaves the bytes for the next press, a successful one consumes
    them, and a filesystem failure while installing is an install failure.
-4. **A built-bundle probe**, a new `npm run` script beside the other probes.
-   It takes a built bundle, copies it into a temporary folder standing in for
-   Applications, serves a signed archive of a second build locally, drives an
-   update with the swap made to fail, and asserts the original bundle still
-   launches and reports its version. A second case lets the swap succeed and
-   asserts the new version launches. Its `--self-test` swaps in the
-   delete-first order and must go red. Run it when the replacement module or
-   the release archive changes, and quote the run in the ticket.
+4. **A built-bundle probe**, `npm run probe:update`, beside the other probes.
+   It takes the bundle `build:app` produced, copies it into a temporary folder
+   standing in for Applications, and makes a second version of it — the copy's
+   `Info.plist` version raised and the copy re-signed ad hoc — archived in the
+   release layout. It then hands that archive to the replacement module through
+   an ignored integration test, in the way `perf:rust` runs its budgets, with a
+   failure planted at the real swap call; asserts the bundle at the path is the
+   original, unchanged and verified by `codesign`; and launches it and asserts
+   it runs. A second case lets the swap succeed and launches the new version. A
+   third puts the folder on a FAT-formatted disk image, where `RENAME_SWAP` is
+   genuinely unsupported, so the fallback runs against a real refusal rather
+   than an injected one. That refusal is an assumption until a run shows it:
+   the case swaps two scratch directories on the image first, and if the
+   swap succeeds there it fails the run rather than reporting on a fallback
+   it never reached. Its `--self-test` drives the plugin's delete-first
+   order, written out in the harness, through the same failure and must go red.
+   Run it when the replacement module or the release archive changes, and
+   quote the run in the ticket.
+
+   **The archive is unsigned, deliberately.** The probe exercises the
+   replacement, which accepts bytes the plugin has already verified; signature
+   checking is the plugin's unchanged half and is covered where LC-256a covered
+   it. Signing a probe archive would mean either the release key on a probe run
+   — producing a file every installed LongClaw would accept, outside the
+   release machine's one-place rule — or a second bundle built with a test key
+   and a local endpoint, which the release audit's sanctioned-hosts rule exists
+   to keep out of anything that could ship. Neither buys the probe anything.
+5. **One release-candidate row**, because nothing above drives the adapter's
+   wiring inside a real bundle — the downloaded bytes reaching the replacement,
+   and the bundle path derived from the running executable. The
+   release-candidate checklist gains a row: install the previous release,
+   update it to the candidate through *Restart to update*, and confirm the
+   candidate is what relaunches. This is the run that would have caught
+   LC-265y before a person did.
 
 The administrator path cannot be driven unattended — it needs a person at a
 password prompt — so it is covered by seam 1 with the prompt's script run
@@ -319,4 +345,5 @@ a standard account, quoted in the ticket.
   and most external ones.
 - The ticket's checklist maps onto this spec as follows: *decide the route* is
   D1–D2 (our own replacement, by atomic swap, chosen on 2026-10-29), and *prove
-  it with a probe* is seam 4.
+  it with a probe* is seam 4, whose archive is unsigned for the reason given
+  there (settled on 2026-10-29). Seam 5 is the run that proves the wiring.
