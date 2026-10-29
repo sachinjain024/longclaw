@@ -113,7 +113,7 @@ they had is still there and still opens.
 
 24. As a release engineer, I want a probe that makes the swap fail on a real built bundle and asserts the app still launches afterwards, so that the property is proved where it matters and not only in a temporary directory.
 25. As a release reviewer, I want the probe to carry a `--self-test` inversion that reintroduces the delete-first order and goes red, so that a probe that cannot see the failure cannot pass.
-26. As a release reviewer, I want the network audits and the structural guards to stay green with no amendment, so that taking over the install is shown not to have widened what LongClaw touches.
+26. As a release reviewer, I want the network audits to stay green unchanged and the release audit to gain only the two source rules ADR 0018 names, so that taking over the install is shown not to have widened what LongClaw touches.
 
 ### Agents and the repository
 
@@ -126,7 +126,8 @@ they had is still there and still opens.
 
 LC-256a's D2 gave the plugin "the in-place install" on the grounds that bundle
 replacement is security-critical and a second implementation is what ADR 0011
-exists to avoid. The next ADR records the narrower line this spec draws: the
+exists to avoid. [ADR 0018](../adr/0018-the-app-replaces-its-own-bundle.md)
+records the narrower line this spec draws: the
 **security-critical** half — fetching, and verifying the minisign signature
 against the bundled public key — stays the plugin's and is never reimplemented.
 The **replacement** half is a filesystem movement with a safety property the
@@ -154,8 +155,9 @@ Its steps, in order:
 3. **Swap.** Exchange the installed bundle and the staged tree in one atomic
    rename (`renamex_np` with `RENAME_SWAP`). On success the new version is at
    the bundle path and the old one is at the staging path.
-4. **Settle.** Touch the bundle, as the plugin does, so Launch Services sees
-   the change. Delete the staging path, which now holds the old version. A
+4. **Settle.** Set the bundle's modification time, as the plugin's `touch`
+   does, so Launch Services sees the change — by a direct call, because the
+   release audit forbids a process launch in shipped source. Delete the staging path, which now holds the old version. A
    failure here is logged and is **not** an install failure: the new version
    is in place, and the sweep (D5) collects what was left.
 
@@ -174,8 +176,11 @@ found in 0.3.0, are refused the same way rather than unpacked.
 
 The archive crates are the ones the plugin already pulls in, declared at the
 versions already in the lockfile; no crate enters the build that was not in
-it, and no network-capable one is added. The structural guards that assert
-the dependency shape run unchanged.
+it, and no network-capable one is added. A trial declaration on 2026-10-29
+left the resolved crate graph identical and the release audit clean. The
+audit's source scan gains two rules, recorded in ADR 0018: `osakit::` is held
+to the replacement module, and the module joins the update path's names that
+no other file may reach.
 
 ### D4. Filesystems that cannot swap, and folders that need an administrator
 
