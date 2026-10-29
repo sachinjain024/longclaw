@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-10-29T08:07:49.662Z
+updated_at: 2026-10-29T08:11:50.311Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -20,7 +20,15 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 ## Checklist
 
 - [x] Decide between upstreaming the restore, pinning a patched build, and taking our own backup before install <!-- longclaw:item=ck_7955bd12 -->
-- [ ] Whichever route: prove it with a probe that makes step 3 fail and asserts the app is still there afterwards <!-- longclaw:item=ck_12548d17 -->
+- [ ] Merge PR #103 so the spec and the ready-for-agent label are on main <!-- longclaw:item=ck_385266e3 -->
+- [ ] Write the ADR amending LC-256a D2: the replacement is ours, check/download/verification stay the plugin's <!-- longclaw:item=ck_f4fd6bf2 -->
+- [ ] Check whether declaring osakit or the archive crates directly trips a dependency or symbol guard; if so, the ADR names the gate change <!-- longclaw:item=ck_0a19f574 -->
+- [ ] Settle how the probe gets a signed archive (release key locally, or a probe-only test key) before writing it <!-- longclaw:item=ck_5224a9e9 -->
+- [ ] Build the replacement module test-first over a fake .app in a temp dir, with a fault injected at each step <!-- longclaw:item=ck_d40e33b8 -->
+- [ ] Build the launch-time sweep over a temp dir: removes only its own staging and backup names <!-- longclaw:item=ck_986393aa -->
+- [ ] Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged <!-- longclaw:item=ck_09e4816b -->
+- [ ] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
+- [ ] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
 
 ## Ticket References
 
@@ -113,4 +121,156 @@ changes:
     to: in_progress
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9e0073d5
+kind: update
+occurred_at: 2026-10-29T08:11:43.017Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_385266e3.added
+    to: "Merge PR #103 so the spec and the ready-for-agent label are on main"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_865bb1f3
+kind: update
+occurred_at: 2026-10-29T08:11:43.038Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f4fd6bf2.added
+    to: "Write the ADR amending LC-256a D2: the replacement is ours, check/download/verification stay the plugin's"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c10f1d38
+kind: update
+occurred_at: 2026-10-29T08:11:43.059Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0a19f574.added
+    to: Check whether declaring osakit or the archive crates directly trips a dependency or symbol guard; if so, the ADR names the gate change
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_572a1d50
+kind: update
+occurred_at: 2026-10-29T08:11:43.078Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5224a9e9.added
+    to: Settle how the probe gets a signed archive (release key locally, or a probe-only test key) before writing it
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fa1bd2f1
+kind: update
+occurred_at: 2026-10-29T08:11:43.096Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d40e33b8.added
+    to: Build the replacement module test-first over a fake .app in a temp dir, with a fault injected at each step
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ae1f6036
+kind: update
+occurred_at: 2026-10-29T08:11:43.118Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_986393aa.added
+    to: "Build the launch-time sweep over a temp dir: removes only its own staging and backup names"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e0ecf72a
+kind: update
+occurred_at: 2026-10-29T08:11:43.144Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_09e4816b.added
+    to: Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2fca9660
+kind: update
+occurred_at: 2026-10-29T08:11:43.165Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c23f5561.added
+    to: Record a manual run of the administrator path on a standard account, quoted in the ticket
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b31967fa
+kind: update
+occurred_at: 2026-10-29T08:11:50.292Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_12548d17.moved
+    from: "2"
+    to: "9"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_87c85346
+kind: update
+occurred_at: 2026-10-29T08:11:50.311Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_12548d17.text
+    from: "Whichever route: prove it with a probe that makes step 3 fail and asserts the app is still there afterwards"
+    to: "Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
