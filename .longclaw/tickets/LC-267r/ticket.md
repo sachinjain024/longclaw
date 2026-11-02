@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-10-29T08:11:50.311Z
+updated_at: 2026-11-02T12:25:49.300Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -20,15 +20,16 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 ## Checklist
 
 - [x] Decide between upstreaming the restore, pinning a patched build, and taking our own backup before install <!-- longclaw:item=ck_7955bd12 -->
-- [ ] Merge PR #103 so the spec and the ready-for-agent label are on main <!-- longclaw:item=ck_385266e3 -->
-- [ ] Write the ADR amending LC-256a D2: the replacement is ours, check/download/verification stay the plugin's <!-- longclaw:item=ck_f4fd6bf2 -->
-- [ ] Check whether declaring osakit or the archive crates directly trips a dependency or symbol guard; if so, the ADR names the gate change <!-- longclaw:item=ck_0a19f574 -->
-- [ ] Settle how the probe gets a signed archive (release key locally, or a probe-only test key) before writing it <!-- longclaw:item=ck_5224a9e9 -->
-- [ ] Build the replacement module test-first over a fake .app in a temp dir, with a fault injected at each step <!-- longclaw:item=ck_d40e33b8 -->
-- [ ] Build the launch-time sweep over a temp dir: removes only its own staging and backup names <!-- longclaw:item=ck_986393aa -->
-- [ ] Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged <!-- longclaw:item=ck_09e4816b -->
-- [ ] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
+- [x] Merge PR #103 so the spec and the ready-for-agent label are on main <!-- longclaw:item=ck_385266e3 -->
+- [x] Write the ADR amending LC-256a D2: the replacement is ours, check/download/verification stay the plugin's <!-- longclaw:item=ck_f4fd6bf2 -->
+- [x] Check whether declaring osakit or the archive crates directly trips a dependency or symbol guard; if so, the ADR names the gate change <!-- longclaw:item=ck_0a19f574 -->
+- [x] Settle how the probe gets a signed archive (release key locally, or a probe-only test key) before writing it <!-- longclaw:item=ck_5224a9e9 -->
+- [x] Build the replacement module test-first over a fake .app in a temp dir, with a fault injected at each step <!-- longclaw:item=ck_d40e33b8 -->
+- [x] Build the launch-time sweep over a temp dir: removes only its own staging and backup names <!-- longclaw:item=ck_986393aa -->
+- [x] Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged <!-- longclaw:item=ck_09e4816b -->
+- [x] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
 - [ ] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
+- [ ] Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches <!-- longclaw:item=ck_617faa18 -->
 
 ## Ticket References
 
@@ -42,6 +43,18 @@ added_by:
   name: Claude Code
 -->
 [LC-267r-update-never-deletes-the-app.md](../../../docs/specs/LC-267r-update-never-deletes-the-app.md)
+<!-- /longclaw:reference -->
+
+<!-- longclaw:reference
+id: ref_99666974
+path: docs/adr/0018-the-app-replaces-its-own-bundle.md
+added_at: 2026-10-29T08:25:40.292Z
+added_by:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+[0018-the-app-replaces-its-own-bundle.md](../../../docs/adr/0018-the-app-replaces-its-own-bundle.md)
 <!-- /longclaw:reference -->
 
 ## Activity
@@ -273,4 +286,153 @@ changes:
     to: "Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1ce7ec44
+kind: update
+occurred_at: 2026-10-29T08:25:40.267Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_385266e3.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_f4fd6bf2.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_0a19f574.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+ADR 0018 written (docs/adr/0018-the-app-replaces-its-own-bundle.md); spec D1, D2 step 4, D3 and story 26 amended to match.
+
+Guard check, run 2026-10-29: declaring `flate2 = "1"`, `osakit = { version = "0.3", features = ["full"] }` and `tar = "0.4"` (the plugin's own features) under the macOS dependencies left `cargo tree`'s crate set identical (only the root's dependency list in Cargo.lock grew) and `release-audit` clean, self-test green. Reverted afterwards.
+
+Two source-scan rules matter, and the ADR names both as gate changes:
+- `Command::new` is banned in all shipped Rust, so the replacement cannot `touch` the bundle the way the plugin does; it sets the mtime by a direct call.
+- `osakit::` is caught by nothing today. The audit gains a rule holding it to the replacement module, and the module joins UPDATE_MODULES' forbidden names.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_004ebc64
+kind: update
+occurred_at: 2026-10-29T08:25:40.292Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: references.ref_99666974.added
+    to: 0018-the-app-replaces-its-own-bundle.md
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_440f7602
+kind: update
+occurred_at: 2026-10-29T08:29:17.001Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5224a9e9.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_617faa18.added
+    to: "Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches"
+-->
+### Claude Code updated this ticket
+
+Probe signing settled: the probe's archive is unsigned. It exercises the replacement, which accepts bytes the plugin already verified; signature checking is the plugin's unchanged half. Signing would mean either the release key on a probe run (a file every installed copy would accept, off the release machine) or a second bundle with a test key and a localhost endpoint (what the sanctioned-hosts rule keeps out of anything shippable). The probe instead makes a second version from the built bundle (Info.plist version raised, re-signed ad hoc), plants a failure at the real swap, verifies the original with codesign and launches it; a FAT disk image gives a real RENAME_SWAP refusal for the fallback. What it cannot see, the adapter's wiring inside a real bundle, gets a release-candidate row. Spec seam 4 rewritten, seam 5 added.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e6e82582
+kind: comment
+occurred_at: 2026-10-29T08:30:33.287Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Unverified: that a FAT32 disk image refuses renamex_np(RENAME_SWAP). APFS swaps (confirmed on this machine, rc 0). hdiutil create was refused with 'Operation not permitted' from this terminal, inside and outside the sandbox — a macOS privacy permission, not the repo — so the FAT case could not be tried. The spec now has the probe check the refusal on the image first and fail the run if the swap succeeds there. Whoever builds the probe confirms it first.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_52046c28
+kind: update
+occurred_at: 2026-11-02T11:53:06.508Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d40e33b8.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_986393aa.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Replacement module and sweep built: `bundle_replace` (macOS only). 20 unit tests over a fake .app in a temp dir, with a fault or a process death planted at each movement (swap, both fallback renames, removal, mtime), plus truncated, mis-shaped, `..`, out-pointing-link and AppleDouble archives. The four tests that run the administrator script through /bin/sh live in tests/bundle_replace.rs, because a process launch anywhere under src/ is a release-audit finding. A control proves the sh shadow used to fail ditto/mv does not break the script on its own. Mutation check: dropping the fallback's restore, putting the plugin's rm-first order back in the script, and switching off the link check each turned the expected tests red. release-audit gains the osakit-in-one-file rule (self-test: accepts 1, rejects 1) and bundle_replace joins the update path's names. Two deviations from the spec: there is no logger in the app, so the failed step lives in ReplaceError rather than a log line; and the step is lost once the adapter maps it to InstallFailed.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a16548db
+kind: update
+occurred_at: 2026-11-02T11:57:04.607Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_09e4816b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Adapter switched: install_and_restart hands the verified bytes to bundle_replace::replace with the running bundle's path (platform::macos::running_bundle, the same helper running_from_bundle now uses) and a MainThreadPrompt that runs the administrator script on the main thread. The plugin's Update::install is no longer called. install_keeping_bytes and its three tests are unchanged and green; the mapping test now covers every ReplaceError step. The sweep runs from PluginUpdater::attach on a blocking thread — not strictly after first paint as the spec says, but off the main thread and nothing waits on it. npm run verify green: 338 Rust unit tests, 1634 frontend tests, release-audit 141 files clean, native watcher 2/2.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3ac3b265
+kind: update
+occurred_at: 2026-11-02T12:25:49.300Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_12548d17.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Built-bundle probe done: `npm run probe:update` (wrapper perf/update-probe.mjs, cases in src-tauri/tests/update_probe.rs behind the `update-probe` feature). Run on 2026-11-02 against the 0.3.1 build:app bundle and its release archive:
+
+```
+test probe_update ...   pass  a refused swap leaves the original intact
+  pass  a good swap installs the newer version
+  pass  the release archive gets through the unpack
+  pass  a FAT volume replaces through the fallback
+probe:update: 4 passed, 0 failed, 0 skipped, against apps/desktop/src-tauri/target/release/bundle/macos/LongClaw.app
+test probe_update ... probe:update --self-test: the plugin's order lost the app, and the probe saw it (no bundle at the path)
+```
+
+It found what the spec got wrong. FAT32 does not refuse RENAME_SWAP. macOS's FSKit msdos driver accepts the flag and does a plain rename: two non-empty directories fail with ENOTEMPTY (so on FAT32 every update failed, safely, at the swap), and two files 'swap' with the displaced side deleted. The volume's own VOL_CAP_INT_RENAME_SWAP bit tells the truth (FAT32 and ExFAT: absent; APFS: present), so the replacement now asks the volume first through core::storage::volume_declares_swap and takes the fallback when it says no. Mutation check: without that check the FAT case fails at Swap with 'Directory not empty (os error 66)'. The same driver behaviour breaks ticket saving on FAT32, filed as LC-283u. The FAT assumption flagged on 2026-10-29 is settled: it was wrong, and the probe's precondition caught it.
+
+'Runs' here means the bundle's own `longclaw --help` exits 0 and `codesign --verify --deep --strict` passes. It does not open the window, which would start against the person's real projects. Opening the window is the release-candidate row's job.
 <!-- /longclaw:event -->

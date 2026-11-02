@@ -170,10 +170,15 @@ fn app_bundle_of(running: &Path) -> Option<PathBuf> {
 /// with no bundle to replace report itself unavailable rather than failing a
 /// check it was never able to make (LC-256a, D10).
 pub fn running_from_bundle() -> bool {
+    running_bundle().is_some()
+}
+
+/// The `.app` this process is running out of — the one an update replaces,
+/// and the one whose folder the replacement's sweep tidies (LC-267r).
+pub fn running_bundle() -> Option<PathBuf> {
     command_line::running_binary()
         .as_deref()
         .and_then(app_bundle_of)
-        .is_some()
 }
 
 pub fn command_line_status() -> CommandLineStatus {

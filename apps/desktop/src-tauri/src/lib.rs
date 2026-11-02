@@ -1,4 +1,6 @@
 mod app_state;
+#[cfg(target_os = "macos")]
+pub mod bundle_replace;
 pub mod cli;
 pub mod core;
 pub mod engine;
