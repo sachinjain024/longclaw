@@ -27,6 +27,8 @@ use std::time::Duration;
 use tauri::AppHandle;
 use tauri_plugin_updater::{Error as PluginError, Update, UpdaterExt};
 
+#[cfg(target_os = "macos")]
+use crate::bundle_replace::{self, Privileged, ReplaceError};
 use crate::platform;
 use crate::update::{Release, UpdateFault, Updater};
 
@@ -75,6 +77,14 @@ impl PluginUpdater {
         // all, before anything has been promised to a person. A builder is
         // cheap and makes no request.
         app.updater_builder().build().ok()?;
+        // Whatever an interrupted update left beside the bundle, collected on
+        // a blocking thread so launch never waits on a directory listing
+        // (LC-267r). Here because this is the one place that has already
+        // confirmed there is a bundle to tidy beside.
+        #[cfg(target_os = "macos")]
+        if let Some(bundle) = platform::macos::running_bundle() {
+            tauri::async_runtime::spawn_blocking(move || bundle_replace::sweep(&bundle));
+        }
         Some(Arc::new(Self {
             app: app.clone(),
             pending: Mutex::new(None),
@@ -166,22 +176,39 @@ impl Updater for PluginUpdater {
     }
 
     fn install_and_restart(&self) -> Result<(), UpdateFault> {
-        let pending = self
-            .pending
-            .lock()
-            .expect("update pending lock")
-            .clone()
-            .ok_or(UpdateFault::CorruptDownload)?;
+        // Nothing was checked, so nothing can have been downloaded for it.
+        if self.pending.lock().expect("update pending lock").is_none() {
+            return Err(UpdateFault::CorruptDownload);
+        }
 
-        install_keeping_bytes(&self.downloaded, |bytes| {
-            pending
-                .install(bytes)
-                .map_err(|error| install_fault_of(&error))
-        })?;
+        self.replace_bundle()?;
 
         // macOS has the bundle replaced in place and the process still running
         // the old one, so the relaunch is ours to do. `restart` never returns.
         self.app.restart();
+    }
+}
+
+impl PluginUpdater {
+    /// The plugin verified these bytes; putting them in place is ours
+    /// (ADR 0018). Its own `install` lost the bundle in three windows that
+    /// this replacement does not have.
+    #[cfg(target_os = "macos")]
+    fn replace_bundle(&self) -> Result<(), UpdateFault> {
+        let bundle = platform::macos::running_bundle().ok_or(UpdateFault::InstallFailed)?;
+        let prompt = MainThreadPrompt {
+            app: self.app.clone(),
+        };
+        install_keeping_bytes(&self.downloaded, |bytes| {
+            bundle_replace::replace(bytes, &bundle, &prompt)
+                .map_err(|error| install_fault_of(&error))
+        })
+    }
+
+    /// v0 ships macOS only, and `attach` never returns an updater elsewhere.
+    #[cfg(not(target_os = "macos"))]
+    fn replace_bundle(&self) -> Result<(), UpdateFault> {
+        Err(UpdateFault::InstallFailed)
     }
 }
 
@@ -260,6 +287,32 @@ where
     }
 }
 
+/// The administrator prompt, run where AppKit needs it.
+///
+/// `install_and_restart` is reached on a blocking thread, so waiting here for
+/// the main thread to answer is a wait and not a deadlock — the same shape the
+/// plugin's own prompt had.
+#[cfg(target_os = "macos")]
+struct MainThreadPrompt {
+    app: AppHandle,
+}
+
+#[cfg(target_os = "macos")]
+impl Privileged for MainThreadPrompt {
+    fn run(&self, script: &str) -> std::io::Result<()> {
+        let (sender, receiver) = mpsc::channel();
+        let script = script.to_owned();
+        self.app
+            .run_on_main_thread(move || {
+                let _ = sender.send(bundle_replace::run_as_administrator(&script));
+            })
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
+        receiver
+            .recv()
+            .map_err(|_| std::io::Error::other("the main thread dropped the prompt"))?
+    }
+}
+
 /// What a failed *install* is. Never a download that did not arrive.
 ///
 /// `fault_of` ends in a `_` arm that reads an unnamed error as a damaged
@@ -277,7 +330,12 @@ where
 /// the same kind of lie, told one arm further along. By the time this runs,
 /// `attach` has confirmed a bundle, a check has succeeded and a file is on
 /// disk: whatever went wrong, it went wrong while installing.
-fn install_fault_of(_error: &PluginError) -> UpdateFault {
+///
+/// The replacement's error names the step that failed, and none of them is an
+/// exception either: a refused archive, a failed swap and a cancelled password
+/// prompt all leave the version the person had, and all say so in one sentence.
+#[cfg(target_os = "macos")]
+fn install_fault_of(_error: &ReplaceError) -> UpdateFault {
     UpdateFault::InstallFailed
 }
 
@@ -391,21 +449,38 @@ mod tests {
     /// LC-265y's diagnosis at the network for a day.
     #[test]
     fn a_filesystem_failure_while_installing_is_not_a_failed_download() {
+        use crate::bundle_replace::Step;
+
+        for step in [
+            Step::Stage,
+            Step::Unpack,
+            Step::Check,
+            Step::Swap,
+            Step::Fallback,
+            Step::Privileged,
+        ] {
+            let error = ReplaceError {
+                step,
+                source: std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "failed to unpack `._LongClaw.app`",
+                ),
+            };
+            assert_eq!(
+                install_fault_of(&error),
+                UpdateFault::InstallFailed,
+                "at {step:?}"
+            );
+        }
+
         let io = PluginError::Io(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             "failed to unpack `._LongClaw.app`",
         ));
-        assert_eq!(install_fault_of(&io), UpdateFault::InstallFailed);
         assert_eq!(
             fault_of(&io),
             UpdateFault::CorruptDownload,
             "the download path keeps its default: mid-fetch, an unnamed error is a damaged file"
-        );
-
-        assert_eq!(
-            install_fault_of(&PluginError::FailedToDetermineExtractPath),
-            UpdateFault::InstallFailed,
-            "by install time a bundle has been confirmed, so this is not `no updater here`"
         );
     }
 }
