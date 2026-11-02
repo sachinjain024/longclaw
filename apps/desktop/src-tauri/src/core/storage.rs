@@ -761,6 +761,60 @@ pub(crate) fn swap_paths(left: &Path, right: &Path) -> std::io::Result<()> {
     }
 }
 
+/// Whether the volume holding `path` says it can exchange two paths, or `None`
+/// when it will not say.
+///
+/// **Ask before swapping, because the call's own answer cannot be trusted.**
+/// macOS's FAT32 driver accepts `renamex_np(RENAME_SWAP)` and performs a plain
+/// rename: two files "swap" with success and the displaced bytes are gone, and
+/// two non-empty directories fail with `ENOTEMPTY` rather than `ENOTSUP`. The
+/// volume's capability bits do tell the truth — APFS declares the swap, FAT32
+/// and ExFAT declare that they lack it — so a caller that must not lose the
+/// displaced side asks here first (LC-267r, found by `probe:update`).
+#[cfg(target_os = "macos")]
+pub(crate) fn volume_declares_swap(path: &Path) -> Option<bool> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    #[repr(C)]
+    struct Reply {
+        length: u32,
+        capabilities: libc::vol_capabilities_attr_t,
+    }
+
+    let path = CString::new(path.as_os_str().as_bytes()).ok()?;
+    let mut request = libc::attrlist {
+        bitmapcount: libc::ATTR_BIT_MAP_COUNT,
+        reserved: 0,
+        commonattr: 0,
+        volattr: libc::ATTR_VOL_INFO | libc::ATTR_VOL_CAPABILITIES,
+        dirattr: 0,
+        fileattr: 0,
+        forkattr: 0,
+    };
+    // SAFETY: zeroed is a valid `Reply` (plain integers), and the kernel
+    // writes at most `size_of::<Reply>()` bytes into it.
+    let mut reply: Reply = unsafe { std::mem::zeroed() };
+    // SAFETY: a valid NUL-terminated path, a request and a reply that live for
+    // the call, and the reply's true size.
+    let outcome = unsafe {
+        libc::getattrlist(
+            path.as_ptr(),
+            (&mut request as *mut libc::attrlist).cast(),
+            (&mut reply as *mut Reply).cast(),
+            std::mem::size_of::<Reply>(),
+            0,
+        )
+    };
+    if outcome != 0 {
+        return None;
+    }
+    let interfaces = libc::VOL_CAPABILITIES_INTERFACES;
+    let flag = libc::VOL_CAP_INT_RENAME_SWAP;
+    (reply.capabilities.valid[interfaces] & flag != 0)
+        .then(|| reply.capabilities.capabilities[interfaces] & flag != 0)
+}
+
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn swap_paths(_left: &Path, _right: &Path) -> std::io::Result<()> {
     Err(std::io::Error::from(std::io::ErrorKind::Unsupported))

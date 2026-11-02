@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-11-02T11:57:04.607Z
+updated_at: 2026-11-02T12:25:49.300Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -27,7 +27,7 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 - [x] Build the replacement module test-first over a fake .app in a temp dir, with a fault injected at each step <!-- longclaw:item=ck_d40e33b8 -->
 - [x] Build the launch-time sweep over a temp dir: removes only its own staging and backup names <!-- longclaw:item=ck_986393aa -->
 - [x] Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged <!-- longclaw:item=ck_09e4816b -->
-- [ ] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
+- [x] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
 - [ ] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
 - [ ] Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches <!-- longclaw:item=ck_617faa18 -->
 
@@ -404,4 +404,35 @@ changes:
 ### Claude Code updated this ticket
 
 Adapter switched: install_and_restart hands the verified bytes to bundle_replace::replace with the running bundle's path (platform::macos::running_bundle, the same helper running_from_bundle now uses) and a MainThreadPrompt that runs the administrator script on the main thread. The plugin's Update::install is no longer called. install_keeping_bytes and its three tests are unchanged and green; the mapping test now covers every ReplaceError step. The sweep runs from PluginUpdater::attach on a blocking thread — not strictly after first paint as the spec says, but off the main thread and nothing waits on it. npm run verify green: 338 Rust unit tests, 1634 frontend tests, release-audit 141 files clean, native watcher 2/2.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3ac3b265
+kind: update
+occurred_at: 2026-11-02T12:25:49.300Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_12548d17.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Built-bundle probe done: `npm run probe:update` (wrapper perf/update-probe.mjs, cases in src-tauri/tests/update_probe.rs behind the `update-probe` feature). Run on 2026-11-02 against the 0.3.1 build:app bundle and its release archive:
+
+```
+test probe_update ...   pass  a refused swap leaves the original intact
+  pass  a good swap installs the newer version
+  pass  the release archive gets through the unpack
+  pass  a FAT volume replaces through the fallback
+probe:update: 4 passed, 0 failed, 0 skipped, against apps/desktop/src-tauri/target/release/bundle/macos/LongClaw.app
+test probe_update ... probe:update --self-test: the plugin's order lost the app, and the probe saw it (no bundle at the path)
+```
+
+It found what the spec got wrong. FAT32 does not refuse RENAME_SWAP. macOS's FSKit msdos driver accepts the flag and does a plain rename: two non-empty directories fail with ENOTEMPTY (so on FAT32 every update failed, safely, at the swap), and two files 'swap' with the displaced side deleted. The volume's own VOL_CAP_INT_RENAME_SWAP bit tells the truth (FAT32 and ExFAT: absent; APFS: present), so the replacement now asks the volume first through core::storage::volume_declares_swap and takes the fallback when it says no. Mutation check: without that check the FAT case fails at Swap with 'Directory not empty (os error 66)'. The same driver behaviour breaks ticket saving on FAT32, filed as LC-283u. The FAT assumption flagged on 2026-10-29 is settled: it was wrong, and the probe's precondition caught it.
+
+'Runs' here means the bundle's own `longclaw --help` exits 0 and `codesign --verify --deep --strict` passes. It does not open the window, which would start against the person's real projects. Opening the window is the release-candidate row's job.
 <!-- /longclaw:event -->

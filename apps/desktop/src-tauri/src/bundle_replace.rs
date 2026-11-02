@@ -132,7 +132,14 @@ trait Disk {
 struct System;
 
 impl Disk for System {
+    /// Asks the volume first. FAT32 accepts the flag and does a plain rename,
+    /// which fails on a non-empty bundle with `ENOTEMPTY` — safe, but every
+    /// update there would fail. A volume that says it cannot exchange is
+    /// answered as one that refused, and gets the fallback.
     fn swap(&self, left: &Path, right: &Path) -> io::Result<()> {
+        if storage::volume_declares_swap(right) == Some(false) {
+            return Err(io::Error::from_raw_os_error(libc::ENOTSUP));
+        }
         storage::swap_paths(left, right)
     }
 
@@ -437,6 +444,41 @@ fn check(staged: &Path) -> io::Result<()> {
         ));
     }
     Ok(())
+}
+
+/// What `npm run probe:update` needs and nothing ships: `replace`, with the
+/// exchange refused the way a volume refuses it, so a failed swap can be shown
+/// to leave a real built bundle intact. Behind a feature no build enables.
+#[cfg(feature = "update-probe")]
+pub mod probe {
+    use super::*;
+
+    struct Refusing(i32);
+
+    impl Disk for Refusing {
+        fn swap(&self, _left: &Path, _right: &Path) -> io::Result<()> {
+            Err(io::Error::from_raw_os_error(self.0))
+        }
+        fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
+            System.rename(from, to)
+        }
+        fn remove_all(&self, path: &Path) -> io::Result<()> {
+            System.remove_all(path)
+        }
+        fn mark_changed(&self, path: &Path) -> io::Result<()> {
+            System.mark_changed(path)
+        }
+    }
+
+    /// `replace`, with the swap answered by `errno` rather than the kernel.
+    pub fn replace_with_swap_refused(
+        archive: &[u8],
+        bundle: &Path,
+        errno: i32,
+        privileged: &dyn Privileged,
+    ) -> Result<(), ReplaceError> {
+        replace_on(&Refusing(errno), archive, bundle, privileged)
+    }
 }
 
 #[cfg(test)]
@@ -963,6 +1005,15 @@ mod tests {
     #[test]
     fn applescript_quoting_escapes_backslashes_and_quotes() {
         assert_eq!(applescript_string(r#"a "b" \c"#), r#""a \"b\" \\c""#);
+    }
+
+    /// The capability read is real, or the FAT32 guard is reading nothing: the
+    /// suite's temporary folder is on the boot volume, and APFS declares the
+    /// swap. FAT32's `Some(false)` is `probe:update`'s to show.
+    #[test]
+    fn the_boot_volume_declares_the_swap() {
+        let folder = tempfile::tempdir().unwrap();
+        assert_eq!(storage::volume_declares_swap(folder.path()), Some(true));
     }
 
     // ---- the sweep ------------------------------------------------------------

@@ -15,7 +15,7 @@ replacement of the bundle — and nothing a person sees when it works.
 
 ## Problem Statement
 
-A person presses *Restart to update*. Something goes wrong while the new
+A person presses _Restart to update_. Something goes wrong while the new
 version is being put in place, and when they look for LongClaw afterwards it is
 not in Applications any more: not the old version, not the new one. Their
 tickets are untouched on disk, but the tool they use to read them is gone, and
@@ -24,7 +24,7 @@ deleted itself.
 
 The ticket names the right defect and the wrong doors. Reading the plugin's
 install, both of its temporary directories are created under `TMPDIR`, so the
-two everyday failures the ticket names are *safe*: a cross-volume `TMPDIR`
+two everyday failures the ticket names are _safe_: a cross-volume `TMPDIR`
 fails the **first** rename — moving the current bundle out — with `EXDEV`,
 before anything has moved, and a full disk fails the extraction, which is
 before that again (LC-265y's failure was there, and lost nobody's app). The
@@ -71,7 +71,7 @@ under a recognisable staging name beside the bundle, and the next launch clears
 it away.
 
 From the person's side nothing changes when an update works. When one fails,
-the pane says what it already says — *The update could not be installed.* —
+the pane says what it already says — _The update could not be installed._ —
 and that sentence is now always true in the reassuring direction: the version
 they had is still there and still opens.
 
@@ -82,10 +82,10 @@ they had is still there and still opens.
 1. As a person updating LongClaw, I want a failed update to leave the version I had installed, so that a bad update costs me a retry and not my app.
 2. As a person updating LongClaw, I want there to be no moment during an update at which LongClaw is missing from Applications, so that a crash, a force quit or a power cut mid-update cannot leave me without it.
 3. As a person whose temporary folder is on a different volume from Applications, I want updates to work, so that how my disk is laid out is not a reason I cannot update.
-4. As a person whose disk fills up during an update, I want the update to fail cleanly with my current version untouched, so that freeing space and pressing *Try again* is all I need to do.
+4. As a person whose disk fills up during an update, I want the update to fail cleanly with my current version untouched, so that freeing space and pressing _Try again_ is all I need to do.
 5. As a standard (non-administrator) user, I want the administrator prompt to replace LongClaw in an order that cannot delete it, so that typing a password is never the step that loses my app.
 6. As a standard user who cancels the administrator prompt, I want nothing to have changed, so that cancelling means cancelling.
-7. As a person whose update failed, I want *Try again* to be a real second attempt, so that the button keeps the promise LC-265y made it keep.
+7. As a person whose update failed, I want _Try again_ to be a real second attempt, so that the button keeps the promise LC-265y made it keep.
 8. As a person whose update failed, I want the pane's existing sentence to be the one I see, so that I am not handed new, unreviewed copy at a worrying moment.
 9. As a person whose update worked, I want the relaunch to open the new version exactly as it does today, so that the fix is invisible when nothing goes wrong.
 10. As a person whose update was interrupted, I want no hidden copy of LongClaw left in my Applications folder for ever, so that an interrupted update does not leak a bundle's worth of disk.
@@ -95,7 +95,7 @@ they had is still there and still opens.
 
 ### The person reading the outcome
 
-14. As a person whose update failed, I want the old version to open with its own version number in *Settings → About*, so that I can tell which version I am on.
+14. As a person whose update failed, I want the old version to open with its own version number in _Settings → About_, so that I can tell which version I am on.
 15. As a person who reports a failed update, I want the log to name which step failed — unpack, swap, or cleanup — so that the person diagnosing it does not have to guess the way LC-265y's diagnosis did.
 
 ### The developer
@@ -184,8 +184,14 @@ no other file may reach.
 
 ### D4. Filesystems that cannot swap, and folders that need an administrator
 
-- **No atomic swap on this volume** (`renamex_np` returns `ENOTSUP`, as some
-  network and FAT-family volumes do). The module falls back to two renames on
+- **No atomic swap on this volume.** The module asks the volume first —
+  its `VOL_CAP_INT_RENAME_SWAP` capability bit — and treats `ENOTSUP` or
+  `EINVAL` from the call the same way. Asking first is not optional:
+  `probe:update` found that macOS's FAT32 driver _accepts_ `RENAME_SWAP` and
+  performs a plain rename, so two non-empty directories fail with
+  `ENOTEMPTY` and two files "swap" with the displaced side deleted (LC-283u is
+  that defect in ticket saving). FAT32 and ExFAT both declare the capability
+  absent, and APFS declares it present. The module falls back to two renames on
   the same volume — current bundle to a hidden backup name beside it, staged
   tree to the bundle path — and if the second fails, renames the backup back
   before returning. Both renames are within one directory, so `EXDEV` cannot
@@ -216,7 +222,7 @@ The updater adapter keeps the plugin's check and download unchanged, and keeps
 the verified bytes cached exactly as it does today. Its install-and-restart
 calls the replacement module with those bytes and the bundle path instead of
 the plugin's `install`, then restarts as before. The bytes are still put back
-on failure, so *Try again* still retries. The bundle path comes from the same
+on failure, so _Try again_ still retries. The bundle path comes from the same
 platform helper that decides whether the process runs from a bundle, so the
 install and the sweep cannot disagree about which bundle is ours.
 
@@ -277,12 +283,12 @@ returned success.**
    failure planted at the real swap call; asserts the bundle at the path is the
    original, unchanged and verified by `codesign`; and launches it and asserts
    it runs. A second case lets the swap succeed and launches the new version. A
-   third puts the folder on a FAT-formatted disk image, where `RENAME_SWAP` is
-   genuinely unsupported, so the fallback runs against a real refusal rather
-   than an injected one. That refusal is an assumption until a run shows it:
-   the case swaps two scratch directories on the image first, and if the
-   swap succeeds there it fails the run rather than reporting on a fallback
-   it never reached. Its `--self-test` drives the plugin's delete-first
+   third puts the folder on a FAT32 disk image, where the volume declares no
+   `RENAME_SWAP`, so the fallback runs against a real volume rather than an
+   injected refusal. It first swaps two non-empty scratch directories there
+   and fails the run if they really exchange, rather than reporting on a
+   fallback it never reached. (The spec first assumed FAT32 refuses the call
+   with `ENOTSUP`. The first run showed it ignores the flag instead; see D4.) Its `--self-test` drives the plugin's delete-first
    order, written out in the harness, through the same failure and must go red.
    Run it when the replacement module or the release archive changes, and
    quote the run in the ticket.
@@ -295,11 +301,12 @@ returned success.**
    release machine's one-place rule — or a second bundle built with a test key
    and a local endpoint, which the release audit's sanctioned-hosts rule exists
    to keep out of anything that could ship. Neither buys the probe anything.
+
 5. **One release-candidate row**, because nothing above drives the adapter's
    wiring inside a real bundle — the downloaded bytes reaching the replacement,
    and the bundle path derived from the running executable. The
    release-candidate checklist gains a row: install the previous release,
-   update it to the candidate through *Restart to update*, and confirm the
+   update it to the candidate through _Restart to update_, and confirm the
    candidate is what relaunches. This is the run that would have caught
    LC-265y before a person did.
 
@@ -343,7 +350,7 @@ a standard account, quoted in the ticket.
 - `renamex_np` with `RENAME_SWAP` is available on every macOS release LongClaw
   supports and is implemented by APFS and HFS+, which covers the internal disk
   and most external ones.
-- The ticket's checklist maps onto this spec as follows: *decide the route* is
-  D1–D2 (our own replacement, by atomic swap, chosen on 2026-10-29), and *prove
-  it with a probe* is seam 4, whose archive is unsigned for the reason given
+- The ticket's checklist maps onto this spec as follows: _decide the route_ is
+  D1–D2 (our own replacement, by atomic swap, chosen on 2026-10-29), and _prove
+  it with a probe_ is seam 4, whose archive is unsigned for the reason given
   there (settled on 2026-10-29). Seam 5 is the run that proves the wiring.

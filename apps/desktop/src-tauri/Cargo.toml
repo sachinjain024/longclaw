@@ -28,6 +28,11 @@ path = "src/bin/longclaw.rs"
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+# Exposes `bundle_replace::probe`, which lets `npm run probe:update` refuse the
+# swap on a real built bundle (LC-267r). Never enabled by a build.
+update-probe = []
+
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
