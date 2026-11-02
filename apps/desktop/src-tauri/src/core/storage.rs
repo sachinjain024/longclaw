@@ -743,7 +743,7 @@ const SWAP_SUPPORTED: bool = false;
 /// Exchanges the contents of two existing paths in one atomic step. After it
 /// returns, each path holds what the other held.
 #[cfg(target_os = "macos")]
-fn swap_paths(left: &Path, right: &Path) -> std::io::Result<()> {
+pub(crate) fn swap_paths(left: &Path, right: &Path) -> std::io::Result<()> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
 
@@ -762,7 +762,7 @@ fn swap_paths(left: &Path, right: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn swap_paths(_left: &Path, _right: &Path) -> std::io::Result<()> {
+pub(crate) fn swap_paths(_left: &Path, _right: &Path) -> std::io::Result<()> {
     Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
 }
 
@@ -788,7 +788,7 @@ fn classify_swap_error(path: &Path, error: std::io::Error) -> AppError {
 }
 
 #[cfg(target_os = "macos")]
-fn is_unsupported(error: &std::io::Error) -> bool {
+pub(crate) fn is_unsupported(error: &std::io::Error) -> bool {
     // `EINVAL` is what a filesystem without `RENAME_SWAP` returns for the flag.
     matches!(
         error.raw_os_error(),
@@ -797,7 +797,7 @@ fn is_unsupported(error: &std::io::Error) -> bool {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn is_unsupported(error: &std::io::Error) -> bool {
+pub(crate) fn is_unsupported(error: &std::io::Error) -> bool {
     error.kind() == std::io::ErrorKind::Unsupported
 }
 

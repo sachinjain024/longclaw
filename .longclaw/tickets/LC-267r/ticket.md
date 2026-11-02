@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-10-29T08:29:17.001Z
+updated_at: 2026-11-02T11:53:06.508Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -24,8 +24,8 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 - [x] Write the ADR amending LC-256a D2: the replacement is ours, check/download/verification stay the plugin's <!-- longclaw:item=ck_f4fd6bf2 -->
 - [x] Check whether declaring osakit or the archive crates directly trips a dependency or symbol guard; if so, the ADR names the gate change <!-- longclaw:item=ck_0a19f574 -->
 - [x] Settle how the probe gets a signed archive (release key locally, or a probe-only test key) before writing it <!-- longclaw:item=ck_5224a9e9 -->
-- [ ] Build the replacement module test-first over a fake .app in a temp dir, with a fault injected at each step <!-- longclaw:item=ck_d40e33b8 -->
-- [ ] Build the launch-time sweep over a temp dir: removes only its own staging and backup names <!-- longclaw:item=ck_986393aa -->
+- [x] Build the replacement module test-first over a fake .app in a temp dir, with a fault injected at each step <!-- longclaw:item=ck_d40e33b8 -->
+- [x] Build the launch-time sweep over a temp dir: removes only its own staging and backup names <!-- longclaw:item=ck_986393aa -->
 - [ ] Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged <!-- longclaw:item=ck_09e4816b -->
 - [ ] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
 - [ ] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
@@ -365,4 +365,25 @@ actor:
 ### Claude Code commented
 
 Unverified: that a FAT32 disk image refuses renamex_np(RENAME_SWAP). APFS swaps (confirmed on this machine, rc 0). hdiutil create was refused with 'Operation not permitted' from this terminal, inside and outside the sandbox — a macOS privacy permission, not the repo — so the FAT case could not be tried. The spec now has the probe check the refusal on the image first and fail the run if the swap succeeds there. Whoever builds the probe confirms it first.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_52046c28
+kind: update
+occurred_at: 2026-11-02T11:53:06.508Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d40e33b8.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_986393aa.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Replacement module and sweep built: `bundle_replace` (macOS only). 20 unit tests over a fake .app in a temp dir, with a fault or a process death planted at each movement (swap, both fallback renames, removal, mtime), plus truncated, mis-shaped, `..`, out-pointing-link and AppleDouble archives. The four tests that run the administrator script through /bin/sh live in tests/bundle_replace.rs, because a process launch anywhere under src/ is a release-audit finding. A control proves the sh shadow used to fail ditto/mv does not break the script on its own. Mutation check: dropping the fallback's restore, putting the plugin's rm-first order back in the script, and switching off the link check each turned the expected tests red. release-audit gains the osakit-in-one-file rule (self-test: accepts 1, rejects 1) and bundle_replace joins the update path's names. Two deviations from the spec: there is no logger in the app, so the failed step lives in ReplaceError rather than a log line; and the step is lost once the adapter maps it to InstallFailed.
 <!-- /longclaw:event -->
