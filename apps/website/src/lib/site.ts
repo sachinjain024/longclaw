@@ -14,7 +14,7 @@ export const SITE = {
   /** Used as the default <title> suffix and in structured data. */
   tagline: 'Markdown-based issue tracker for AI coding agents',
   description:
-    'LongClaw is a local-first project manager for humans and AI agents. Tickets are plain Markdown files in your repo — humans plan, agents execute and write their context back to the same record. macOS, open source, no account.',
+    'LongClaw is a Markdown-based issue tracker for humans and AI agents. Tickets are plain Markdown files in your repo — humans plan, agents execute and write their context back to the same record. macOS, open source, no account.',
   locale: 'en',
   /** Shown in the mono small print under every download CTA. */
   requirements: 'macOS 13+ · Apple Silicon · no account required',
