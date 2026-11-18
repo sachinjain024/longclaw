@@ -233,6 +233,51 @@ describe("quick create is title, description, status, priority and labels", () =
       );
     });
 
+    // LC-288m: the define row is a form inside quick create's form, and its
+    // submit bubbled up to quick create's own — so adding a label created the
+    // ticket and closed the modal on a draft that was still being written.
+    it.each([
+      [
+        "Add label",
+        () =>
+          fireEvent.click(screen.getByRole("button", { name: "Add label" })),
+      ],
+      [
+        "Enter",
+        () => {
+          const field = screen.getByLabelText("New label name");
+          fireEvent.submit((field as HTMLInputElement).form!);
+        },
+      ],
+    ])(
+      "keeps the draft open when a label is added with %s (LC-288m)",
+      async (_how, commit) => {
+        const onDefineLabel = vi.fn().mockResolvedValue(true);
+        const onCreate = vi.fn();
+        render(quickCreate({ onDefineLabel, onCreate }));
+
+        fireEvent.change(screen.getByLabelText("Title"), {
+          target: { value: "Half-written" },
+        });
+        openDefine();
+        fireEvent.change(screen.getByLabelText("New label name"), {
+          target: { value: "Reliability" },
+        });
+        commit();
+
+        await waitFor(() => expect(onDefineLabel).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+          expect(
+            (screen.getByLabelText("New label name") as HTMLInputElement).value,
+          ).toBe(""),
+        );
+        expect(onCreate).not.toHaveBeenCalled();
+        expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+          "Half-written",
+        );
+      },
+    );
+
     it("keeps what was typed when the write is refused", async () => {
       const onDefineLabel = vi.fn().mockResolvedValue(false);
       render(quickCreate({ onDefineLabel }));
