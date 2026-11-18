@@ -182,3 +182,15 @@ fails saying what the server said — it cannot quietly drive somebody else's.
 - **Not hand-rolled.** Dispatching trusted input needs a browser automation
   protocol. Speaking WebKit's inspector protocol directly is more code than a
   pinned client and breaks on engine updates without telling you.
+
+`npm run probe:update` is the one harness here that touches no webview. It puts
+the bundle replacement (LC-267r) to a real built `LongClaw.app` in four cases —
+a refused swap, a good one, the release archive, a FAT32 volume — and calls a
+bundle intact only if it is the expected version, passes `codesign --verify
+--deep --strict`, runs its own `longclaw --help`, and has nothing but the
+`._` files a FAT volume keeps beside it. The cases are an ignored integration
+test, `src-tauri/tests/update_probe.rs`, behind the `update-probe` feature; this
+directory holds only the wrapper that finds the bundle and the archive. A case
+whose bundle is not intact _before_ the update is skipped, and a skip fails the
+run without `--allow-skip`. `--self-test` drives the plugin's own order through
+the same failure and passes only if the probe sees the app lost.

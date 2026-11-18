@@ -28,6 +28,11 @@ path = "src/bin/longclaw.rs"
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+# Exposes `bundle_replace::probe`, which lets `npm run probe:update` refuse the
+# swap on a real built bundle (LC-267r). Never enabled by a build.
+update-probe = []
+
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
@@ -64,6 +69,14 @@ libc = "0.2"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["NSWorkspace", "block2"] }
 objc2 = { version = "0.6", default-features = false }
 objc2-foundation = { version = "0.3", default-features = false, features = ["NSNotification", "NSOperation", "NSString", "NSURL", "block2"] }
+# The bundle replacement (LC-267r, ADR 0018): the release archive's two
+# formats and the one administrator prompt. All three are what
+# `tauri-plugin-updater` already compiles in, declared at its own features so
+# the resolved graph is unchanged — the plugin keeps fetching and verifying,
+# and only putting the verified bytes in place moved here.
+flate2 = "1"
+osakit = { version = "0.3", features = ["full"] }
+tar = "0.4"
 
 [dev-dependencies]
 tempfile = "3"

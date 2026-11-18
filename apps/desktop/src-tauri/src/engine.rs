@@ -926,7 +926,9 @@ fn is_transient_not_found(error: &notify::Error) -> bool {
     }
 }
 
-fn local_diagnostic(message: &str) {
+/// One line to the opt-in local channel the user guide names, and nowhere
+/// else: stdout, only when `LONGCLAW_LOCAL_DIAGNOSTIC` is set.
+pub(crate) fn local_diagnostic(message: &str) {
     if std::env::var_os("LONGCLAW_LOCAL_DIAGNOSTIC").is_some() {
         println!("LONGCLAW_LOCAL_DIAGNOSTIC {message}");
     }

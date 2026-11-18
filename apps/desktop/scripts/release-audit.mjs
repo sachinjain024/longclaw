@@ -94,6 +94,28 @@ function failOnMatch(files, patterns) {
 }
 
 /**
+ * The one file that may run a privileged script (LC-267r, ADR 0018).
+ *
+ * The administrator prompt used to live inside `tauri-plugin-updater`, where
+ * no rule needed to see it. Once the bundle replacement moved into the app's
+ * own source, a second caller of `osakit` would be a second way to run a shell
+ * as root that nothing here noticed — so it is held to one file, in the shape
+ * the HTTP client is held to `github_client.rs`.
+ */
+const PRIVILEGED_FILE = "bundle_replace.rs";
+
+/** What the source scan says about the privileged path, over `{ path, text }`. */
+function privilegedFindings(sources) {
+  return sources
+    .filter(({ path }) => !path.endsWith(`/${PRIVILEGED_FILE}`))
+    .filter(({ text }) => /\bosakit::/.test(text))
+    .map(
+      ({ path }) =>
+        `${path} names osakit — the one privileged script is ${PRIVILEGED_FILE}'s (ADR 0018)`,
+    );
+}
+
+/**
  * Every crate the macOS host target compiles that can open a socket, speak TLS,
  * or drive the runtime that does.
  *
@@ -343,6 +365,25 @@ if (SELF_TEST) {
     },
   ];
 
+  const privilegedCases = [
+    {
+      what: "osakit in the bundle replacement alone",
+      sources: [
+        { path: "src/bundle_replace.rs", text: "osakit::Script::new" },
+        { path: "src/update_plugin.rs", text: "bundle_replace::replace" },
+      ],
+      red: false,
+    },
+    {
+      what: "a second file running a privileged script",
+      sources: [
+        { path: "src/bundle_replace.rs", text: "osakit::Script::new" },
+        { path: "src/zoom.rs", text: "osakit::Script::new" },
+      ],
+      red: true,
+    },
+  ];
+
   const wrong = cases
     .filter(
       (probe) => networkArrivalFindings(probe.rows).length > 0 !== probe.red,
@@ -350,6 +391,11 @@ if (SELF_TEST) {
     .concat(
       frozenCases.filter(
         (probe) => frozenSetFindings(probe.rows).length > 0 !== probe.red,
+      ),
+    )
+    .concat(
+      privilegedCases.filter(
+        (probe) => privilegedFindings(probe.sources).length > 0 !== probe.red,
       ),
     );
   if (wrong.length > 0) {
@@ -365,7 +411,7 @@ if (SELF_TEST) {
     process.exit(1);
   }
   console.log(
-    `release-audit --self-test: the allowlist accepts ${cases.filter((probe) => !probe.red).length} narrow graphs and rejects ${cases.filter((probe) => probe.red).length} broad ones; the frozen set accepts ${frozenCases.filter((probe) => !probe.red).length} and rejects ${frozenCases.filter((probe) => probe.red).length}`,
+    `release-audit --self-test: the allowlist accepts ${cases.filter((probe) => !probe.red).length} narrow graphs and rejects ${cases.filter((probe) => probe.red).length} broad ones; the frozen set accepts ${frozenCases.filter((probe) => !probe.red).length} and rejects ${frozenCases.filter((probe) => probe.red).length}; the privileged rule accepts ${privilegedCases.filter((probe) => !probe.red).length} and rejects ${privilegedCases.filter((probe) => probe.red).length}`,
   );
   process.exit(0);
 }
@@ -867,9 +913,11 @@ failOnMatch(
   [[/(?<!tauri::)\bhttp::|reqwest::|ureq::/, "Rust HTTP client"]],
 );
 failOnMatch(shippedRustFiles, [[/\bCommand::new\s*\(/, "process launch"]]);
+privilegedFindings(shippedRustFiles.map(readSource)).forEach(fail);
 
 /**
- * The update path is reached from three files and no others.
+ * The update path is reached from three files and no others, and the bundle
+ * replacement it hands verified bytes to is one more of its own (ADR 0018).
  *
  * ADR 0014's offline invariant is that no existing code path calls into the
  * updater — project open, ticket read and write, the watcher, the index,
@@ -878,7 +926,13 @@ failOnMatch(shippedRustFiles, [[/\bCommand::new\s*\(/, "process launch"]]);
  * `update_plugin.rs` carries it out, `lib.rs` registers the plugin and declares
  * the four intent commands, and nothing else may name any of it.
  */
-const UPDATE_MODULES = new Set(["update.rs", "update_plugin.rs", "lib.rs"]);
+const UPDATE_MODULES = new Set([
+  "update.rs",
+  "update_plugin.rs",
+  "lib.rs",
+  // The replacement is part of the path, and reached from it alone (ADR 0018).
+  "bundle_replace.rs",
+]);
 for (const file of shippedRustFiles) {
   const { path, text } = readSource(file);
   if (UPDATE_MODULES.has(path.split("/").pop())) continue;
@@ -886,6 +940,7 @@ for (const file of shippedRustFiles) {
     [/\btauri_plugin_updater\b/, "the updater plugin"],
     [/\bupdate_plugin\b/, "the updater adapter"],
     [/\bUpdatePath\b/, "the update path"],
+    [/\bbundle_replace\b/, "the bundle replacement"],
   ]) {
     if (pattern.test(text)) {
       fail(

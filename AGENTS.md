@@ -34,7 +34,7 @@ by writing a ticket directory by hand, and always with `--agent-id`, because an
 activity entry without it says a human did the work.
 
 **Prefer the installed `longclaw`.** Installing the app installs the command —
-the binary rides inside the bundle and one press in *Settings → Command line*
+the binary rides inside the bundle and one press in _Settings → Command line_
 links it into `/usr/local/bin` (LC-233) — so on a machine with LongClaw
 installed there is nothing to build:
 
@@ -44,7 +44,7 @@ longclaw ticket create \
 ```
 
 Build it when there is no installed app, and **when this checkout has moved
-ahead of one**. An installed `longclaw` is the *app's* build: if the format or
+ahead of one**. An installed `longclaw` is the _app's_ build: if the format or
 the CLI has changed on this branch, the command on `PATH` is the older one and
 the freshly built binary is the only one that speaks this tree's format. There
 is no `--version` to ask it with, so the rule is the branch rather than the
@@ -94,7 +94,7 @@ Adding a docs page, a blog post or a release note is one Markdown file plus, for
 docs, one line in `DOCS_NAV` (`src/lib/site.ts`).
 
 **Four skills cover the routine work; use them rather than working from memory.**
-They and `lc-build-prototype` (below, under *UX prototypes*) are the only
+They and `lc-build-prototype` (below, under _UX prototypes_) are the only
 first-party skills in `.agents/skills/` — everything else there
 is vendored, and every vendored skill is tracked in `skills-lock.json` with the
 `source` it came from. `mattpocock/skills` is where nearly all of them come from;
@@ -103,12 +103,12 @@ the lockfile rather than one upstream. **The lockfile is the rule**: a skill und
 `.agents/skills/` that is neither one of the five first-party skills nor an entry there is
 untracked, and that is the thing to fix.
 
-| Skill | For |
-|---|---|
-| `website-change` | Layout, components, styles, copy, SEO, navigation |
-| `product-docs` | A page under `/docs` |
-| `changelog-entry` | A release entry on `/changelog` |
-| `roadmap-update` | The roadmap, and the decision to publish it |
+| Skill             | For                                               |
+| ----------------- | ------------------------------------------------- |
+| `website-change`  | Layout, components, styles, copy, SEO, navigation |
+| `product-docs`    | A page under `/docs`                              |
+| `changelog-entry` | A release entry on `/changelog`                   |
+| `roadmap-update`  | The roadmap, and the decision to publish it       |
 
 Each names the traps that a green build does not catch — template whitespace
 eaten inside a `<pre>`, grid floors that cannot shrink below a phone, prose
@@ -209,6 +209,7 @@ npm run perf:list                     # the same, for the list surface
 npm run probe:header                  # the content header's geometry, mid-write
 npm run probe:drag                    # where a dragged ticket actually lands
 npm run probe:checklist               # whether the add-row is still on screen
+npm run probe:update                  # whether a real bundle survives a failed update
 npm run matrix                        # theme × appearance visual regression
 npm run a11y:audit                    # accessibility Part A, keyboard-only, in WebKit
 npm run a11y:audit -- --self-test     # the same, expecting every row to go red
@@ -271,6 +272,20 @@ and they refuse to report on a column the query did not leave with a hidden row
 above the gap, or on one the surface is drawing only a window of.
 Run it when you touch a drop handler, `ticketMove.ts`, `ordering.ts`, `rank.ts`
 or `checklistOrder.ts`, and quote the run.
+
+`probe:update` is the same idea for the update's last movement (LC-267r): not
+whether `bundle_replace` keeps a bundle at the path — its unit tests prove that
+over a fake `.app` — but whether a **real built bundle** survives a refused swap
+still passing `codesign --verify --deep --strict` and still running its own
+`longclaw`, whether a good swap installs one that does, whether the release
+archive `build:app` left in `bundle/dmg` gets through the unpack at all, and
+whether a FAT32 disk image takes the two-rename fallback. That last case is
+where it earned its place: FAT32 accepts `RENAME_SWAP` and does a plain rename,
+which no unit test could have shown (LC-283u). It needs a built bundle and
+`hdiutil`, skips a case it cannot drive rather than passing it, and fails on a
+skip unless given `--allow-skip`; `--self-test` puts the plugin's delete-first
+order back and must see the app lost. Run it when you touch `bundle_replace.rs`
+or the release archive, and quote the run.
 
 `probe:checklist` asks the same of the checklist's add-row: not whether the field
 **has** focus after Enter — a jsdom test has asserted that since LC-106 and it
