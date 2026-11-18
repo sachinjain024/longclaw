@@ -5,7 +5,7 @@ import { SITE } from '../lib/site';
 /** The site-wide share card, used by every page that has no card of its own. */
 export const GET: APIRoute = async () => {
   const png = await renderOgImage({
-    title: 'Local-first issue tracker for AI coding agents.',
+    title: `${SITE.tagline}.`,
     subtitle: SITE.description,
   });
 

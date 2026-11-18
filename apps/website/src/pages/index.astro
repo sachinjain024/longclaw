@@ -11,7 +11,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE, absolute } from '../lib/site';
 
 const description =
-  'Agents execute and write back context to the same ticket record, in plain Markdown files sitting alongside your code. A local-first issue tracker for macOS. No account, no telemetry, open source.';
+  'Agents execute and write back context to the same ticket record, in plain Markdown files sitting alongside your code. A Markdown-based issue tracker for macOS. No account, no telemetry, open source.';
 
 const jsonLd = [
   {
@@ -53,7 +53,7 @@ const claims = [
 
   <main id="main">
     <section class="hero container container--hero" id="top">
-      <h1 class="h-display">Local-first issue tracker for AI coding agents.</h1>
+      <h1 class="h-display">{SITE.tagline}.</h1>
       <p class="hero__sub">
         Agents execute and write back context to the same ticket record in the plain Markdown files
         sitting along with the code.

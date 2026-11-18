@@ -12,7 +12,7 @@ export const SITE_URL = 'https://longclaw.io';
 export const SITE = {
   name: 'LongClaw',
   /** Used as the default <title> suffix and in structured data. */
-  tagline: 'Local-first issue tracker for AI coding agents',
+  tagline: 'Markdown-based issue tracker for AI coding agents',
   description:
     'LongClaw is a local-first project manager for humans and AI agents. Tickets are plain Markdown files in your repo — humans plan, agents execute and write their context back to the same record. macOS, open source, no account.',
   locale: 'en',

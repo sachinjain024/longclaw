@@ -1,7 +1,7 @@
 {
   "name": "LongClaw",
   "short_name": "LongClaw",
-  "description": "Local-first issue tracker for AI coding agents.",
+  "description": "Markdown-based issue tracker for AI coding agents.",
   "start_url": "/",
   "display": "browser",
   "background_color": "#faf6ef",
