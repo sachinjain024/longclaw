@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-11-18T09:51:01.247Z
+updated_at: 2026-11-18T12:49:22.352Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -28,7 +28,7 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 - [x] Build the launch-time sweep over a temp dir: removes only its own staging and backup names <!-- longclaw:item=ck_986393aa -->
 - [x] Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged <!-- longclaw:item=ck_09e4816b -->
 - [x] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
-- [ ] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
+- [x] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
 - [x] Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches <!-- longclaw:item=ck_617faa18 -->
 
 ## Ticket References
@@ -453,4 +453,51 @@ changes:
 ### Claude Code updated this ticket
 
 Release-candidate row added to docs/acceptance/release-candidate.md under Install, upgrade, restart, and offline: install the previous release, publish the candidate as latest, press Restart to update, and confirm the candidate relaunches with its window open, Settings names its version, the last project reloads, codesign --verify --deep --strict passes on /Applications/LongClaw.app, and no .LongClaw.app.lc-update-* or .lc-previous-* folder is left. Two things writing it surfaced. The update into a candidate is carried out by the previous release's code, so the first release carrying bundle_replace (the next one) still installs through the plugin's old order; its replacement is first exercised in the field when that release updates to the one after, and the row says to record both versions. And the endpoint is releases/latest, so the row can only be run once the candidate is published as latest; it says to mark the previous release latest again if it fails. The Filesystem scope row now also names the two folders the update writes beside the app (ADR 0018). The row is written, not yet run: it runs at the next release.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_58cf3557
+kind: update
+occurred_at: 2026-11-18T12:49:22.352Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c23f5561.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Administrator path run on a standard account, 2026-11-18. Setup: this branch built with `tauri build --bundles app --config {"version":"0.3.0"}` (ad hoc signed; bundle_replace strings present in longclaw-desktop), installed over /Applications/LongClaw.app by an admin, then a new Standard account `lctest` opened it, pressed Check now, which offered the live 0.3.1 release, and pressed Restart to update. /Applications is root:admin 775, so creating the staging folder beside the app was refused and the replacement took the privileged path.
+
+Reported by the person who ran it:
+- Cancel at the password prompt: the app stayed on 0.3.0 and did not close.
+- Restart to update again: exactly one prompt, the standard macOS dialog asking for an administrator name and password.
+- After entering admin credentials, LongClaw relaunched with its window up.
+
+/Users/Shared/lc-admin-test/check.sh, run as lctest before and after:
+
+```
+== run by: lctest (standard) at Wed Nov 18 18:09:00 IST 2026
+== version
+0.3.0
+== signature
+signature-ok
+== /Applications entries named longclaw
+drwxr-xr-x@  3 sachinjain  admin    96 14 Sep 12:28 LongClaw.app
+
+== run by: lctest (standard) at Wed Nov 18 18:12:59 IST 2026
+== version
+0.3.1
+== signature
+signature-ok
+== /Applications entries named longclaw
+drwxr-xr-x@  3 lctest      staff    96 18 Nov 18:12 LongClaw.app
+```
+
+No staging or backup folder was left in /Applications.
+
+One finding, not fixed here: the installed app is now owned by lctest:staff, not by the admin who installed it. The script runs ditto as root, and ditto keeps the owner of the copy that lctest unpacked. The plugin's own script had the same effect. As a result, a standard user owns an app that every account on the Mac runs. An admin's later update may also be unable to remove the old copy's insides, which would leave a .lc-previous folder that the sweep cannot clear; this is untested. The fix is to give the new bundle the old one's owner inside the script.
 <!-- /longclaw:event -->
