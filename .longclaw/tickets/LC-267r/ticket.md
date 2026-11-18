@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: c12e7fae-3aa6-4510-adad-696713db067d
 key: LC-267r
 title: A failed update can delete the installed app
-status: in_progress
+status: done
 priority: urgent
 labels:
   - platform
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-11-18T13:43:07.837Z
+updated_at: 2026-11-18T14:00:51.502Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -579,4 +579,22 @@ Reported by the person who ran it: cancelling the password prompt left 0.3.0 ope
 Also reported, and outside this ticket: 0.3.1 was not shown as available until Check now was pressed, and after cancelling and relaunching, the app did not show it as available again. Both follow from the scheduled check running at most once per 24 hours (CHECK_INTERVAL_MS, isCheckDue), with Check now counting as that check. The found version lives only in the process (UpdateService.pending), so a relaunch forgets an update it had already found, and the pane reads up to date until the next slot.
 
 Cleanup note: macOS App Management blocks changing another app's bundle even as root (osascript with administrator privileges got EPERM on chown), so restoring ownership by hand needed a terminal with App Management allowed.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9c00e224
+kind: update
+occurred_at: 2026-11-18T14:00:51.502Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Closed with PR #104: ADR 0018, bundle_replace with the volume-capability check and the launch sweep, the adapter switched over, probe:update (4/4, self-test red as required), two standard-account runs of the administrator path (the second with the owner kept), the release-candidate row, and the review's two fixes (failed step to LONGCLAW_LOCAL_DIAGNOSTIC; no / fallback in the root script). Still to run at the next release: the release-candidate row. Follow-ups filed: LC-283u, LC-287b.
 <!-- /longclaw:event -->
