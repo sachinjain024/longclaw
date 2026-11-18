@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-11-18T12:52:59.367Z
+updated_at: 2026-11-18T13:43:07.837Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -32,7 +32,7 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 - [x] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
 - [x] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
 - [x] Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches <!-- longclaw:item=ck_617faa18 -->
-- [ ] Administrator path: the new bundle takes the replaced one's owner and group, not the standard user's who unpacked it; prove it with a script test and a second standard-account run <!-- longclaw:item=ck_6c985962 -->
+- [x] Administrator path: the new bundle takes the replaced one's owner and group, not the standard user's who unpacked it; prove it with a script test and a second standard-account run <!-- longclaw:item=ck_6c985962 -->
 
 ## Ticket References
 
@@ -533,4 +533,50 @@ actor:
 ### Claude Code commented
 
 Ownership fix written, not yet re-run on a standard account, so ck_6c985962 stays open. The administrator script gains one line between the copy and the first move: `/usr/sbin/chown -R -h "$(/usr/bin/stat -f %u:%g <bundle>)" <copy>`, and a failure there removes the copy and exits like a failed copy. Tests: a unit test pins the order (copy, then owner, then move); tests/bundle_replace.rs gains a failed chown leaving 1.0 and no leftovers, chown added to the never-fires control, and a group test. Without root the owner cannot be changed in a test, so that test puts the old bundle in a second group the user belongs to and asserts the installed bundle and its Info.plist come out in that group with the same uid. Mutation check: with the chown line removed, that test fails with "has the unpacker's group". ADR 0018 and spec D4 name the step. npm run verify passes: 340 Rust unit tests, 1634 frontend tests, release-audit 141 files clean.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_96c728e6
+kind: update
+occurred_at: 2026-11-18T13:43:07.837Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_6c985962.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Second standard-account run, 2026-11-18, with the ownership fix (e29dcb5). Same setup as the first: this branch built as 0.3.0, ad hoc signed, with the chown line present in longclaw-desktop. An admin installed it at /Applications/LongClaw.app (owner sachinjain:staff), then the Standard account lctest updated it to the live 0.3.1.
+
+check.sh, run as lctest before and after:
+
+```
+== run by: lctest (standard) at Wed Nov 18 19:08:28 IST 2026
+== version
+0.3.0
+== signature
+signature-ok
+== /Applications entries named longclaw
+drwxr-xr-x@  3 sachinjain  staff    96 18 Nov 19:03 LongClaw.app
+
+== run by: lctest (standard) at Wed Nov 18 19:11:51 IST 2026
+== version
+0.3.1
+== signature
+signature-ok
+== /Applications entries named longclaw
+drwxr-xr-x@  3 sachinjain  staff    96 18 Nov 19:11 LongClaw.app
+```
+
+The owner is kept: sachinjain:staff before and after, where the first run went to lctest:staff. `find /Applications/LongClaw.app ! -user sachinjain` and `! -group staff` both come back empty, so every file inside kept its owner too. No staging or backup folder was left.
+
+Reported by the person who ran it: cancelling the password prompt left 0.3.0 open; there was one prompt; LongClaw relaunched by itself with its window up.
+
+Also reported, and outside this ticket: 0.3.1 was not shown as available until Check now was pressed, and after cancelling and relaunching, the app did not show it as available again. Both follow from the scheduled check running at most once per 24 hours (CHECK_INTERVAL_MS, isCheckDue), with Check now counting as that check. The found version lives only in the process (UpdateService.pending), so a relaunch forgets an update it had already found, and the pane reads up to date until the next slot.
+
+Cleanup note: macOS App Management blocks changing another app's bundle even as root (osascript with administrator privileges got EPERM on chown), so restoring ownership by hand needed a terminal with App Management allowed.
 <!-- /longclaw:event -->
