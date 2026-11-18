@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-11-02T12:25:49.300Z
+updated_at: 2026-11-18T09:51:01.247Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
@@ -29,7 +29,7 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 - [x] Switch the updater adapter's install to the replacement module; install_keeping_bytes tests pass unchanged <!-- longclaw:item=ck_09e4816b -->
 - [x] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
 - [ ] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
-- [ ] Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches <!-- longclaw:item=ck_617faa18 -->
+- [x] Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches <!-- longclaw:item=ck_617faa18 -->
 
 ## Ticket References
 
@@ -435,4 +435,22 @@ test probe_update ... probe:update --self-test: the plugin's order lost the app,
 It found what the spec got wrong. FAT32 does not refuse RENAME_SWAP. macOS's FSKit msdos driver accepts the flag and does a plain rename: two non-empty directories fail with ENOTEMPTY (so on FAT32 every update failed, safely, at the swap), and two files 'swap' with the displaced side deleted. The volume's own VOL_CAP_INT_RENAME_SWAP bit tells the truth (FAT32 and ExFAT: absent; APFS: present), so the replacement now asks the volume first through core::storage::volume_declares_swap and takes the fallback when it says no. Mutation check: without that check the FAT case fails at Swap with 'Directory not empty (os error 66)'. The same driver behaviour breaks ticket saving on FAT32, filed as LC-283u. The FAT assumption flagged on 2026-10-29 is settled: it was wrong, and the probe's precondition caught it.
 
 'Runs' here means the bundle's own `longclaw --help` exits 0 and `codesign --verify --deep --strict` passes. It does not open the window, which would start against the person's real projects. Opening the window is the release-candidate row's job.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a29a78d9
+kind: update
+occurred_at: 2026-11-18T09:51:01.247Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_617faa18.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Release-candidate row added to docs/acceptance/release-candidate.md under Install, upgrade, restart, and offline: install the previous release, publish the candidate as latest, press Restart to update, and confirm the candidate relaunches with its window open, Settings names its version, the last project reloads, codesign --verify --deep --strict passes on /Applications/LongClaw.app, and no .LongClaw.app.lc-update-* or .lc-previous-* folder is left. Two things writing it surfaced. The update into a candidate is carried out by the previous release's code, so the first release carrying bundle_replace (the next one) still installs through the plugin's old order; its replacement is first exercised in the field when that release updates to the one after, and the row says to record both versions. And the endpoint is releases/latest, so the row can only be run once the candidate is published as latest; it says to mark the previous release latest again if it fails. The Filesystem scope row now also names the two folders the update writes beside the app (ADR 0018). The row is written, not yet run: it runs at the next release.
 <!-- /longclaw:event -->
