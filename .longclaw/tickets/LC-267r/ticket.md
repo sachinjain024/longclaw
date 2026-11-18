@@ -10,12 +10,14 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-09-22T11:48:28.542Z
-updated_at: 2026-11-18T12:49:22.352Z
+updated_at: 2026-11-18T12:52:59.367Z
 ---
 
 A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 replaces the bundle by moving the current one into a `TempDir` and then moving the new one into place, and nothing puts the old one back: if the second move fails, or the administrator path's `rm -rf … && mv …` fails partway, or the process dies between the two, the machine is left with no LongClaw at all. The ticket originally named cross-volume `TMPDIR` and a full disk as the doors; both actually fail before the bundle moves and are safe. The real windows are the three above, the administrator path the widest.
 
 **Spec:** `docs/specs/LC-267r-update-never-deletes-the-app.md`, recorded under References. Route chosen on 2026-10-29: LongClaw replaces its own bundle by an atomic swap (`renamex_np` + `RENAME_SWAP`) beside the installed one; the plugin keeps the check, download and signature verification. The step-two restore is offered upstream as a courtesy, not a dependency.
+
+**Ownership on the administrator path** (found 2026-11-18, standard-account run): the installed app ends up owned by the standard user who pressed _Restart to update_ (`lctest:staff`), not by the admin who installed it. The script runs `ditto` as root, and `ditto` keeps the owner of the copy that the standard user unpacked; the plugin's own script did the same. A standard account then owns an app every account on the Mac runs, and an admin's later update may not be able to remove the old copy's insides. The script now gives the new bundle the replaced one's owner and group before it moves into place.
 
 ## Checklist
 
@@ -30,6 +32,7 @@ A failed update can delete the installed app. `tauri-plugin-updater` 2.11.0 repl
 - [x] Build the built-bundle probe: a failed swap leaves the original app launching, a good one launches the new version, and --self-test (delete-first order) goes red <!-- longclaw:item=ck_12548d17 -->
 - [x] Record a manual run of the administrator path on a standard account, quoted in the ticket <!-- longclaw:item=ck_c23f5561 -->
 - [x] Add the release-candidate row: update the previous release to the candidate through Restart to update, and confirm the candidate relaunches <!-- longclaw:item=ck_617faa18 -->
+- [ ] Administrator path: the new bundle takes the replaced one's owner and group, not the standard user's who unpacked it; prove it with a script test and a second standard-account run <!-- longclaw:item=ck_6c985962 -->
 
 ## Ticket References
 
@@ -500,4 +503,34 @@ drwxr-xr-x@  3 lctest      staff    96 18 Nov 18:12 LongClaw.app
 No staging or backup folder was left in /Applications.
 
 One finding, not fixed here: the installed app is now owned by lctest:staff, not by the admin who installed it. The script runs ditto as root, and ditto keeps the owner of the copy that lctest unpacked. The plugin's own script had the same effect. As a result, a standard user owns an app that every account on the Mac runs. An admin's later update may also be unable to remove the old copy's insides, which would leave a .lc-previous folder that the sweep cannot clear; this is untested. The fix is to give the new bundle the old one's owner inside the script.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_82c6a7d7
+kind: update
+occurred_at: 2026-11-18T12:52:59.367Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_6c985962.added
+    to: "Administrator path: the new bundle takes the replaced one's owner and group, not the standard user's who unpacked it; prove it with a script test and a second standard-account run"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c08f6bfc
+kind: comment
+occurred_at: 2026-11-18T12:58:02.387Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Ownership fix written, not yet re-run on a standard account, so ck_6c985962 stays open. The administrator script gains one line between the copy and the first move: `/usr/sbin/chown -R -h "$(/usr/bin/stat -f %u:%g <bundle>)" <copy>`, and a failure there removes the copy and exits like a failed copy. Tests: a unit test pins the order (copy, then owner, then move); tests/bundle_replace.rs gains a failed chown leaving 1.0 and no leftovers, chown added to the never-fires control, and a group test. Without root the owner cannot be changed in a test, so that test puts the old bundle in a second group the user belongs to and asserts the installed bundle and its Info.plist come out in that group with the same uid. Mutation check: with the chown line removed, that test fails with "has the unpacker's group". ADR 0018 and spec D4 name the step. npm run verify passes: 340 Rust unit tests, 1634 frontend tests, release-audit 141 files clean.
 <!-- /longclaw:event -->

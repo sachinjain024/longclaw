@@ -9,7 +9,7 @@
 use std::cell::Cell;
 use std::fs;
 use std::io;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use longclaw_desktop_lib::bundle_replace::{replace, Privileged, Step};
@@ -67,10 +67,10 @@ impl Privileged for Shell<'_> {
             // Shadow one command so its nth call fails, the way a full
             // disk fails `ditto` or a vanished path fails `mv`.
             Some((command, nth)) => {
-                let full = if command == "ditto" {
-                    "/usr/bin/ditto"
-                } else {
-                    "/bin/mv"
+                let full = match command {
+                    "ditto" => "/usr/bin/ditto",
+                    "chown" => "/usr/sbin/chown",
+                    _ => "/bin/mv",
                 };
                 format!(
                     "calls=0\n{command}() {{ calls=$((calls+1)); [ \"$calls\" -eq {nth} ] && return 1; {full} \"$@\"; }}\n{}",
@@ -143,6 +143,74 @@ fn a_copy_that_fails_under_the_prompt_leaves_the_old_version() {
 }
 
 #[test]
+fn an_owner_that_cannot_be_given_leaves_the_old_version() {
+    let (_root, folder, bundle) = locked();
+    let shell = Shell {
+        folder: &folder,
+        ran: Cell::new(false),
+        fail_on: Some(("chown", 1)),
+    };
+
+    let error = replace(&archive_of("2.0"), &bundle, &shell).unwrap_err();
+
+    assert_eq!(error.step, Step::Privileged);
+    assert_eq!(version_at(&bundle).as_deref(), Some("1.0"));
+    assert_eq!(entries(&folder), vec![BUNDLE]);
+}
+
+/// The standard-account run of 2026-11-18 left the app owned by the user who
+/// unpacked it. Without root the owner cannot be changed here, but the group
+/// can, to any group the user is in: the replaced bundle is put in one the
+/// unpacked copy is not, and the installed one, inside and out, must follow.
+#[test]
+fn the_installed_bundle_keeps_the_replaced_ones_owner_and_group() {
+    let (_root, folder, bundle) = locked();
+    let unpacked = fs::metadata(std::env::temp_dir()).unwrap().gid();
+    let mut groups = [0 as libc::gid_t; 64];
+    let count = unsafe { libc::getgroups(groups.len() as i32, groups.as_mut_ptr()) };
+    let other = groups[..count.max(0) as usize]
+        .iter()
+        .copied()
+        .find(|&gid| gid != unpacked && set_group(&bundle, gid))
+        .expect("the user is in a second group to give the bundle");
+    let owner = fs::metadata(&bundle).unwrap().uid();
+    let shell = Shell {
+        folder: &folder,
+        ran: Cell::new(false),
+        fail_on: None,
+    };
+
+    replace(&archive_of("2.0"), &bundle, &shell).unwrap();
+
+    assert_eq!(version_at(&bundle).as_deref(), Some("2.0"));
+    for path in [bundle.clone(), bundle.join("Contents/Info.plist")] {
+        let meta = fs::symlink_metadata(&path).unwrap();
+        assert_eq!(
+            meta.gid(),
+            other,
+            "{} has the unpacker's group",
+            path.display()
+        );
+        assert_eq!(meta.uid(), owner, "{}", path.display());
+    }
+    unlock(&folder);
+}
+
+/// Gives the whole bundle the group `gid`, as `chown -R` would.
+fn set_group(bundle: &Path, gid: libc::gid_t) -> bool {
+    fn walk(path: &Path, gid: libc::gid_t) -> io::Result<()> {
+        std::os::unix::fs::lchown(path, None, Some(gid))?;
+        if fs::symlink_metadata(path)?.is_dir() {
+            for entry in fs::read_dir(path)? {
+                walk(&entry?.path(), gid)?;
+            }
+        }
+        Ok(())
+    }
+    walk(bundle, gid).is_ok()
+}
+
+#[test]
 fn a_move_that_fails_under_the_prompt_puts_the_old_version_back() {
     let (_root, folder, bundle) = locked();
     // The first `mv` moves the bundle aside; the second, moving the new
@@ -165,7 +233,7 @@ fn a_move_that_fails_under_the_prompt_puts_the_old_version_back() {
 /// script outright would pass both as "failed, and 1.0 is still there".
 #[test]
 fn a_shadow_that_never_fires_still_installs() {
-    for command in ["ditto", "mv"] {
+    for command in ["ditto", "chown", "mv"] {
         let (_root, folder, bundle) = locked();
         let shell = Shell {
             folder: &folder,

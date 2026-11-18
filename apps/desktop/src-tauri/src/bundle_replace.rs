@@ -274,6 +274,7 @@ fn replace_privileged(
 
 /// The script the prompt runs. Every path is single-quoted; the bundle is
 /// never the target of an `rm`.
+/// The new bundle is given the replaced one's owner and group before it moves.
 fn privileged_script(staged: &Path, bundle: &Path, token: &str) -> String {
     let (parent, name) = match parts_of(bundle) {
         Ok(parts) => parts,
@@ -285,6 +286,12 @@ fn privileged_script(staged: &Path, bundle: &Path, token: &str) -> String {
     let bundle = shell_quote(bundle);
     [
         format!("/usr/bin/ditto {staged} {copy} || {{ /bin/rm -rf {copy}; exit 1; }}"),
+        // `ditto` as root keeps the owner of what it copies, which is the
+        // user who unpacked it: a standard account would come to own an app
+        // every account runs. The copy takes the replaced bundle's owner.
+        format!(
+            "/usr/sbin/chown -R -h \"$(/usr/bin/stat -f %u:%g {bundle})\" {copy} || {{ /bin/rm -rf {copy}; exit 1; }}"
+        ),
         format!("/bin/mv {bundle} {previous} || {{ /bin/rm -rf {copy}; exit 1; }}"),
         format!("if ! /bin/mv {copy} {bundle}; then /bin/mv {previous} {bundle}; /bin/rm -rf {copy}; exit 1; fi"),
         format!("/bin/rm -rf {previous}"),
@@ -983,6 +990,21 @@ mod tests {
             !script.contains("/bin/rm -rf '/Applications/LongClaw.app'"),
             "the bundle itself is never removed: {script}"
         );
+    }
+
+    #[test]
+    fn the_copy_takes_the_replaced_bundles_owner_before_anything_moves() {
+        let script = privileged_script(
+            Path::new("/tmp/staged/LongClaw.app"),
+            Path::new("/Applications/LongClaw.app"),
+            "abc",
+        );
+        let copy = script.find("/usr/bin/ditto").unwrap();
+        let owner = script
+            .find("/usr/sbin/chown -R -h \"$(/usr/bin/stat -f %u:%g '/Applications/LongClaw.app')\" '/Applications/.LongClaw.app.lc-update-abc'")
+            .unwrap_or_else(|| panic!("the copy is not given the bundle's owner: {script}"));
+        let first_move = script.find("/bin/mv").unwrap();
+        assert!(copy < owner && owner < first_move, "{script}");
     }
 
     #[test]

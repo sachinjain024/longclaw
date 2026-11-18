@@ -200,7 +200,10 @@ no other file may reach.
 - **The parent folder is not writable** (staging fails with permission
   denied). The module unpacks into a temporary directory as the user, then
   runs one administrator prompt whose script keeps the same order: copy the
-  staged tree beside the bundle, rename the bundle to the backup name, rename
+  staged tree beside the bundle, give the copy the bundle's owner and group
+  (the copy runs as root and would otherwise keep the unpacking user's — a
+  standard account came to own the app in the 2026-11-18 run), rename the
+  bundle to the backup name, rename
   the copy into place, and only then remove the backup — with the second
   rename's failure restoring the backup. **There is no `rm` before the new
   version is beside the bundle.** A cancelled prompt changes nothing.

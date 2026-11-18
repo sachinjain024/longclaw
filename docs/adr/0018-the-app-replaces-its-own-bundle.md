@@ -64,8 +64,9 @@ implementation that has the property.
 - **One privileged script, and only when it must.** When the bundle's folder
   cannot be written without an administrator, one AppleScript prompt runs a
   fixed script that copies the new version beside the bundle before anything
-  is moved, then renames, then deletes — never `rm` first. It is the only
-  privileged execution in the app.
+  is moved, gives that copy the replaced bundle's owner and group, then
+  renames, then deletes — never `rm` first. It is the only privileged
+  execution in the app.
 
 ## The gates this changes
 
