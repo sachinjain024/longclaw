@@ -87,7 +87,7 @@ STRUCTURE AND COPY (use this copy verbatim):
 
 2. HERO:
    Headline: One canvas where humans plan and agents execute.
-   Sub: A local-first project manager for humans and AI agents. Humans plan and
+   Sub: A Markdown-based issue tracker for humans and AI agents. Humans plan and
    stay accountable for tickets; agents execute and write their context back to
    the same ticket record — stored beside the code as Markdown files you own.
    CTAs: [Download for Mac] (primary, ochre) · [View on GitHub] (secondary).

@@ -40,7 +40,7 @@ The website is the public home of LongClaw at **longclaw.io**: product marketing
 **Recommended pairing:** an evocative headline (1 or 4) with the descriptive line as the sub — a short thesis plus a plain explanation covers both the "what is this" and "why care" jobs. "The context layer for agents in spec-driven development" is not the tagline but earns its own section on the homepage (fits naturally in the "Built for agents" section, §4.1).
 
 **Supporting line (from the README):**
-> A local-first project manager for humans and AI agents. Humans plan and stay accountable for tickets; agents execute and contribute their context back to the same ticket record — stored beside the code as Markdown files you own.
+> A Markdown-based issue tracker for humans and AI agents. Humans plan and stay accountable for tickets; agents execute and contribute their context back to the same ticket record — stored beside the code as Markdown files you own.
 
 **Audience:** AI-native startups (~3–15 people) doing agent-driven or spec-driven development. Solo builders using Claude Code or Cursor are the entry point.
 
