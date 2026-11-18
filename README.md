@@ -5,7 +5,7 @@
 <h1 align="center">LongClaw</h1>
 
 <p align="center">
-  <strong>A local-first issue tracker for developers working with coding agents.</strong><br>
+  <strong>A Markdown-based issue tracker for developers working with coding agents.</strong><br>
   Plan work on a Mac board. Let your agent update the same tickets.<br>
   Descriptions, checklists, and activity stay in Markdown files beside your code.
 </p>
