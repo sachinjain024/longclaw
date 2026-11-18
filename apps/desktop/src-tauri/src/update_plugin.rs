@@ -334,8 +334,11 @@ impl Privileged for MainThreadPrompt {
 /// The replacement's error names the step that failed, and none of them is an
 /// exception either: a refused archive, a failed swap and a cancelled password
 /// prompt all leave the version the person had, and all say so in one sentence.
+/// The step and its cause go to the local diagnostic channel first, so the
+/// sentence is not all a report can quote (spec D7).
 #[cfg(target_os = "macos")]
-fn install_fault_of(_error: &ReplaceError) -> UpdateFault {
+fn install_fault_of(error: &ReplaceError) -> UpdateFault {
+    crate::engine::local_diagnostic(&error.to_string());
     UpdateFault::InstallFailed
 }
 

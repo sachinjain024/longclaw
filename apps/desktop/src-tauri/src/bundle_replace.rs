@@ -264,9 +264,8 @@ fn replace_privileged(
     let scratch = std::env::temp_dir().join(format!("longclaw-update-{token}"));
     fs::create_dir(&scratch).map_err(fail(Step::Stage))?;
     let outcome = unpack_and_check(archive, &scratch).and_then(|staged| {
-        privileged
-            .run(&privileged_script(&staged, bundle, token))
-            .map_err(fail(Step::Privileged))
+        let script = privileged_script(&staged, bundle, token).map_err(fail(Step::Stage))?;
+        privileged.run(&script).map_err(fail(Step::Privileged))
     });
     let _ = fs::remove_dir_all(&scratch);
     outcome
@@ -275,16 +274,15 @@ fn replace_privileged(
 /// The script the prompt runs. Every path is single-quoted; the bundle is
 /// never the target of an `rm`.
 /// The new bundle is given the replaced one's owner and group before it moves.
-fn privileged_script(staged: &Path, bundle: &Path, token: &str) -> String {
-    let (parent, name) = match parts_of(bundle) {
-        Ok(parts) => parts,
-        Err(_) => (PathBuf::from("/"), String::new()),
-    };
+fn privileged_script(staged: &Path, bundle: &Path, token: &str) -> io::Result<String> {
+    // A path with no folder or no name is refused, never guessed at: a script
+    // run as root must not invent the directory it writes in.
+    let (parent, name) = parts_of(bundle)?;
     let copy = shell_quote(&parent.join(leftover_name(&name, STAGED, token)));
     let previous = shell_quote(&parent.join(leftover_name(&name, PREVIOUS, token)));
     let staged = shell_quote(staged);
     let bundle = shell_quote(bundle);
-    [
+    Ok([
         format!("/usr/bin/ditto {staged} {copy} || {{ /bin/rm -rf {copy}; exit 1; }}"),
         // `ditto` as root keeps the owner of what it copies, which is the
         // user who unpacked it: a standard account would come to own an app
@@ -297,7 +295,7 @@ fn privileged_script(staged: &Path, bundle: &Path, token: &str) -> String {
         format!("/bin/rm -rf {previous}"),
         format!("/usr/bin/touch {bundle}"),
     ]
-    .join("\n")
+    .join("\n"))
 }
 
 fn shell_quote(path: &Path) -> String {
@@ -979,7 +977,8 @@ mod tests {
             Path::new("/tmp/staged/LongClaw.app"),
             Path::new("/Applications/LongClaw.app"),
             "abc",
-        );
+        )
+        .unwrap();
         let copy = script.find("/usr/bin/ditto").unwrap();
         let first_move = script.find("/bin/mv").unwrap();
         assert!(
@@ -998,7 +997,8 @@ mod tests {
             Path::new("/tmp/staged/LongClaw.app"),
             Path::new("/Applications/LongClaw.app"),
             "abc",
-        );
+        )
+        .unwrap();
         let copy = script.find("/usr/bin/ditto").unwrap();
         let owner = script
             .find("/usr/sbin/chown -R -h \"$(/usr/bin/stat -f %u:%g '/Applications/LongClaw.app')\" '/Applications/.LongClaw.app.lc-update-abc'")
@@ -1013,7 +1013,8 @@ mod tests {
             Path::new("/tmp/it's/LongClaw.app"),
             Path::new("/Apps it's 'quoted' $HOME/LongClaw.app"),
             "abc",
-        );
+        )
+        .unwrap();
         assert!(
             script.contains(r"'/Apps it'\''s '\''quoted'\'' $HOME/LongClaw.app'"),
             "{script}"
@@ -1022,6 +1023,32 @@ mod tests {
             !script.contains(" /Apps it"),
             "a path appears unquoted: {script}"
         );
+    }
+
+    #[test]
+    fn a_path_with_no_folder_or_name_gets_no_script() {
+        for bundle in ["/", ""] {
+            assert!(
+                privileged_script(
+                    Path::new("/tmp/staged/LongClaw.app"),
+                    Path::new(bundle),
+                    "abc"
+                )
+                .is_err(),
+                "{bundle:?} must be refused, not written under /"
+            );
+        }
+    }
+
+    #[test]
+    fn a_failure_names_its_step_and_cause() {
+        let error = ReplaceError {
+            step: Step::Swap,
+            source: io::Error::from_raw_os_error(66),
+        };
+        let line = error.to_string();
+        assert!(line.contains("Swap"), "{line}");
+        assert!(line.contains("os error 66"), "{line}");
     }
 
     #[test]
