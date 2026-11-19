@@ -33,6 +33,17 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   the app Rust decides the host. Opened offline, the page stays in the no-count
   state, which is the state the ticket asks to be designed first.
 
+- [`LC-285r-Install-The-Command-With-An-Administrator-Prompt.html`](LC-285r-Install-The-Command-With-An-Administrator-Prompt.html)
+  — installing `longclaw` when `/usr/local/bin` needs an administrator: the
+  intro dialog and the settings pane through macOS's password sheet, a
+  cancel, a refused password, disk full and an occupied path, with the two
+  open choices (when to ask, and whether to say so before the press) as
+  variants, and where a person who skipped installs it later
+  (spec: `.longclaw/tickets/LC-285r/ticket.md`).
+
+  **The macOS password sheet is drawn by the harness**, approximately, so the
+  flow can be walked. Only its bold sentence is LongClaw's copy.
+
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
