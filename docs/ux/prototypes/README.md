@@ -33,17 +33,6 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   the app Rust decides the host. Opened offline, the page stays in the no-count
   state, which is the state the ticket asks to be designed first.
 
-- [`LC-285r-Install-The-Command-With-An-Administrator-Prompt.html`](LC-285r-Install-The-Command-With-An-Administrator-Prompt.html)
-  — installing `longclaw` when `/usr/local/bin` needs an administrator: the
-  intro dialog and the settings pane through macOS's password sheet, a
-  cancel, a refused password, disk full and an occupied path, with the two
-  open choices (when to ask, and whether to say so before the press) as
-  variants, and where a person who skipped installs it later
-  (spec: `.longclaw/tickets/LC-285r/ticket.md`).
-
-  **The macOS password sheet is drawn by the harness**, approximately, so the
-  flow can be walked. Only its bold sentence is LongClaw's copy.
-
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
@@ -55,8 +44,12 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   Read it for the shape, not for the rules: it predates the **copy deck**,
   which `AGENTS.md` has required since LC-249a and which a new prototype owes.
 
-Five others have been here and are not any more, all deleted when their
-tickets settled: LC-206 (attachments and the References section, settled
+Six others have been here and are not any more, all deleted when their
+tickets settled: LC-285r (installing `longclaw` through an administrator
+prompt — the decisions and the copy deck are in
+`.longclaw/tickets/LC-285r/ticket.md`, the design in
+`docs/specs/LC-285r-install-the-command-with-an-administrator-prompt.md`), at
+`8ce54bc`; LC-206 (attachments and the References section, settled
 over four review rounds — the decisions and the copy deck are in
 `.longclaw/tickets/LC-206/ticket.md`), at `26c6abc`; LC-236e (defining a label from inside the create flows) and
 LC-249a (the `longclaw` command's install offer), both in the history at
