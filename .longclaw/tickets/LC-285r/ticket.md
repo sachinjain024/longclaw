@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-20T11:05:35.725Z
+updated_at: 2026-11-20T11:35:30.956Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -67,7 +67,10 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 | `cancel.text.quiet` | note | Dialog/pane after the password sheet is cancelled | Nothing was installed. | new |
 | `failed.admin` | refusal | After macOS refused the password (three wrong tries, or a standard account) | macOS did not accept an administrator password, so nothing was installed. If someone else administers this Mac, they can run the line below. | new |
 | `failed.script` | refusal | After the privileged script itself failed (rare: e.g. the disk filled between check and write) | LongClaw could not install the command, even as an administrator: {reason} | new |
-| `refusal.diskfull` | refusal | After the write failed because the disk is full | Installing the longclaw command failed: there is no space left on the disk. | existing |
+| `refusal.diskfull` | refusal | After the write failed because the disk is full. The install's own words since 6.1; the app said "…failed for bin. The volume it is on has no space left." before | Installing the longclaw command failed: there is no space left on the disk. | changed |
+| `escalate.create` | refusal (never on screen) | The plain write could not create the folder; the cue that raises the password sheet | {folder} does not exist, and creating it needs an admin. | new |
+| `escalate.write` | refusal (never on screen) | The plain write could not write into the folder; the cue that raises the password sheet | Writing to {folder} needs an admin. | new |
+| `escalate.replace` | refusal (never on screen) | The plain write could not replace an existing link; the cue that raises the password sheet | Replacing {link} needs an admin. | new |
 | `manual.instead` | field label | Above the Terminal line, after a refusal | Run this in Terminal instead: | existing |
 | `manual.yourself` | field label | Above the Terminal line, occupied path | To do it yourself: | existing |
 | `a11y.copy` | aria-label | Copy button beside the Terminal line | Copy the install command | existing |
@@ -117,9 +120,9 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 - [x] 5.1 Rewrite the comments that say the app cannot escalate <!-- longclaw:item=ck_3bd534ff -->
 - [x] 5.2 Update the release-candidate Filesystem scope row <!-- longclaw:item=ck_c7d4741f -->
 - [x] 5.3 Manual release-candidate row: on a clean Apple Silicon Mac, install, cancel and wrong-password, then longclaw ticket list in a new terminal <!-- longclaw:item=ck_6d76ed60 -->
-- [ ] 6. Open copy questions (blocked by: none) <!-- longclaw:item=ck_82d24441 -->
-- [ ] 6.1 Decide refusal.diskfull: amend the deck row to the app's text ('Installing the longclaw command failed for bin. The volume it is on has no space left.') or change the shared AppError::io wording app-wide <!-- longclaw:item=ck_622024b8 -->
-- [ ] 6.2 Decide whether the three internal permission refusals ('Writing to … needs an administrator.', 'Replacing … needs an administrator.', '… does not exist, and creating it needs an administrator.') go into the copy deck <!-- longclaw:item=ck_4176adaa -->
+- [x] 6. Open copy questions (blocked by: none) <!-- longclaw:item=ck_82d24441 -->
+- [x] 6.1 Decide refusal.diskfull: amend the deck row to the app's text ('Installing the longclaw command failed for bin. The volume it is on has no space left.') or change the shared AppError::io wording app-wide <!-- longclaw:item=ck_622024b8 -->
+- [x] 6.2 Decide whether the three internal permission refusals ('Writing to … needs an administrator.', 'Replacing … needs an administrator.', '… does not exist, and creating it needs an administrator.') go into the copy deck <!-- longclaw:item=ck_4176adaa -->
 ## Attachments
 
 <!-- longclaw:attachment
@@ -761,4 +764,29 @@ changes:
 ### Claude Code updated this ticket
 
 5.1-5.3 done. 5.3's row is written in docs/acceptance/release-candidate.md ('Command install on a clean Apple Silicon Mac'); running it at the next release candidate is what closes 3.3.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_343d6af6
+kind: update
+occurred_at: 2026-11-20T11:35:30.956Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_622024b8.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_4176adaa.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_82d24441.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+6.1: B1 — the install says the deck's refusal.diskfull itself; the rest of the app keeps the shared AppError::io wording. 6.2: the three internal refusals are in the deck as escalate.create/write/replace, worded with 'admin'.
 <!-- /longclaw:event -->
