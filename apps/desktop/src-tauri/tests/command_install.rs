@@ -265,6 +265,16 @@ fn an_occupied_path_found_as_root_is_the_occupied_refusal_and_left_alone() {
     assert_eq!(error.code, plain.code);
     assert_eq!(error.message, plain.message);
     assert!(!escalates(&error));
+    // Both say which state the name is in, so the surface re-reads it rather
+    // than offering a button that can only fail the same way.
+    assert_eq!(
+        error.context.get("state").map(String::as_str),
+        Some("occupied")
+    );
+    assert_eq!(
+        plain.context.get("state").map(String::as_str),
+        Some("occupied")
+    );
     assert_eq!(
         fs::read(&mac.link).unwrap(),
         b"arrived while the sheet was up"

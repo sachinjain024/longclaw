@@ -47,6 +47,7 @@ import { useMutationStore } from "./mutations";
 import type { CommandLineStatus } from "./types";
 
 vi.mock("./api", () => ({
+  commandLineStatus: vi.fn(),
   installCommandLine: vi.fn(),
   installCommandLineAsAdmin: vi.fn(),
 }));
@@ -789,3 +790,169 @@ describe("installing through the administrator prompt", () => {
     expect(document.activeElement).toBe(retry);
   });
 });
+
+/**
+ * What the sheet answered (LC-285r, items 3.1–3.5), on both surfaces. A cancel
+ * is a choice and reads as one; a refused password hands over the line for
+ * whoever does administer the Mac; a script that failed as root says why; and
+ * a file found at the name as root puts the surface in the occupied state.
+ */
+describe.each(["pane", "dialog"] as const)(
+  "after the password sheet, in the %s",
+  (surface) => {
+    const ESCALATABLE = {
+      code: "permission_denied",
+      message: "LongClaw could not write to /usr/local/bin.",
+      recoverable: true,
+      context: { escalate: "true", command: COMMAND },
+    };
+    const FAILED_ADMIN =
+      "macOS did not accept an administrator password, so nothing was installed. If someone else administers this Mac, they can run the line below.";
+
+    /** The surface, holding the status the way its parent does. */
+    function Surface(props: { onDismiss?: (outcome: string) => void }) {
+      const [current, setCurrent] = useState(status());
+      return surface === "pane" ? (
+        <CommandLineSection status={current} onStatus={setCurrent} />
+      ) : (
+        <CommandLineOffer
+          status={current}
+          onStatus={setCurrent}
+          onDismiss={props.onDismiss ?? (() => {})}
+        />
+      );
+    }
+
+    function sheetAnswers(error: unknown) {
+      vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+      vi.mocked(api.installCommandLineAsAdmin).mockRejectedValue(error);
+    }
+
+    it("says nothing was installed after a cancel, and keeps Install", async () => {
+      sheetAnswers({
+        code: "cancelled",
+        message: "Nothing was installed.",
+        recoverable: true,
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText("Nothing was installed.");
+      expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+      expect(screen.queryByText(COMMAND)).toBeNull();
+    });
+
+    it("brings the sheet back when Install is pressed after a cancel", async () => {
+      sheetAnswers({
+        code: "cancelled",
+        message: "Nothing was installed.",
+        recoverable: true,
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+      await screen.findByText("Nothing was installed.");
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await waitFor(() =>
+        expect(api.installCommandLineAsAdmin).toHaveBeenCalledTimes(2),
+      );
+      expect(api.installCommandLine).toHaveBeenCalledTimes(2);
+    });
+
+    it("hands over the line after a refused password, and Try again asks again", async () => {
+      sheetAnswers({
+        code: "permission_denied",
+        message: FAILED_ADMIN,
+        recoverable: true,
+        context: { command: COMMAND },
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(FAILED_ADMIN);
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+      await waitFor(() =>
+        expect(api.installCommandLineAsAdmin).toHaveBeenCalledTimes(2),
+      );
+    });
+
+    it("says why a script that ran as an administrator failed, without the line", async () => {
+      const reason =
+        "LongClaw could not install the command, even as an administrator: ln: /usr/local/bin: No space left on device";
+      sheetAnswers({ code: "io", message: reason, recoverable: true });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(reason);
+      expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+      expect(screen.queryByText(COMMAND)).toBeNull();
+    });
+
+    it("turns occupied when a file is found at the name as root", async () => {
+      const refusal =
+        "/usr/local/bin/longclaw is a file LongClaw did not create, and LongClaw will not replace one. Move or rename it, then try again.";
+      sheetAnswers({
+        code: "io",
+        message: refusal,
+        recoverable: true,
+        context: { state: "occupied", command: COMMAND },
+      });
+      vi.mocked(api.commandLineStatus).mockResolvedValue(
+        status({ state: "occupied" }),
+      );
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(/is a file LongClaw did not create, so/);
+      expect(screen.queryByText(refusal)).toBeNull();
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      expect(
+        screen.queryByRole("button", {
+          name: /^(Install|Try again|Point it at this app)$/,
+        }),
+      ).toBeNull();
+    });
+
+    it("turns occupied even when the fresh status cannot be read", async () => {
+      sheetAnswers({
+        code: "io",
+        message: "/usr/local/bin/longclaw is a file LongClaw did not create.",
+        recoverable: true,
+        context: { state: "occupied", command: COMMAND },
+      });
+      vi.mocked(api.commandLineStatus).mockRejectedValue(new Error("gone"));
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(/is a file LongClaw did not create, so/);
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    });
+
+    if (surface === "dialog") {
+      it("raises the skipped toast's answer when closed after a cancel", async () => {
+        const onDismiss = vi.fn();
+        sheetAnswers({
+          code: "cancelled",
+          message: "Nothing was installed.",
+          recoverable: true,
+        });
+        render(<Surface onDismiss={onDismiss} />);
+
+        fireEvent.click(screen.getByRole("button", { name: "Install" }));
+        await screen.findByText("Nothing was installed.");
+        fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+
+        expect(onDismiss).toHaveBeenCalledWith("skipped");
+      });
+    }
+  },
+);

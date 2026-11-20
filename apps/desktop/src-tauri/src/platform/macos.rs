@@ -288,7 +288,9 @@ fn refused(at: &Path, error: std::io::Error, permission: String, command: String
 /// built, or one another tool put there. It is not replaced, because the undo
 /// for replacing it does not exist: the link that would stand in its place
 /// remembers nothing about the bytes it displaced. One sentence whether the app
-/// saw it before the password or the link script found it after.
+/// saw it before the password or the link script found it after, and both say
+/// the name is now `occupied`: the status the surface read before the press is
+/// stale, and re-reading it puts the surface in the state that has no button.
 fn occupied(link: &Path, command: String) -> AppError {
     AppError::new(
         ErrorCode::Io,
@@ -301,6 +303,7 @@ fn occupied(link: &Path, command: String) -> AppError {
     )
     .with_context("path", link.display().to_string())
     .with_context("command", command)
+    .with_context("state", "occupied")
 }
 
 /// Where a link is made before it is renamed onto the name on `PATH`.
