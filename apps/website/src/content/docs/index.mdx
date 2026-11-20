@@ -6,6 +6,8 @@ eyebrow: Getting started
 ---
 
 import Callout from '../../components/Callout.astro';
+import CommandBlock from '../../components/CommandBlock.astro';
+import { SITE } from '../../lib/site';
 import FileTree from '../../components/FileTree.astro';
 
 ## Requirements
@@ -19,18 +21,18 @@ build.
 
 ## Download
 
-**[Download LongClaw_0.1.0_aarch64.dmg](/downloads/LongClaw_0.1.0_aarch64.dmg)**
-— 5.0 MB. Open it and drag LongClaw into Applications.
+**<a href={SITE.download}>Download {SITE.downloadFile}</a>**. Open it and drag
+LongClaw into Applications.
 
 To check you got what we published, compare the checksum:
 
-```sh
-shasum -a 256 ~/Downloads/LongClaw_0.1.0_aarch64.dmg
-# a2b8786b53d8b57d44e6bef7f94f4454c49064d8d43584b5b7680ecc1d7800df
-```
+<CommandBlock
+  id="cmd-checksum"
+  cmd={`shasum -a 256 ~/Downloads/${SITE.downloadFile}`}
+  output={SITE.downloadSha256}
+/>
 
-The same build is attached to the
-[v0.1.0 release](https://github.com/sachinjain024/longclaw/releases/tag/v0.1.0)
+The same build is attached to the <a href={SITE.releases}>v{SITE.version} release</a>
 on GitHub, with the release notes and source.
 
 If you would rather not run a binary someone else built, the repository is the
