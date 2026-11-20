@@ -276,15 +276,29 @@ fn describe(source: Option<&Path>, link: &Path) -> CommandLineStatus {
 /// the line `install_as_admin` attaches if the password is refused. Never on
 /// the second: it is the same write as root, so it is no way out of a failure
 /// `sudo` cannot fix (LC-285r, item 4.1).
+///
+/// A full disk is the one other cause said in the install's own words — the
+/// copy deck's `refusal.diskfull` (LC-285r, 6.1) — because `AppError::io`
+/// names the folder by its last component, and "failed for bin." reads as a
+/// typo. The rest of the app keeps the shared wording.
 fn refused(at: &Path, error: std::io::Error, permission: String, command: String) -> AppError {
-    if error.kind() == std::io::ErrorKind::PermissionDenied {
-        AppError::new(ErrorCode::PermissionDenied, permission, true)
-            .with_context("path", at.display().to_string())
-            .with_context("systemError", error.to_string())
-            .with_context(ESCALATE, "true")
-            .with_context("command", command)
-    } else {
-        AppError::io(INSTALL_ACTION, at, error)
+    match error.kind() {
+        std::io::ErrorKind::PermissionDenied => {
+            AppError::new(ErrorCode::PermissionDenied, permission, true)
+                .with_context("path", at.display().to_string())
+                .with_context("systemError", error.to_string())
+                .with_context(ESCALATE, "true")
+                .with_context("command", command)
+        }
+        std::io::ErrorKind::StorageFull => AppError::new(
+            ErrorCode::Io,
+            "Installing the longclaw command failed: there is no space left on the disk.",
+            true,
+        )
+        .with_context("path", at.display().to_string())
+        .with_context("systemError", error.to_string())
+        .with_context("cause", "noSpace"),
+        _ => AppError::io(INSTALL_ACTION, at, error),
     }
 }
 
@@ -341,7 +355,7 @@ pub fn install_into(source: &Path, link: &Path) -> AppResult<()> {
                 parent,
                 error,
                 format!(
-                    "{} does not exist, and creating it needs an administrator.",
+                    "{} does not exist, and creating it needs an admin.",
                     parent.display()
                 ),
                 command.clone(),
@@ -356,7 +370,7 @@ pub fn install_into(source: &Path, link: &Path) -> AppResult<()> {
         refused(
             parent,
             error,
-            format!("Writing to {} needs an administrator.", parent.display()),
+            format!("Writing to {} needs an admin.", parent.display()),
             command.clone(),
         )
     })?;
@@ -365,7 +379,7 @@ pub fn install_into(source: &Path, link: &Path) -> AppResult<()> {
         refused(
             link,
             error,
-            format!("Replacing {} needs an administrator.", link.display()),
+            format!("Replacing {} needs an admin.", link.display()),
             command,
         )
     })
@@ -590,6 +604,25 @@ mod command_line_tests {
         assert!(!escalates(std::io::ErrorKind::StorageFull));
         assert!(!escalates(std::io::ErrorKind::ReadOnlyFilesystem));
         assert!(!escalates(std::io::ErrorKind::QuotaExceeded));
+    }
+
+    /// A full disk reads as the copy deck's `refusal.diskfull` (LC-285r, 6.1),
+    /// in the install's own words rather than the shared `failed for bin.`
+    #[test]
+    fn a_full_disk_says_so_in_the_install_s_own_words() {
+        let error = refused(
+            Path::new("/usr/local/bin"),
+            std::io::ErrorKind::StorageFull.into(),
+            "denied".into(),
+            "sudo …".into(),
+        );
+
+        assert_eq!(error.code, crate::core::ErrorCode::Io);
+        assert_eq!(
+            error.message,
+            "Installing the longclaw command failed: there is no space left on the disk."
+        );
+        assert_eq!(error.context.get("path").unwrap(), "/usr/local/bin");
     }
 
     /// And they hand over no `sudo` line either: running the same write as

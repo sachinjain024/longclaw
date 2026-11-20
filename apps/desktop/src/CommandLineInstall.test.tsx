@@ -76,7 +76,7 @@ function status(over: Partial<CommandLineStatus> = {}): CommandLineStatus {
 /** The plain write's refusal for want of rights, which raises the sheet. */
 const NEEDS_ADMIN = {
   code: "permission_denied",
-  message: "Writing to /usr/local/bin needs an administrator.",
+  message: "Writing to /usr/local/bin needs an admin.",
   recoverable: true,
   context: { escalate: "true", command: COMMAND },
 };
@@ -617,7 +617,7 @@ describe("the first-launch offer", () => {
 describe("installing through the administrator prompt", () => {
   const ESCALATABLE = {
     code: "permission_denied",
-    message: "Writing to /usr/local/bin needs an administrator.",
+    message: "Writing to /usr/local/bin needs an admin.",
     recoverable: true,
     context: { escalate: "true", command: COMMAND },
   };
@@ -650,7 +650,7 @@ describe("installing through the administrator prompt", () => {
     vi.mocked(api.installCommandLine).mockRejectedValue({
       code: "io",
       message:
-        "Installing the longclaw command failed for bin. The volume it is on has no space left.",
+        "Installing the longclaw command failed: there is no space left on the disk.",
       recoverable: true,
     });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
@@ -810,7 +810,7 @@ describe.each(["pane", "dialog"] as const)(
   (surface) => {
     const ESCALATABLE = {
       code: "permission_denied",
-      message: "Writing to /usr/local/bin needs an administrator.",
+      message: "Writing to /usr/local/bin needs an admin.",
       recoverable: true,
       context: { escalate: "true", command: COMMAND },
     };
@@ -906,7 +906,7 @@ describe.each(["pane", "dialog"] as const)(
      *  `Try again` is the plain write again. */
     it("hands over no line for a full disk, and Try again writes again", async () => {
       const full =
-        "Installing the longclaw command failed for bin. The volume it is on has no space left.";
+        "Installing the longclaw command failed: there is no space left on the disk.";
       vi.mocked(api.installCommandLine).mockRejectedValue({
         code: "io",
         message: full,
