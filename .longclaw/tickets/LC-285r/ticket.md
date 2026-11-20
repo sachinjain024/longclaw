@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: e259ac7d-0aaf-4344-8845-ca19901c76a4
 key: LC-285r
 title: "Installing the command line fails after a fresh install: LongClaw could not write to /usr/local/bin"
-status: in_progress
+status: done
 priority: urgent
 labels:
   - platform
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-20T12:01:58.786Z
+updated_at: 2026-11-20T13:47:06.718Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -112,11 +112,11 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 - [ ] 3.3 Refused password: failed.admin, the sudo line, Try again re-asks; confirm the AppleScript error number on a real Mac <!-- longclaw:item=ck_dff68dfe -->
 - [x] 3.4 Script failure: failed.script with its reason <!-- longclaw:item=ck_457cec8d -->
 - [x] 3.5 Occupied path found after escalating: the occupied refusal, file untouched <!-- longclaw:item=ck_f79b1e60 -->
-- [ ] 4. Non-escalated failures and copy (blocked by: 2; parallel with 3) <!-- longclaw:item=ck_c0a6b7ed -->
+- [x] 4. Non-escalated failures and copy (blocked by: 2; parallel with 3) <!-- longclaw:item=ck_c0a6b7ed -->
 - [x] 4.1 Full disk: no sudo line; Try again retries the write <!-- longclaw:item=ck_bd918b50 -->
 - [x] 4.2 Reworded status.occupied <!-- longclaw:item=ck_5579d293 -->
 - [x] 4.3 Delete refusal.denied <!-- longclaw:item=ck_9ddb938f -->
-- [ ] 5. Docs and release check (blocked by: 3, 4) <!-- longclaw:item=ck_088dd221 -->
+- [x] 5. Docs and release check (blocked by: 3, 4) <!-- longclaw:item=ck_088dd221 -->
 - [x] 5.1 Rewrite the comments that say the app cannot escalate <!-- longclaw:item=ck_3bd534ff -->
 - [x] 5.2 Update the release-candidate Filesystem scope row <!-- longclaw:item=ck_c7d4741f -->
 - [x] 5.3 Manual release-candidate row: on a clean Apple Silicon Mac, install, cancel and wrong-password, then longclaw ticket list in a new terminal <!-- longclaw:item=ck_6d76ed60 -->
@@ -830,4 +830,28 @@ actor:
 ### Claude Code commented
 
 Added a safety net before release: when the admin prompt itself breaks (or macOS answers with an unmapped number), the failure now shows the sudo line and Try again. The manual test plan for a clean Apple Silicon Mac is in docs/acceptance/LC-285r-manual-test-plan.md; its section C closes 3.3.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d575c2d3
+kind: update
+occurred_at: 2026-11-20T13:47:06.718Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+  - field: checklist.ck_c0a6b7ed.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_088dd221.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Shipped in 0.4.0 (PR #109, release PR #110). Verified by the user on a second Mac: installing from Settings › Command line put the command on PATH. Checklist 3.3 (the refusal error number at a real sheet) is left unticked because it has not been observed; it moves to LC-288d, with the manual test plan's section C. Until then a wrong number lands on the safety net: a broken or unmapped prompt shows the sudo line.
 <!-- /longclaw:event -->
