@@ -11,10 +11,10 @@
  * app, because "already installed" over a stale link is how somebody ends up
  * running last month's build against this month's file format.
  *
- * The refusal is the second half. The app cannot escalate (`release-audit.mjs`
- * forbids the subprocess that would ask), so the line to paste *is* the
- * feature, and a refusal that swallowed it would leave a person with no way
- * through at all.
+ * The refusal is the second half. A write refused for want of rights goes on
+ * to macOS's password sheet (LC-285r), and what the sheet answers decides
+ * what is said: a refused password hands over the line to paste, for whoever
+ * does administer the Mac, and a failure `sudo` cannot fix hands over none.
  *
  * The third is what LC-249a added: that the surfaces make an argument before
  * they describe a button, that the sentences which survived are the ones that
@@ -28,6 +28,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./api";
 import {
@@ -45,7 +46,11 @@ import {
 import { useMutationStore } from "./mutations";
 import type { CommandLineStatus } from "./types";
 
-vi.mock("./api", () => ({ installCommandLine: vi.fn() }));
+vi.mock("./api", () => ({
+  commandLineStatus: vi.fn(),
+  installCommandLine: vi.fn(),
+  installCommandLineAsAdmin: vi.fn(),
+}));
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -66,6 +71,29 @@ function status(over: Partial<CommandLineStatus> = {}): CommandLineStatus {
     manualCommand: COMMAND,
     ...over,
   };
+}
+
+/** The plain write's refusal for want of rights, which raises the sheet. */
+const NEEDS_ADMIN = {
+  code: "permission_denied",
+  message: "Writing to /usr/local/bin needs an admin.",
+  recoverable: true,
+  context: { escalate: "true", command: COMMAND },
+};
+
+/** The copy deck's `failed.admin`. */
+const PASSWORD_REFUSED =
+  "macOS did not accept an administrator password, so nothing was installed. If someone else administers this Mac, they can run the line below.";
+
+/** The plain write needs an administrator, and macOS refuses the password. */
+function passwordRefused(context?: Record<string, string>) {
+  vi.mocked(api.installCommandLine).mockRejectedValue(NEEDS_ADMIN);
+  vi.mocked(api.installCommandLineAsAdmin).mockRejectedValue({
+    code: "permission_denied",
+    message: PASSWORD_REFUSED,
+    recoverable: true,
+    ...(context ? { context } : {}),
+  });
 }
 
 /** The one control that installs, whatever this state calls it. */
@@ -162,7 +190,16 @@ describe("the command line pane", () => {
       />,
     );
 
-    expect(screen.getByText(/did not create/)).toBeTruthy();
+    // The copy deck's `status.occupied` (LC-285r): no "try again", because
+    // there is no button here that could.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent ===
+            `LongClaw cannot replace ${LINK}. Move it or rename it, then reopen this pane, or run the line below yourself.`,
+      ),
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Install/ })).toBeNull();
     expect(screen.getByText(COMMAND)).toBeTruthy();
   });
@@ -188,21 +225,17 @@ describe("the command line pane", () => {
   });
 
   /**
-   * The whole escalation story: no privileged helper, no subprocess — the
-   * refusal in words, and the exact line with the paths already in it.
+   * When even the password sheet is refused, the refusal in words and the
+   * exact line with the paths already in it — for whoever does administer
+   * this Mac.
    */
-  it("shows the refusal and the exact line when the write is not allowed", async () => {
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+  it("shows the refusal and the exact line when the password is refused", async () => {
+    passwordRefused({ command: COMMAND });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
 
-    await screen.findByText(/could not write to/);
+    await screen.findByText(PASSWORD_REFUSED);
     expect(screen.getByText(COMMAND)).toBeTruthy();
   });
 
@@ -210,13 +243,8 @@ describe("the command line pane", () => {
    * LC-233 left the button reading `Install` after a failed install, so pressing
    * it a second time looked like the first press had not registered.
    */
-  it("turns the primary into Try again once a write has been refused", async () => {
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+  it("turns the primary into Try again once the password has been refused", async () => {
+    passwordRefused({ command: COMMAND });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
@@ -232,13 +260,7 @@ describe("the command line pane", () => {
    */
   it("prefers the line the refusal itself carries over the one read at launch", async () => {
     const fresher = `sudo mkdir -p '/usr/local/bin' && sudo ln -sf '/Applications/Moved/LongClaw.app/Contents/MacOS/longclaw' '${LINK}'`;
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-      context: { command: fresher },
-    });
+    passwordRefused({ command: fresher });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
@@ -247,14 +269,10 @@ describe("the command line pane", () => {
     expect(screen.queryByText(COMMAND)).toBeNull();
   });
 
-  /** A refusal from an older build carries no command; the status still has one. */
+  /** A refusal that carries no line of its own still gets the status's: the
+   *  line is the way out of a refused password, whoever computed it. */
   it("falls back to the status's line when the refusal carries none", async () => {
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+    passwordRefused();
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
@@ -572,12 +590,7 @@ describe("the first-launch offer", () => {
    */
   it("stays up after a refusal, holding the line to paste", async () => {
     const onDismiss = vi.fn();
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+    passwordRefused({ command: COMMAND });
     render(
       <CommandLineOffer
         status={status()}
@@ -594,3 +607,408 @@ describe("the first-launch offer", () => {
     expect(screen.getByRole("button", { name: "Skip for now" })).toBeTruthy();
   });
 });
+
+/**
+ * The password sheet (LC-285r). The plain write is tried first; only a refusal
+ * for want of rights — flagged `escalate` by Rust — goes on to the second
+ * command, which raises macOS's sheet and waits on a person. While it waits,
+ * both surfaces say so and nothing can be pressed.
+ */
+describe("installing through the administrator prompt", () => {
+  const ESCALATABLE = {
+    code: "permission_denied",
+    message: "Writing to /usr/local/bin needs an admin.",
+    recoverable: true,
+    context: { escalate: "true", command: COMMAND },
+  };
+
+  /** The sheet, held open until the test answers it. */
+  function sheet() {
+    let answer!: (status: CommandLineStatus) => void;
+    vi.mocked(api.installCommandLineAsAdmin).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    return (status: CommandLineStatus) => answer(status);
+  }
+
+  it("never raises the sheet when the plain write lands", async () => {
+    const onStatus = vi.fn();
+    vi.mocked(api.installCommandLine).mockResolvedValue(
+      status({ state: "linked", currentTarget: SOURCE }),
+    );
+    render(<CommandLineSection status={status()} onStatus={onStatus} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    await waitFor(() => expect(onStatus).toHaveBeenCalled());
+    expect(api.installCommandLineAsAdmin).not.toHaveBeenCalled();
+  });
+
+  it("does not raise the sheet for a refusal an administrator cannot fix", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue({
+      code: "io",
+      message:
+        "Installing the longclaw command failed: there is no space left on the disk.",
+      recoverable: true,
+    });
+    render(<CommandLineSection status={status()} onStatus={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    await screen.findByText(/no space left/);
+    expect(api.installCommandLineAsAdmin).not.toHaveBeenCalled();
+  });
+
+  it("waits for the password in the pane, then reports the install", async () => {
+    const onStatus = vi.fn();
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    const answer = sheet();
+    render(<CommandLineSection status={status()} onStatus={onStatus} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    const waiting = await screen.findByRole("button", {
+      name: "Waiting for your password",
+    });
+    expect((waiting as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText("macOS is asking for an administrator password."),
+    ).toBeTruthy();
+    // The refused write is not a refusal to show: the sheet is its answer.
+    expect(screen.queryByText(/could not write/)).toBeNull();
+    expect(screen.queryByText(COMMAND)).toBeNull();
+
+    const linked = status({ state: "linked", currentTarget: SOURCE });
+    answer(linked);
+
+    await waitFor(() => expect(onStatus).toHaveBeenCalledWith(linked));
+    expect(
+      screen.queryByText("macOS is asking for an administrator password."),
+    ).toBeNull();
+  });
+
+  it("holds both footer buttons, Esc and the scrim while the sheet is up", async () => {
+    const onDismiss = vi.fn();
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    sheet();
+    render(
+      <CommandLineOffer
+        status={status()}
+        onStatus={() => {}}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    const waiting = await screen.findByRole("button", {
+      name: "Waiting for your password",
+    });
+    const skip = screen.getByRole("button", { name: "Skip for now" });
+    expect((waiting as HTMLButtonElement).disabled).toBe(true);
+    expect((skip as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText("macOS is asking for an administrator password."),
+    ).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.click(document.querySelector(".modal-scrim")!);
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("answers in the dialog and returns focus to its primary when the sheet closes", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    const answer = sheet();
+    render(
+      <CommandLineOffer
+        status={status()}
+        onStatus={() => {}}
+        onDismiss={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    await screen.findByRole("button", { name: "Waiting for your password" });
+    answer(status({ state: "linked", currentTarget: SOURCE }));
+
+    const done = await screen.findByRole("button", { name: "Done" });
+    expect(screen.getByText(/is on your PATH/)).toBeTruthy();
+    expect(document.activeElement).toBe(done);
+  });
+
+  /** A skip while the plain write is out must not be followed by a sheet. */
+  it("cannot be skipped while the plain write is out", async () => {
+    const onDismiss = vi.fn();
+    let refuse!: (error: unknown) => void;
+    vi.mocked(api.installCommandLine).mockReturnValue(
+      new Promise((_, reject) => {
+        refuse = reject;
+      }),
+    );
+    sheet();
+    render(
+      <CommandLineOffer
+        status={status()}
+        onStatus={() => {}}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    await screen.findByRole("button", { name: "Installing…" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onDismiss).not.toHaveBeenCalled();
+    refuse(ESCALATABLE);
+    await screen.findByRole("button", { name: "Waiting for your password" });
+  });
+
+  /** Linked, the pane has no primary left to return to; focus stays in it. */
+  it("keeps focus in the pane when the sheet installs and the primary goes", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    const answer = sheet();
+    function Pane() {
+      const [current, setCurrent] = useState(status());
+      return <CommandLineSection status={current} onStatus={setCurrent} />;
+    }
+    const { container } = render(<Pane />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    await screen.findByRole("button", { name: "Waiting for your password" });
+    answer(status({ state: "linked", currentTarget: SOURCE }));
+
+    await screen.findByText(/points at this copy of LongClaw/);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(container.contains(document.activeElement)).toBe(true);
+  });
+
+  it("returns focus to the pane's primary when the sheet closes without an install", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    vi.mocked(api.installCommandLineAsAdmin).mockRejectedValue({
+      code: "io",
+      message:
+        "LongClaw could not install the command, even as an administrator: ln: failed",
+      recoverable: true,
+    });
+    render(<CommandLineSection status={status()} onStatus={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    const retry = await screen.findByRole("button", { name: "Try again" });
+    expect(document.activeElement).toBe(retry);
+  });
+});
+
+/**
+ * What the sheet answered (LC-285r, items 3.1–3.5), on both surfaces. A cancel
+ * is a choice and reads as one; a refused password hands over the line for
+ * whoever does administer the Mac; a script that failed as root says why; and
+ * a file found at the name as root puts the surface in the occupied state.
+ */
+describe.each(["pane", "dialog"] as const)(
+  "after the password sheet, in the %s",
+  (surface) => {
+    const ESCALATABLE = {
+      code: "permission_denied",
+      message: "Writing to /usr/local/bin needs an admin.",
+      recoverable: true,
+      context: { escalate: "true", command: COMMAND },
+    };
+    const FAILED_ADMIN =
+      "macOS did not accept an administrator password, so nothing was installed. If someone else administers this Mac, they can run the line below.";
+
+    /** The surface, holding the status the way its parent does. */
+    function Surface(props: { onDismiss?: (outcome: string) => void }) {
+      const [current, setCurrent] = useState(status());
+      return surface === "pane" ? (
+        <CommandLineSection status={current} onStatus={setCurrent} />
+      ) : (
+        <CommandLineOffer
+          status={current}
+          onStatus={setCurrent}
+          onDismiss={props.onDismiss ?? (() => {})}
+        />
+      );
+    }
+
+    function sheetAnswers(error: unknown) {
+      vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+      vi.mocked(api.installCommandLineAsAdmin).mockRejectedValue(error);
+    }
+
+    it("says nothing was installed after a cancel, and keeps Install", async () => {
+      sheetAnswers({
+        code: "cancelled",
+        message: "Nothing was installed.",
+        recoverable: true,
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText("Nothing was installed.");
+      expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+      expect(screen.queryByText(COMMAND)).toBeNull();
+    });
+
+    it("brings the sheet back when Install is pressed after a cancel", async () => {
+      sheetAnswers({
+        code: "cancelled",
+        message: "Nothing was installed.",
+        recoverable: true,
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+      await screen.findByText("Nothing was installed.");
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await waitFor(() =>
+        expect(api.installCommandLineAsAdmin).toHaveBeenCalledTimes(2),
+      );
+      expect(api.installCommandLine).toHaveBeenCalledTimes(2);
+    });
+
+    it("hands over the line after a refused password, and Try again asks again", async () => {
+      sheetAnswers({
+        code: "permission_denied",
+        message: FAILED_ADMIN,
+        recoverable: true,
+        context: { command: COMMAND },
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(FAILED_ADMIN);
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+      await waitFor(() =>
+        expect(api.installCommandLineAsAdmin).toHaveBeenCalledTimes(2),
+      );
+    });
+
+    it("says why a script that ran as an administrator failed, without the line", async () => {
+      const reason =
+        "LongClaw could not install the command, even as an administrator: ln: /usr/local/bin: No space left on device";
+      sheetAnswers({ code: "io", message: reason, recoverable: true });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(reason);
+      expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+      expect(screen.queryByText(COMMAND)).toBeNull();
+    });
+
+    /** The prompt itself broke, so root may never have tried: the line is the
+     *  safety net, and `Try again` still offers the sheet. */
+    it("hands over the line when the prompt itself broke", async () => {
+      const reason =
+        "LongClaw could not install the command, even as an administrator: The sheet could not be shown. (-60008)";
+      sheetAnswers({
+        code: "io",
+        message: reason,
+        recoverable: true,
+        context: { command: COMMAND },
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(reason);
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+      await waitFor(() =>
+        expect(api.installCommandLineAsAdmin).toHaveBeenCalledTimes(2),
+      );
+    });
+
+    /** `sudo` does not make room (LC-285r, 4.1): no line, no sheet, and
+     *  `Try again` is the plain write again. */
+    it("hands over no line for a full disk, and Try again writes again", async () => {
+      const full =
+        "Installing the longclaw command failed: there is no space left on the disk.";
+      vi.mocked(api.installCommandLine).mockRejectedValue({
+        code: "io",
+        message: full,
+        recoverable: true,
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(full);
+      expect(screen.queryByText(COMMAND)).toBeNull();
+      expect(screen.queryByText(/sudo/)).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+      await waitFor(() =>
+        expect(api.installCommandLine).toHaveBeenCalledTimes(2),
+      );
+      expect(api.installCommandLineAsAdmin).not.toHaveBeenCalled();
+    });
+
+    it("turns occupied when a file is found at the name as root", async () => {
+      const refusal =
+        "LongClaw cannot replace /usr/local/bin/longclaw. Move it or rename it, then reopen this pane, or run the line below yourself.";
+      sheetAnswers({
+        code: "io",
+        message: refusal,
+        recoverable: true,
+        context: { state: "occupied", command: COMMAND },
+      });
+      vi.mocked(api.commandLineStatus).mockResolvedValue(
+        status({ state: "occupied" }),
+      );
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      // Said once, by the state — not a second time as a refusal under it.
+      await screen.findByText(/LongClaw cannot replace/);
+      expect(screen.getAllByText(/LongClaw cannot replace/)).toHaveLength(1);
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      expect(
+        screen.queryByRole("button", {
+          name: /^(Install|Try again|Point it at this app)$/,
+        }),
+      ).toBeNull();
+    });
+
+    it("turns occupied even when the fresh status cannot be read", async () => {
+      sheetAnswers({
+        code: "io",
+        message: "LongClaw cannot replace /usr/local/bin/longclaw.",
+        recoverable: true,
+        context: { state: "occupied", command: COMMAND },
+      });
+      vi.mocked(api.commandLineStatus).mockRejectedValue(new Error("gone"));
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(/then reopen this pane/);
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    });
+
+    if (surface === "dialog") {
+      it("raises the skipped toast's answer when closed after a cancel", async () => {
+        const onDismiss = vi.fn();
+        sheetAnswers({
+          code: "cancelled",
+          message: "Nothing was installed.",
+          recoverable: true,
+        });
+        render(<Surface onDismiss={onDismiss} />);
+
+        fireEvent.click(screen.getByRole("button", { name: "Install" }));
+        await screen.findByText("Nothing was installed.");
+        fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+
+        expect(onDismiss).toHaveBeenCalledWith("skipped");
+      });
+    }
+  },
+);

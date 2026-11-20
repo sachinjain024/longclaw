@@ -44,8 +44,12 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   Read it for the shape, not for the rules: it predates the **copy deck**,
   which `AGENTS.md` has required since LC-249a and which a new prototype owes.
 
-Five others have been here and are not any more, all deleted when their
-tickets settled: LC-206 (attachments and the References section, settled
+Six others have been here and are not any more, all deleted when their
+tickets settled: LC-285r (installing `longclaw` through an administrator
+prompt — the decisions and the copy deck are in
+`.longclaw/tickets/LC-285r/ticket.md`, the design in
+`docs/specs/LC-285r-install-the-command-with-an-administrator-prompt.md`), at
+`8ce54bc`; LC-206 (attachments and the References section, settled
 over four review rounds — the decisions and the copy deck are in
 `.longclaw/tickets/LC-206/ticket.md`), at `26c6abc`; LC-236e (defining a label from inside the create flows) and
 LC-249a (the `longclaw` command's install offer), both in the history at

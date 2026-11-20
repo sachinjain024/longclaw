@@ -558,6 +558,18 @@ export async function installCommandLine(): Promise<CommandLineStatus> {
 }
 
 /**
+ * The same install through macOS's administrator password sheet (LC-285r).
+ *
+ * Called only after `installCommandLine` was refused with `context.escalate`,
+ * and a separate call rather than a retry flag so the surface can draw
+ * *waiting for your password* before the sheet appears. It settles when a
+ * person answers the sheet. Still no path crosses the wire.
+ */
+export async function installCommandLineAsAdmin(): Promise<CommandLineStatus> {
+  return invoke("install_command_line_as_admin");
+}
+
+/**
  * Whether a newer LongClaw exists
  * ([ADR 0014](../../../docs/adr/0014-one-optional-check-for-a-newer-longclaw.md)).
  *

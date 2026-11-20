@@ -22,26 +22,37 @@
  * block showing one real command and what it gets you, and the sentences that
  * survived it are the ones that are *news* — see `statusIsNews`.
  *
- * **A refusal is answered in words.** `/usr/local/bin` is admin-writable on most
- * developer Macs and Homebrew is why, so the write usually just succeeds; on a
- * clean Apple Silicon machine the directory may not exist and creating it needs
- * root. The app cannot escalate — `release-audit.mjs` fails the build on
- * `Command::new`, so `osascript … with administrator privileges` is not
- * available, and neither a subprocess exemption nor an `SMAppService` helper is
- * worth a symlink. So the refusal names what happened and hands over the exact
- * line, paths filled in, with a button that copies it. That is the whole
- * escalation story, and it is deliberately the whole of it. There is no
- * approval stage anywhere in here, because there is no approval: the write is
- * one synchronous `symlink`, and `Installing…` is a frame rather than a step
- * somebody is waiting on.
+ * **A refusal for want of rights is answered by macOS's password sheet**
+ * (LC-285r). `/usr/local/bin` is admin-writable on most developer Macs and
+ * Homebrew is why, so the plain write is tried first and usually just
+ * succeeds — `Installing…` is a frame there, not a step. On a clean Apple
+ * Silicon machine the directory may not exist and creating it needs root, so
+ * that refusal, and only that one, goes on to one administrator prompt: the
+ * link script in Rust's privileged module (ADR 0018 as amended), which is the
+ * one place the app runs anything as root. While it is up, both surfaces say
+ * they are waiting for the password, and that *is* a step somebody is in the
+ * middle of — see `InstallStep`. The exact line, paths filled in, with a button
+ * that copies it, is what is left when even the sheet is refused: it is for
+ * whoever does administer this Mac.
  *
  * One file for both surfaces because they are one set of sentences. The offer
  * and the pane differ in framing — one asks, the other reports — and must not
  * come to describe the same act two different ways.
  */
 
-import { useCallback, useId, useState, type ReactNode } from "react";
-import { installCommandLine } from "./api";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  commandLineStatus,
+  installCommandLine,
+  installCommandLineAsAdmin,
+} from "./api";
 import { copyToClipboard } from "./clipboard";
 import { DEMO_ACTOR, DEMO_COMMAND, DEMO_OUTPUT } from "./commandLineDemo";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -155,41 +166,155 @@ const STATES: Record<
 };
 
 /**
+ * Where one install is, from the press to its answer (LC-285r). The shape is
+ * the prototype's, shared by the dialog and the pane so the two cannot come to
+ * describe one install two ways.
+ *
+ * `installing` is the plain write — one synchronous `symlink`, a frame rather
+ * than a step. `waiting` is macOS's password sheet, which *is* a step somebody
+ * is in the middle of. The last three are what an attempt that did not land
+ * had to say, and they are three because each asks something different of the
+ * person:
+ *
+ * - `cancelled` is a choice they made. Not a refusal and not `Try again`: the
+ *   button stays what it was, and pressing it brings the sheet back.
+ * - `refused` is macOS not accepting a password. `Try again` asks again, and
+ *   the line is there for whoever does administer this Mac.
+ * - `failed` is anything else — the script failed as root, or a write a
+ *   password would not have helped. `Try again`, and no line.
+ */
+type InstallStep =
+  | { kind: "idle" }
+  | { kind: "installing" }
+  | { kind: "waiting" }
+  | { kind: "installed" }
+  | { kind: "cancelled"; message: string }
+  | { kind: "refused"; message: string; command?: string }
+  | { kind: "failed"; message: string; command?: string };
+
+/** An install's rejection, as `normalizeError` reads it. */
+type InstallError = ReturnType<typeof normalizeError>;
+
+/** The three ways an attempt ends without an install, as a surface shows them. */
+type Outcome = Extract<InstallStep, { message: string }>;
+
+/**
+ * What an install's error asks the surface to show.
+ *
+ * The refusal carries its own `command`, and it is the fresher one: the status
+ * was read at launch, and the app may have been moved since. Rust computed
+ * this line against the paths the write actually used, so a pasted line always
+ * names the bundle the refusal was about.
+ */
+function outcomeOf(error: InstallError): Outcome {
+  const { message } = error;
+  if (error.code === "cancelled") return { kind: "cancelled", message };
+  const command = error.context?.command;
+  if (error.code === "permission_denied") {
+    return { kind: "refused", message, command };
+  }
+  // Rust attaches a line to a failure only when the prompt itself broke, so
+  // root may never have tried; a script that failed as root carries none.
+  return { kind: "failed", message, command };
+}
+
+/** Somebody else's file holds the name — found by the write, or as root after
+ *  the password. The status read before the press is stale, and the fresh one
+ *  is the answer: `occupied`, which has no button and its own sentence. */
+function foundOccupied(error: InstallError) {
+  return error.context?.state === "occupied";
+}
+
+/** The plain write was refused for want of rights, and Rust says an
+ *  administrator could make it — nothing else is ever escalated. */
+function escalates(error: InstallError) {
+  return error.context?.escalate === "true";
+}
+
+/**
  * Running one install and holding what it answered.
  *
- * The refusal is local state rather than the app's error banner: it belongs
+ * The plain write first, always: a Mac whose `/usr/local/bin` the person can
+ * write never sees a password. Only a refusal Rust flags `escalate` goes on to
+ * the sheet, and the refused write is not shown — the sheet is its answer.
+ *
+ * The answer is local state rather than the app's error banner: it belongs
  * beside the command it is telling you to run, and a banner at the top of the
  * window with a `sudo` line in it would be a shell command somewhere nobody can
  * select it.
  */
-function useInstall(onStatus: (status: CommandLineStatus) => void) {
-  const [installing, setInstalling] = useState(false);
-  const [refusal, setRefusal] = useState<{
-    message: string;
-    command?: string;
-  }>();
+function useInstall(
+  status: CommandLineStatus,
+  onStatus: (status: CommandLineStatus) => void,
+) {
+  const [step, setStep] = useState<InstallStep>({ kind: "idle" });
+  // Set when the sheet goes up, and read once it has come down. A ref rather
+  // than the rendered step, because a sheet answered fast enough is never
+  // rendered as `waiting` at all — React folds the two steps into one frame.
+  const sheetRaised = useRef(false);
   const install = useCallback(async () => {
-    setInstalling(true);
-    setRefusal(undefined);
+    setStep({ kind: "installing" });
     try {
-      onStatus(await installCommandLine());
+      try {
+        onStatus(await installCommandLine());
+      } catch (error) {
+        if (!escalates(normalizeError(error))) throw error;
+        sheetRaised.current = true;
+        setStep({ kind: "waiting" });
+        onStatus(await installCommandLineAsAdmin());
+      }
+      setStep({ kind: "installed" });
       return true;
     } catch (error) {
-      // The refusal carries its own `command`, and it is the fresher one: the
-      // status was read at launch, and the app may have been moved since. Rust
-      // computed this line against the paths the write actually used, so a
-      // pasted line always names the bundle the refusal was about.
-      const refused = normalizeError(error);
-      setRefusal({
-        message: refused.message,
-        command: refused.context?.command,
-      });
+      const answer = normalizeError(error);
+      if (foundOccupied(answer)) {
+        // Unread, the refusal itself says enough to be `occupied` here: a
+        // `Try again` would repeat a write certain to fail the same way.
+        onStatus(
+          await commandLineStatus().catch(() => ({
+            ...status,
+            state: "occupied" as const,
+            currentTarget: null,
+          })),
+        );
+        setStep({ kind: "idle" });
+        return false;
+      }
+      setStep(outcomeOf(answer));
       return false;
-    } finally {
-      setInstalling(false);
     }
-  }, [onStatus]);
-  return { installing, refusal, install };
+  }, [status, onStatus]);
+  const outcome = "message" in step ? step : undefined;
+  return { step, outcome, install, sheetRaised };
+}
+
+/** Nothing on either surface may be pressed while one is in flight. */
+function busy(step: InstallStep) {
+  return step.kind === "installing" || step.kind === "waiting";
+}
+
+/**
+ * Focus back on the primary when the sheet closes (LC-285r, keyboard).
+ *
+ * The sheet is macOS's and takes focus with it, and the primary was disabled
+ * under it, so focus would otherwise be left on the document body. The dialog
+ * gets this from `ConfirmDialog`; the pane's button has no dialog around it.
+ * An install that lands leaves the pane with no primary at all — `linked` has
+ * no action — so focus goes to the pane's head, the line naming what is now
+ * installed, rather than nowhere.
+ */
+function useFocusAfterSheet(
+  step: InstallStep,
+  sheetRaised: { current: boolean },
+) {
+  const primary = useRef<HTMLButtonElement>(null);
+  const head = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!sheetRaised.current || busy(step)) return;
+    sheetRaised.current = false;
+    (primary.current ?? head.current)?.focus();
+  }, [step, sheetRaised]);
+  return { primary, head };
 }
 
 /**
@@ -293,10 +418,11 @@ function StatusLine(props: { status: CommandLineStatus }) {
       );
     case "occupied":
       return (
+        // LC-285r's wording: what LongClaw cannot do and what will, without
+        // the old "try again" — there is no button here that could.
         <p className="cli-state">
-          <code>{status.linkPath}</code> is a file LongClaw did not create, so
-          LongClaw will not replace it. Move or rename it and reopen this pane,
-          or run the line below yourself.
+          LongClaw cannot replace <code>{status.linkPath}</code>. Move it or
+          rename it, then reopen this pane, or run the line below yourself.
         </p>
       );
     case "unavailable":
@@ -349,6 +475,29 @@ function statusIsNews(
 }
 
 /**
+ * The `sudo` line a surface shows, if any.
+ *
+ * After a refused password, because it is the way out for whoever does
+ * administer the Mac; and in a state the app can never write its way out of.
+ * Not after a cancel, which was a choice; not after a failure, because the
+ * line is the same write as root and `sudo` makes no room on a full disk; and
+ * not beside an unpressed button, where it reads as two ways to do one thing.
+ * The refusal's own copy wins where there is one — see `outcomeOf`.
+ */
+function lineFor(
+  status: CommandLineStatus,
+  outcome: Outcome | undefined,
+  manual: boolean,
+): string | null {
+  if (!outcome) return manual ? status.manualCommand : null;
+  if (outcome.kind === "refused") {
+    return outcome.command ?? status.manualCommand;
+  }
+  if (outcome.kind === "failed") return outcome.command ?? null;
+  return null;
+}
+
+/**
  * The argument, the state and whatever the last attempt had to say — shared by
  * the pane and the dialog so the two cannot drift apart.
  *
@@ -361,22 +510,17 @@ function statusIsNews(
  */
 function InstallBody(props: {
   status: CommandLineStatus;
-  refusal?: { message: string; command?: string };
+  outcome?: Outcome;
   surface: "dialog" | "pane";
   /** The install landed in this session, so the surface says so elsewhere. */
   installed?: boolean;
+  /** macOS's password sheet is up over the window. */
+  waiting?: boolean;
 }) {
   const { manual } = STATES[props.status.state];
   const installed = props.installed ?? false;
-  // The line is shown when the app has just been refused, and when the state is
-  // one the app can never write its way out of. Not otherwise: an unpressed
-  // button beside a `sudo` line reads as two ways to do one thing. The
-  // refusal's own copy wins where there is one — see `useInstall`.
-  const command = props.refusal
-    ? (props.refusal.command ?? props.status.manualCommand)
-    : manual
-      ? props.status.manualCommand
-      : null;
+  const outcome = props.outcome;
+  const command = lineFor(props.status, outcome, manual);
   // Nothing to preview where there is nothing to install, and nothing to argue
   // for in a dialog that has just done it.
   const preview =
@@ -389,20 +533,28 @@ function InstallBody(props: {
           never urgent, and it replaces text the reader may be part-way through.
           The same choice the label editor and the write toast make. */}
       <div aria-live="polite">
+        {props.waiting && (
+          <p className="cli-state">
+            macOS is asking for an administrator password.
+          </p>
+        )}
         {statusIsNews(props.status, props.surface, installed) && (
           <StatusLine status={props.status} />
         )}
-        {props.refusal && (
-          <p className="cli-refusal">{props.refusal.message}</p>
+        {/* A cancel is a note — the person chose it — and the other two are
+            refusals. */}
+        {outcome?.kind === "cancelled" && (
+          <p className="cli-state">{outcome.message}</p>
+        )}
+        {outcome && outcome.kind !== "cancelled" && (
+          <p className="cli-refusal">{outcome.message}</p>
         )}
       </div>
       {command && (
         <ManualCommand
           command={command}
           label={
-            props.refusal
-              ? "Run this in Terminal instead:"
-              : "To do it yourself:"
+            outcome ? "Run this in Terminal instead:" : "To do it yourself:"
           }
         />
       )}
@@ -417,13 +569,10 @@ function InstallBody(props: {
  * left the button saying `Install` after a failed install, so pressing it a
  * second time looked like the first press had not registered.
  */
-function actionLabel(
-  status: CommandLineStatus,
-  installing: boolean,
-  refused: boolean,
-) {
-  if (installing) return "Installing…";
-  if (refused) return "Try again";
+function actionLabel(status: CommandLineStatus, step: InstallStep) {
+  if (step.kind === "installing") return "Installing…";
+  if (step.kind === "waiting") return "Waiting for your password";
+  if (step.kind === "refused" || step.kind === "failed") return "Try again";
   return STATES[status.state].action;
 }
 
@@ -496,12 +645,16 @@ export function CommandLineSection(props: {
   status: CommandLineStatus;
   onStatus: (status: CommandLineStatus) => void;
 }) {
-  const { installing, refusal, install } = useInstall(props.onStatus);
-  const label = actionLabel(props.status, installing, refusal !== undefined);
+  const { step, outcome, install, sheetRaised } = useInstall(
+    props.status,
+    props.onStatus,
+  );
+  const label = actionLabel(props.status, step);
+  const { primary, head } = useFocusAfterSheet(step, sheetRaised);
   const { dot, askable } = STATES[props.status.state];
   return (
     <>
-      <div className="cli-head">
+      <div className="cli-head" ref={head} tabIndex={-1}>
         <div className="cli-head-text">
           <div className="cli-name">
             <span
@@ -515,17 +668,23 @@ export function CommandLineSection(props: {
         </div>
         {label && (
           <button
+            ref={primary}
             tabIndex={0}
             type="button"
             className="primary"
-            disabled={installing}
+            disabled={busy(step)}
             onClick={() => void install()}
           >
             {label}
           </button>
         )}
       </div>
-      <InstallBody status={props.status} refusal={refusal} surface="pane" />
+      <InstallBody
+        status={props.status}
+        outcome={outcome}
+        surface="pane"
+        waiting={step.kind === "waiting"}
+      />
       {askable && <AskAgain status={props.status} />}
     </>
   );
@@ -555,9 +714,9 @@ export function CommandLineOffer(props: {
    *  way it went — the two are different sentences and different toasts. */
   onDismiss: (outcome: "installed" | "skipped") => void;
 }) {
-  const { installing, refusal, install } = useInstall(props.onStatus);
-  const [installed, setInstalled] = useState(false);
-  const label = actionLabel(props.status, installing, refusal !== undefined);
+  const { step, outcome, install } = useInstall(props.status, props.onStatus);
+  const installed = step.kind === "installed";
+  const label = actionLabel(props.status, step);
 
   let title: ReactNode = "Use LongClaw with Agents";
   if (installed) {
@@ -591,9 +750,10 @@ export function CommandLineOffer(props: {
           {!installed && <p>{whatItDoes()}</p>}
           <InstallBody
             status={props.status}
-            refusal={refusal}
+            outcome={outcome}
             surface="dialog"
             installed={installed}
+            waiting={step.kind === "waiting"}
           />
         </>
       }
@@ -603,11 +763,14 @@ export function CommandLineOffer(props: {
       // both halves of it together, dismissal weakest.
       confirmLabel={installed ? "Done" : label}
       confirmTone="primary"
-      confirmDisabled={installing}
+      confirmDisabled={busy(step)}
+      // An install is out — the write, or the sheet over the dialog: a skip now
+      // would be reported over an install still being decided, and could be
+      // followed by a sheet for a dialog already gone. The way out waits with
+      // the way in.
+      cancelDisabled={busy(step)}
       onConfirm={
-        installed
-          ? () => props.onDismiss("installed")
-          : () => void install().then((done) => done && setInstalled(true))
+        installed ? () => props.onDismiss("installed") : () => void install()
       }
       cancelLabel={installed ? null : label ? "Skip for now" : "Close"}
       // `Esc` and a click past the dialog both land here, including after the

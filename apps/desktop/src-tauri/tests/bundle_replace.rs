@@ -12,7 +12,8 @@ use std::io;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-use longclaw_desktop_lib::bundle_replace::{replace, Privileged, Step};
+use longclaw_desktop_lib::bundle_replace::{replace, Step};
+use longclaw_desktop_lib::privileged::{Privileged, PromptError, Script};
 
 const BUNDLE: &str = "LongClaw.app";
 
@@ -60,9 +61,11 @@ struct Shell<'a> {
 }
 
 impl Privileged for Shell<'_> {
-    fn run(&self, script: &str) -> io::Result<()> {
+    fn run(&self, script: &Script) -> Result<(), PromptError> {
         self.ran.set(true);
-        fs::set_permissions(self.folder, fs::Permissions::from_mode(0o755))?;
+        let script = script.source();
+        fs::set_permissions(self.folder, fs::Permissions::from_mode(0o755))
+            .map_err(|error| PromptError::broken(error.to_string()))?;
         let script = match self.fail_on {
             // Shadow one command so its nth call fails, the way a full
             // disk fails `ditto` or a vanished path fails `mv`.
@@ -77,16 +80,20 @@ impl Privileged for Shell<'_> {
                     script.replace(full, command)
                 )
             }
-            None => script.to_string(),
+            None => script,
         };
-        let status = std::process::Command::new("/bin/sh")
+        let output = std::process::Command::new("/bin/sh")
             .arg("-c")
             .arg(&script)
-            .status()?;
-        if status.success() {
+            .output()
+            .map_err(|error| PromptError::broken(error.to_string()))?;
+        if output.status.success() {
             Ok(())
         } else {
-            Err(io::Error::other(format!("script exited {status}")))
+            Err(PromptError::Failed {
+                code: output.status.code(),
+                reason: String::from_utf8_lossy(&output.stderr).into_owned(),
+            })
         }
     }
 }

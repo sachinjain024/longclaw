@@ -28,8 +28,10 @@ use tauri::AppHandle;
 use tauri_plugin_updater::{Error as PluginError, Update, UpdaterExt};
 
 #[cfg(target_os = "macos")]
-use crate::bundle_replace::{self, Privileged, ReplaceError};
+use crate::bundle_replace::{self, ReplaceError};
 use crate::platform;
+#[cfg(target_os = "macos")]
+use crate::privileged::MainThreadPrompt;
 use crate::update::{Release, UpdateFault, Updater};
 
 /// The whole budget for one check: connect, request and read.
@@ -196,9 +198,9 @@ impl PluginUpdater {
     #[cfg(target_os = "macos")]
     fn replace_bundle(&self) -> Result<(), UpdateFault> {
         let bundle = platform::macos::running_bundle().ok_or(UpdateFault::InstallFailed)?;
-        let prompt = MainThreadPrompt {
-            app: self.app.clone(),
-        };
+        // `install_and_restart` is reached on a blocking thread, so the prompt
+        // waiting for the main thread to answer is a wait and not a deadlock.
+        let prompt = MainThreadPrompt::new(self.app.clone());
         install_keeping_bytes(&self.downloaded, |bytes| {
             bundle_replace::replace(bytes, &bundle, &prompt)
                 .map_err(|error| install_fault_of(&error))
@@ -284,32 +286,6 @@ where
             *cache.lock().expect("update download lock") = Some(bytes);
             Err(fault)
         }
-    }
-}
-
-/// The administrator prompt, run where AppKit needs it.
-///
-/// `install_and_restart` is reached on a blocking thread, so waiting here for
-/// the main thread to answer is a wait and not a deadlock — the same shape the
-/// plugin's own prompt had.
-#[cfg(target_os = "macos")]
-struct MainThreadPrompt {
-    app: AppHandle,
-}
-
-#[cfg(target_os = "macos")]
-impl Privileged for MainThreadPrompt {
-    fn run(&self, script: &str) -> std::io::Result<()> {
-        let (sender, receiver) = mpsc::channel();
-        let script = script.to_owned();
-        self.app
-            .run_on_main_thread(move || {
-                let _ = sender.send(bundle_replace::run_as_administrator(&script));
-            })
-            .map_err(|error| std::io::Error::other(error.to_string()))?;
-        receiver
-            .recv()
-            .map_err(|_| std::io::Error::other("the main thread dropped the prompt"))?
     }
 }
 

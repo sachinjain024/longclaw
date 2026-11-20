@@ -94,24 +94,32 @@ function failOnMatch(files, patterns) {
 }
 
 /**
- * The one file that may run a privileged script (LC-267r, ADR 0018).
+ * The one file that may run a privileged script (LC-267r, LC-285r, ADR 0018).
  *
  * The administrator prompt used to live inside `tauri-plugin-updater`, where
- * no rule needed to see it. Once the bundle replacement moved into the app's
- * own source, a second caller of `osakit` would be a second way to run a shell
- * as root that nothing here noticed — so it is held to one file, in the shape
- * the HTTP client is held to `github_client.rs`.
+ * no rule needed to see it. Once it moved into the app's own source, a second
+ * caller of `osakit` would be a second way to run a shell as root that nothing
+ * here noticed — so it is held to one file, in the shape the HTTP client is
+ * held to `github_client.rs`. That file is the shared privileged module, whose
+ * closed set of fixed scripts is every privileged execution in the app (ADR
+ * 0018, as amended by LC-285r): the bundle replacement reaches the prompt
+ * through it, so does the command install, and neither names `osakit` itself.
+ * The exemption is the path and not the file name, so a `privileged.rs` in
+ * some other folder is no way round it.
  */
-const PRIVILEGED_FILE = "bundle_replace.rs";
+const PRIVILEGED_FILE = "src/privileged.rs";
 
 /** What the source scan says about the privileged path, over `{ path, text }`. */
 function privilegedFindings(sources) {
   return sources
-    .filter(({ path }) => !path.endsWith(`/${PRIVILEGED_FILE}`))
+    .filter(
+      ({ path }) =>
+        path !== PRIVILEGED_FILE && !path.endsWith(`/${PRIVILEGED_FILE}`),
+    )
     .filter(({ text }) => /\bosakit::/.test(text))
     .map(
       ({ path }) =>
-        `${path} names osakit — the one privileged script is ${PRIVILEGED_FILE}'s (ADR 0018)`,
+        `${path} names osakit — every privileged script is one of ${PRIVILEGED_FILE}'s (ADR 0018)`,
     );
 }
 
@@ -367,18 +375,30 @@ if (SELF_TEST) {
 
   const privilegedCases = [
     {
-      what: "osakit in the bundle replacement alone",
+      what: "osakit in the privileged module alone",
       sources: [
-        { path: "src/bundle_replace.rs", text: "osakit::Script::new" },
-        { path: "src/update_plugin.rs", text: "bundle_replace::replace" },
+        { path: "src/privileged.rs", text: "osakit::Script::new" },
+        { path: "src/bundle_replace.rs", text: "privileged::Privileged" },
       ],
       red: false,
     },
     {
       what: "a second file running a privileged script",
       sources: [
+        { path: "src/privileged.rs", text: "osakit::Script::new" },
         { path: "src/bundle_replace.rs", text: "osakit::Script::new" },
-        { path: "src/zoom.rs", text: "osakit::Script::new" },
+      ],
+      red: true,
+    },
+    {
+      what: "osakit in an unrelated file",
+      sources: [{ path: "src/zoom.rs", text: "osakit::Script::new" }],
+      red: true,
+    },
+    {
+      what: "osakit in a file that only shares the module's name",
+      sources: [
+        { path: "src/core/privileged.rs", text: "osakit::Script::new" },
       ],
       red: true,
     },

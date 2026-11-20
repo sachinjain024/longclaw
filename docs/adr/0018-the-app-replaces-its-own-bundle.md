@@ -7,6 +7,12 @@
 what the plugin does. Written for
 [LC-267r](../../.longclaw/tickets/LC-267r/ticket.md); the design is
 [its spec](../specs/LC-267r-update-never-deletes-the-app.md).
+Amended on 2026-11-20 by
+[LC-285r](../../.longclaw/tickets/LC-285r/ticket.md)
+([its spec](../specs/LC-285r-install-the-command-with-an-administrator-prompt.md)):
+the administrator prompt moves to a shared privileged module with a closed set
+of fixed scripts, so installing the `longclaw` command can use it too. See
+[_The amendment_](#the-amendment-one-privileged-module-not-one-privileged-script).
 
 The updater plugin keeps the check, the download and the minisign
 verification. **Putting the verified bytes where the bundle is becomes
@@ -84,6 +90,46 @@ that must go red:
 No other gate changes. The network-capable crate allowlist, the frozen crate
 set, the binary audit's symbol and framework sets and the runtime network audit
 are unaffected, because nothing here can reach the network.
+
+## The amendment: one privileged module, not one privileged script
+
+LC-285r gave the app a second thing it cannot always do with the person's own
+rights: link the bundled `longclaw` into `/usr/local/bin`, which a fresh Apple
+Silicon Mac does not have or leaves owned by root. The choice was a second
+prompt beside this one or one prompt shared by both. Two would be two sets of
+quoting, two hops onto the main thread and two readings of what a cancel looks
+like — exactly the drift a single rule exists to prevent — and a second caller
+of `osakit` is what the rule above was written to make visible, not to permit.
+
+So the rule **"one privileged script … the only privileged execution in the
+app" becomes: every privileged execution is one of the fixed scripts in the
+privileged module.**
+
+- **One module owns the prompt** — `privileged.rs`, the file the release
+  audit's rule is keyed on. It holds the AppleScript and shell quoting, the hop
+  onto the main thread, and the scripts themselves. A caller names a script and
+  the paths it acts on; it never hands over a shell string. Adding a script is
+  a change to that one module, read in one place.
+- **The scripts are a closed set.** Replacing the bundle (this ADR's script,
+  moved unchanged) was the first; linking the command is the second, added by
+  LC-285r. Anything else the app might want to do as root is a new decision,
+  not a new call.
+- **The prompt reports what happened.** Succeeded, cancelled, refused, or
+  failed with the script's exit status and reason, so neither caller reads
+  AppleScript's prose to tell a person's choice from a failure.
+- **What the replacement may do is otherwise unchanged.** Its script, its
+  order (copy beside, own, rename, delete last), its one folder and its sweep
+  are as above. Only where its prompt comes from changes.
+
+This supersedes two statements above, which are left as accepted: the last
+sentence of _One privileged script, and only when it must_, and the first rule
+under _The gates this changes_, whose `osakit` rule now names the privileged
+module rather than the replacement module (and whose remark that the
+AppleScript path is inside the plugin predates both). The release audit's rule
+and its `--self-test` cases follow the module, and a module of that name in any
+other folder is no way round it. The update-path naming rule is unaffected: the
+command install is to name the privileged module, never the bundle replacement,
+so ADR 0014's offline invariant still covers the update path alone.
 
 ## Consequences
 
