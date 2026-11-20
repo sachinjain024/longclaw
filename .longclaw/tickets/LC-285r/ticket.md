@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-20T10:13:27.241Z
+updated_at: 2026-11-20T10:35:29.970Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -97,18 +97,18 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 - [x] 1.3 Report a typed outcome: succeeded, cancelled, refused, failed <!-- longclaw:item=ck_4cd9867d -->
 - [x] 1.4 Move the release-audit osakit rule and its --self-test fixtures to the new module <!-- longclaw:item=ck_3d475b08 -->
 - [x] 1.5 Amend ADR 0018's 'only privileged execution' rule <!-- longclaw:item=ck_043c6bab -->
-- [ ] 2. Tracer bullet: Install escalates and succeeds on both surfaces (blocked by: 1) <!-- longclaw:item=ck_c4ab5c4d -->
+- [x] 2. Tracer bullet: Install escalates and succeeds on both surfaces (blocked by: 1) <!-- longclaw:item=ck_c4ab5c4d -->
 - [x] 2.1 Link-the-command script: create the folder, re-check the occupied path as root, link under a temporary name and rename; Rust tests over the port <!-- longclaw:item=ck_e8637f1e -->
 - [x] 2.2 Flag only the plain write's permission-denied refusal as escalatable <!-- longclaw:item=ck_770b5dde -->
 - [x] 2.3 Second IPC command that runs the script off the main thread <!-- longclaw:item=ck_67df6feb -->
 - [x] 2.4 Frontend install state machine: installing, waiting, installed; button.waiting, live.waiting, both buttons disabled, focus back to the primary <!-- longclaw:item=ck_0ed8f628 -->
 - [x] 2.5 Pass mac.prompt as the sheet's sentence <!-- longclaw:item=ck_74693766 -->
 - [ ] 3. Cancel and refusal outcomes (blocked by: 2) <!-- longclaw:item=ck_748c53a1 -->
-- [ ] 3.1 Cancel: 'Nothing was installed.', the button stays Install, no sudo line <!-- longclaw:item=ck_79fa2fe7 -->
-- [ ] 3.2 Cancelling and then closing the dialog raises the skipped toast <!-- longclaw:item=ck_a8714be2 -->
+- [x] 3.1 Cancel: 'Nothing was installed.', the button stays Install, no sudo line <!-- longclaw:item=ck_79fa2fe7 -->
+- [x] 3.2 Cancelling and then closing the dialog raises the skipped toast <!-- longclaw:item=ck_a8714be2 -->
 - [ ] 3.3 Refused password: failed.admin, the sudo line, Try again re-asks; confirm the AppleScript error number on a real Mac <!-- longclaw:item=ck_dff68dfe -->
-- [ ] 3.4 Script failure: failed.script with its reason <!-- longclaw:item=ck_457cec8d -->
-- [ ] 3.5 Occupied path found after escalating: the occupied refusal, file untouched <!-- longclaw:item=ck_f79b1e60 -->
+- [x] 3.4 Script failure: failed.script with its reason <!-- longclaw:item=ck_457cec8d -->
+- [x] 3.5 Occupied path found after escalating: the occupied refusal, file untouched <!-- longclaw:item=ck_f79b1e60 -->
 - [ ] 4. Non-escalated failures and copy (blocked by: 2; parallel with 3) <!-- longclaw:item=ck_c0a6b7ed -->
 - [ ] 4.1 Full disk: no sudo line; Try again retries the write <!-- longclaw:item=ck_bd918b50 -->
 - [ ] 4.2 Reworded status.occupied <!-- longclaw:item=ck_5579d293 -->
@@ -649,4 +649,46 @@ changes:
 ### Claude Code updated this ticket
 
 2.1-2.5 done. The backend already maps cancel/refused/failed/occupied to their deck strings; the UI still shows all of them as a 'failed' step with Try again, and a full disk still shows the sudo line. Items 3.x and 4.x change those.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fd568206
+kind: update
+occurred_at: 2026-11-20T10:14:26.385Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_c4ab5c4d.checked
+    from: "false"
+    to: "true"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0f9f7f44
+kind: update
+occurred_at: 2026-11-20T10:35:29.970Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_79fa2fe7.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_a8714be2.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_457cec8d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_f79b1e60.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+3.1, 3.2, 3.4 and 3.5 done. 3.3's UI is done (failed.admin, the line, Try again re-asks) but it stays open: the AppleScript error number for a refused password (-60005/-60007 assumed from Security's headers) has to be confirmed at a real sheet. 3.5 lands in the occupied state via a status re-read, so it shows status.occupied rather than the refusal sentence (review decision E); 4.2 rewords that sentence.
 <!-- /longclaw:event -->
