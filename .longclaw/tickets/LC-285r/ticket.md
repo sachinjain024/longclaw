@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-20T10:35:29.970Z
+updated_at: 2026-11-20T10:46:07.728Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -110,9 +110,9 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 - [x] 3.4 Script failure: failed.script with its reason <!-- longclaw:item=ck_457cec8d -->
 - [x] 3.5 Occupied path found after escalating: the occupied refusal, file untouched <!-- longclaw:item=ck_f79b1e60 -->
 - [ ] 4. Non-escalated failures and copy (blocked by: 2; parallel with 3) <!-- longclaw:item=ck_c0a6b7ed -->
-- [ ] 4.1 Full disk: no sudo line; Try again retries the write <!-- longclaw:item=ck_bd918b50 -->
-- [ ] 4.2 Reworded status.occupied <!-- longclaw:item=ck_5579d293 -->
-- [ ] 4.3 Delete refusal.denied <!-- longclaw:item=ck_9ddb938f -->
+- [x] 4.1 Full disk: no sudo line; Try again retries the write <!-- longclaw:item=ck_bd918b50 -->
+- [x] 4.2 Reworded status.occupied <!-- longclaw:item=ck_5579d293 -->
+- [x] 4.3 Delete refusal.denied <!-- longclaw:item=ck_9ddb938f -->
 - [ ] 5. Docs and release check (blocked by: 3, 4) <!-- longclaw:item=ck_088dd221 -->
 - [ ] 5.1 Rewrite the comments that say the app cannot escalate <!-- longclaw:item=ck_3bd534ff -->
 - [ ] 5.2 Update the release-candidate Filesystem scope row <!-- longclaw:item=ck_c7d4741f -->
@@ -691,4 +691,28 @@ changes:
 ### Claude Code updated this ticket
 
 3.1, 3.2, 3.4 and 3.5 done. 3.3's UI is done (failed.admin, the line, Try again re-asks) but it stays open: the AppleScript error number for a refused password (-60005/-60007 assumed from Security's headers) has to be confirmed at a real sheet. 3.5 lands in the occupied state via a status re-read, so it shows status.occupied rather than the refusal sentence (review decision E); 4.2 rewords that sentence.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b2eb4851
+kind: update
+occurred_at: 2026-11-20T10:46:07.728Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bd918b50.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_5579d293.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_9ddb938f.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+4.1-4.3 done. Two copy notes for review: (1) the deck's refusal.diskfull row ('…failed: there is no space left on the disk.') does not match what the app has always said, which comes from the shared AppError::io classifier: 'Installing the longclaw command failed for bin. The volume it is on has no space left.' Tests pin the real text; the deck row looks like a paraphrase. (2) The plain write's permission refusals now read '{folder} does not exist, and creating it needs an administrator.', 'Writing to {folder} needs an administrator.' and 'Replacing {link} needs an administrator.' No screen shows them (they are the sheet's cue), but they are not in the deck.
 <!-- /longclaw:event -->
