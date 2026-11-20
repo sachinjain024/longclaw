@@ -19,7 +19,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 
 use crate::core::storage;
-use crate::privileged::{shell_quote, Privileged};
+use crate::privileged::{Privileged, Script};
 
 /// Which movement failed. Carried in the error so a report can say where,
 /// which is the detail LC-265y's diagnosis did not have.
@@ -256,38 +256,26 @@ fn replace_privileged(
     let scratch = std::env::temp_dir().join(format!("longclaw-update-{token}"));
     fs::create_dir(&scratch).map_err(fail(Step::Stage))?;
     let outcome = unpack_and_check(archive, &scratch).and_then(|staged| {
-        let script = privileged_script(&staged, bundle, token).map_err(fail(Step::Stage))?;
+        let script = replacement_script(&staged, bundle, token).map_err(fail(Step::Stage))?;
         privileged.run(&script).map_err(fail(Step::Privileged))
     });
     let _ = fs::remove_dir_all(&scratch);
     outcome
 }
 
-/// The script the prompt runs. Every path is single-quoted; the bundle is
-/// never the target of an `rm`.
-/// The new bundle is given the replaced one's owner and group before it moves.
-fn privileged_script(staged: &Path, bundle: &Path, token: &str) -> io::Result<String> {
+/// The script the prompt runs: the bundle's own replacement, with the copy and
+/// the old version named beside it under this replacement's token, so the
+/// launch-time sweep recognises whatever an interrupted one leaves.
+fn replacement_script(staged: &Path, bundle: &Path, token: &str) -> io::Result<Script> {
     // A path with no folder or no name is refused, never guessed at: a script
     // run as root must not invent the directory it writes in.
     let (parent, name) = parts_of(bundle)?;
-    let copy = shell_quote(&parent.join(leftover_name(&name, STAGED, token)));
-    let previous = shell_quote(&parent.join(leftover_name(&name, PREVIOUS, token)));
-    let staged = shell_quote(staged);
-    let bundle = shell_quote(bundle);
-    Ok([
-        format!("/usr/bin/ditto {staged} {copy} || {{ /bin/rm -rf {copy}; exit 1; }}"),
-        // `ditto` as root keeps the owner of what it copies, which is the
-        // user who unpacked it: a standard account would come to own an app
-        // every account runs. The copy takes the replaced bundle's owner.
-        format!(
-            "/usr/sbin/chown -R -h \"$(/usr/bin/stat -f %u:%g {bundle})\" {copy} || {{ /bin/rm -rf {copy}; exit 1; }}"
-        ),
-        format!("/bin/mv {bundle} {previous} || {{ /bin/rm -rf {copy}; exit 1; }}"),
-        format!("if ! /bin/mv {copy} {bundle}; then /bin/mv {previous} {bundle}; /bin/rm -rf {copy}; exit 1; fi"),
-        format!("/bin/rm -rf {previous}"),
-        format!("/usr/bin/touch {bundle}"),
-    ]
-    .join("\n"))
+    Ok(Script::ReplaceBundle {
+        staged: staged.to_path_buf(),
+        bundle: bundle.to_path_buf(),
+        copy: parent.join(leftover_name(&name, STAGED, token)),
+        previous: parent.join(leftover_name(&name, PREVIOUS, token)),
+    })
 }
 
 fn parts_of(bundle: &Path) -> io::Result<(PathBuf, String)> {
@@ -543,7 +531,7 @@ mod tests {
 
     struct NoPrompt;
     impl Privileged for NoPrompt {
-        fn run(&self, _script: &str) -> io::Result<()> {
+        fn run(&self, _script: &Script) -> io::Result<()> {
             panic!("no administrator prompt was expected");
         }
     }
@@ -917,7 +905,7 @@ mod tests {
 
     struct Cancelled;
     impl Privileged for Cancelled {
-        fn run(&self, _script: &str) -> io::Result<()> {
+        fn run(&self, _script: &Script) -> io::Result<()> {
             Err(io::Error::from(io::ErrorKind::PermissionDenied))
         }
     }
@@ -934,65 +922,57 @@ mod tests {
         assert_eq!(entries(&folder), vec![BUNDLE]);
     }
 
+    /// The names are the sweep's: a copy or an old version left by an
+    /// interrupted prompt must be one `sweep` recognises and removes.
     #[test]
-    fn the_prompt_is_never_asked_to_remove_the_bundle_before_the_new_one_is_beside_it() {
-        let script = privileged_script(
+    fn the_prompt_names_its_leftovers_the_way_the_sweep_reads_them() {
+        let script = replacement_script(
             Path::new("/tmp/staged/LongClaw.app"),
             Path::new("/Applications/LongClaw.app"),
-            "abc",
+            "0123456789abcdef0123456789abcdef",
         )
         .unwrap();
-        let copy = script.find("/usr/bin/ditto").unwrap();
-        let first_move = script.find("/bin/mv").unwrap();
-        assert!(
-            copy < first_move,
-            "the copy must come before anything moves: {script}"
+        assert_eq!(
+            script,
+            Script::ReplaceBundle {
+                staged: PathBuf::from("/tmp/staged/LongClaw.app"),
+                bundle: PathBuf::from("/Applications/LongClaw.app"),
+                copy: PathBuf::from(
+                    "/Applications/.LongClaw.app.lc-update-0123456789abcdef0123456789abcdef"
+                ),
+                previous: PathBuf::from(
+                    "/Applications/.LongClaw.app.lc-previous-0123456789abcdef0123456789abcdef"
+                ),
+            }
         );
-        assert!(
-            !script.contains("/bin/rm -rf '/Applications/LongClaw.app'"),
-            "the bundle itself is never removed: {script}"
-        );
+        let Script::ReplaceBundle { copy, previous, .. } = script;
+        for leftover in [copy, previous] {
+            let name = leftover.file_name().unwrap().to_string_lossy();
+            assert!(is_leftover("LongClaw.app", &name), "{name}");
+        }
     }
 
+    /// Whatever the folder is called, the copy and the old version land in it,
+    /// beside the bundle: on its volume, where the rename is atomic.
     #[test]
-    fn the_copy_takes_the_replaced_bundles_owner_before_anything_moves() {
-        let script = privileged_script(
+    fn the_leftovers_sit_beside_the_bundle_whatever_its_folder_is_called() {
+        let bundle = Path::new("/Apps it's 'quoted' $HOME/LongClaw.app");
+        let Script::ReplaceBundle { copy, previous, .. } = replacement_script(
             Path::new("/tmp/staged/LongClaw.app"),
-            Path::new("/Applications/LongClaw.app"),
-            "abc",
+            bundle,
+            "0123456789abcdef0123456789abcdef",
         )
         .unwrap();
-        let copy = script.find("/usr/bin/ditto").unwrap();
-        let owner = script
-            .find("/usr/sbin/chown -R -h \"$(/usr/bin/stat -f %u:%g '/Applications/LongClaw.app')\" '/Applications/.LongClaw.app.lc-update-abc'")
-            .unwrap_or_else(|| panic!("the copy is not given the bundle's owner: {script}"));
-        let first_move = script.find("/bin/mv").unwrap();
-        assert!(copy < owner && owner < first_move, "{script}");
-    }
-
-    #[test]
-    fn the_prompt_quotes_every_path_it_names() {
-        let script = privileged_script(
-            Path::new("/tmp/it's/LongClaw.app"),
-            Path::new("/Apps it's 'quoted' $HOME/LongClaw.app"),
-            "abc",
-        )
-        .unwrap();
-        assert!(
-            script.contains(r"'/Apps it'\''s '\''quoted'\'' $HOME/LongClaw.app'"),
-            "{script}"
-        );
-        assert!(
-            !script.contains(" /Apps it"),
-            "a path appears unquoted: {script}"
-        );
+        for leftover in [copy, previous] {
+            assert_eq!(leftover.parent(), bundle.parent(), "{leftover:?}");
+        }
     }
 
     #[test]
     fn a_path_with_no_folder_or_name_gets_no_script() {
         for bundle in ["/", ""] {
             assert!(
-                privileged_script(
+                replacement_script(
                     Path::new("/tmp/staged/LongClaw.app"),
                     Path::new(bundle),
                     "abc"

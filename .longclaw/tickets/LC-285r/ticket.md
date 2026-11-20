@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-20T04:44:42.787Z
+updated_at: 2026-11-20T04:55:23.910Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -93,7 +93,7 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 
 - [ ] 1. Prefactor: one shared privileged module (blocked by: none) <!-- longclaw:item=ck_ff8688b1 -->
 - [x] 1.1 Move the Privileged port, the main-thread prompt and the AppleScript/shell quoting into the new module <!-- longclaw:item=ck_ebda3d42 -->
-- [ ] 1.2 Make the module's scripts a closed set, with the bundle replacement as its first entry <!-- longclaw:item=ck_971d0f63 -->
+- [x] 1.2 Make the module's scripts a closed set, with the bundle replacement as its first entry <!-- longclaw:item=ck_971d0f63 -->
 - [ ] 1.3 Report a typed outcome: succeeded, cancelled, refused, failed <!-- longclaw:item=ck_4cd9867d -->
 - [x] 1.4 Move the release-audit osakit rule and its --self-test fixtures to the new module <!-- longclaw:item=ck_3d475b08 -->
 - [ ] 1.5 Amend ADR 0018's 'only privileged execution' rule <!-- longclaw:item=ck_043c6bab -->
@@ -550,4 +550,22 @@ changes:
 ### Claude Code updated this ticket
 
 1.4 done with 1.1: moving the osakit call meant the release audit's privileged rule had to move too. It now exempts src/privileged.rs by path, and its self-test rejects three cases.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e76d8553
+kind: update
+occurred_at: 2026-11-20T04:55:23.910Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_971d0f63.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+1.2 done: the privileged module's scripts are a closed Script enum, with the bundle replacement as its first entry. The port takes a Script and no caller can hand the prompt a shell string. The rendered text is unchanged.
 <!-- /longclaw:event -->
