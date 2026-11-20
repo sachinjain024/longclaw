@@ -190,7 +190,7 @@ type InstallStep =
   | { kind: "installed" }
   | { kind: "cancelled"; message: string }
   | { kind: "refused"; message: string; command?: string }
-  | { kind: "failed"; message: string };
+  | { kind: "failed"; message: string; command?: string };
 
 /** An install's rejection, as `normalizeError` reads it. */
 type InstallError = ReturnType<typeof normalizeError>;
@@ -213,7 +213,9 @@ function outcomeOf(error: InstallError): Outcome {
   if (error.code === "permission_denied") {
     return { kind: "refused", message, command };
   }
-  return { kind: "failed", message };
+  // Rust attaches a line to a failure only when the prompt itself broke, so
+  // root may never have tried; a script that failed as root carries none.
+  return { kind: "failed", message, command };
 }
 
 /** Somebody else's file holds the name — found by the write, or as root after
@@ -491,6 +493,7 @@ function lineFor(
   if (outcome.kind === "refused") {
     return outcome.command ?? status.manualCommand;
   }
+  if (outcome.kind === "failed") return outcome.command ?? null;
   return null;
 }
 

@@ -902,6 +902,29 @@ describe.each(["pane", "dialog"] as const)(
       expect(screen.queryByText(COMMAND)).toBeNull();
     });
 
+    /** The prompt itself broke, so root may never have tried: the line is the
+     *  safety net, and `Try again` still offers the sheet. */
+    it("hands over the line when the prompt itself broke", async () => {
+      const reason =
+        "LongClaw could not install the command, even as an administrator: The sheet could not be shown. (-60008)";
+      sheetAnswers({
+        code: "io",
+        message: reason,
+        recoverable: true,
+        context: { command: COMMAND },
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(reason);
+      expect(screen.getByText(COMMAND)).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+      await waitFor(() =>
+        expect(api.installCommandLineAsAdmin).toHaveBeenCalledTimes(2),
+      );
+    });
+
     /** `sudo` does not make room (LC-285r, 4.1): no line, no sheet, and
      *  `Try again` is the plain write again. */
     it("hands over no line for a full disk, and Try again writes again", async () => {

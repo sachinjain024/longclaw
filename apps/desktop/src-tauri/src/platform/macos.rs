@@ -418,12 +418,26 @@ pub fn install_as_admin(source: &Path, link: &Path, privileged: &dyn Privileged)
             code: Some(LINK_OCCUPIED),
             ..
         } => occupied(link, command),
-        failed @ PromptError::Failed { .. } => AppError::new(
-            ErrorCode::Io,
-            format!("LongClaw could not install the command, even as an administrator: {failed}"),
-            true,
-        )
-        .with_context("path", link.display().to_string()),
+        failed @ PromptError::Failed { code, .. } => {
+            let error = AppError::new(
+                ErrorCode::Io,
+                format!(
+                    "LongClaw could not install the command, even as an administrator: {failed}"
+                ),
+                true,
+            )
+            .with_context("path", link.display().to_string());
+            // No exit status means the script never reported one: the prompt
+            // broke — AppleScript would not compile or run, or macOS answered
+            // with a number `outcome_of` does not map — so root may never have
+            // tried. The line is the safety net that does the same install in
+            // Terminal. A script that exited non-zero did run as root, and the
+            // same write pasted by hand would fail the same way.
+            match code {
+                None => error.with_context("command", command),
+                Some(_) => error,
+            }
+        }
     })
 }
 

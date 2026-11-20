@@ -325,6 +325,33 @@ fn a_script_that_fails_says_why_and_leaves_nothing_behind() {
         "{}",
         error.message
     );
+    // Root already tried and failed: the same write pasted into Terminal is
+    // no way out.
+    assert!(!error.context.contains_key("command"));
     unlock(&mac.bin);
     assert_eq!(mac.entries(), Vec::<String>::new());
+}
+
+/// The prompt itself broke — AppleScript would not compile or run, or macOS
+/// answered with a number nobody mapped — so the write may never have been
+/// tried as root. The line is the safety net: it does the same install in
+/// Terminal, and it is what the app offered before it could ask at all.
+#[test]
+fn a_prompt_that_breaks_hands_over_the_line() {
+    let mac = Mac::with_locked_bin();
+
+    let error = install(
+        &mac,
+        &Answers(|| PromptError::broken("The sheet could not be shown. (-60008)")),
+    )
+    .unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::Io);
+    assert!(
+        !escalates(&error),
+        "a broken prompt must not ask again by itself"
+    );
+    let command = error.context.get("command").unwrap();
+    assert!(command.starts_with("sudo mkdir -p "), "{command}");
+    assert!(!mac.link.exists());
 }
