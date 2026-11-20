@@ -11,10 +11,10 @@
  * app, because "already installed" over a stale link is how somebody ends up
  * running last month's build against this month's file format.
  *
- * The refusal is the second half. The app cannot escalate (`release-audit.mjs`
- * forbids the subprocess that would ask), so the line to paste *is* the
- * feature, and a refusal that swallowed it would leave a person with no way
- * through at all.
+ * The refusal is the second half. A write refused for want of rights goes on
+ * to macOS's password sheet (LC-285r), and what the sheet answers decides
+ * what is said: a refused password hands over the line to paste, for whoever
+ * does administer the Mac, and a failure `sudo` cannot fix hands over none.
  *
  * The third is what LC-249a added: that the surfaces make an argument before
  * they describe a button, that the sentences which survived are the ones that
@@ -71,6 +71,29 @@ function status(over: Partial<CommandLineStatus> = {}): CommandLineStatus {
     manualCommand: COMMAND,
     ...over,
   };
+}
+
+/** The plain write's refusal for want of rights, which raises the sheet. */
+const NEEDS_ADMIN = {
+  code: "permission_denied",
+  message: "Writing to /usr/local/bin needs an administrator.",
+  recoverable: true,
+  context: { escalate: "true", command: COMMAND },
+};
+
+/** The copy deck's `failed.admin`. */
+const PASSWORD_REFUSED =
+  "macOS did not accept an administrator password, so nothing was installed. If someone else administers this Mac, they can run the line below.";
+
+/** The plain write needs an administrator, and macOS refuses the password. */
+function passwordRefused(context?: Record<string, string>) {
+  vi.mocked(api.installCommandLine).mockRejectedValue(NEEDS_ADMIN);
+  vi.mocked(api.installCommandLineAsAdmin).mockRejectedValue({
+    code: "permission_denied",
+    message: PASSWORD_REFUSED,
+    recoverable: true,
+    ...(context ? { context } : {}),
+  });
 }
 
 /** The one control that installs, whatever this state calls it. */
@@ -167,7 +190,16 @@ describe("the command line pane", () => {
       />,
     );
 
-    expect(screen.getByText(/did not create/)).toBeTruthy();
+    // The copy deck's `status.occupied` (LC-285r): no "try again", because
+    // there is no button here that could.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent ===
+            `LongClaw cannot replace ${LINK}. Move it or rename it, then reopen this pane, or run the line below yourself.`,
+      ),
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Install/ })).toBeNull();
     expect(screen.getByText(COMMAND)).toBeTruthy();
   });
@@ -193,21 +225,17 @@ describe("the command line pane", () => {
   });
 
   /**
-   * The whole escalation story: no privileged helper, no subprocess — the
-   * refusal in words, and the exact line with the paths already in it.
+   * When even the password sheet is refused, the refusal in words and the
+   * exact line with the paths already in it — for whoever does administer
+   * this Mac.
    */
-  it("shows the refusal and the exact line when the write is not allowed", async () => {
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+  it("shows the refusal and the exact line when the password is refused", async () => {
+    passwordRefused({ command: COMMAND });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
 
-    await screen.findByText(/could not write to/);
+    await screen.findByText(PASSWORD_REFUSED);
     expect(screen.getByText(COMMAND)).toBeTruthy();
   });
 
@@ -215,13 +243,8 @@ describe("the command line pane", () => {
    * LC-233 left the button reading `Install` after a failed install, so pressing
    * it a second time looked like the first press had not registered.
    */
-  it("turns the primary into Try again once a write has been refused", async () => {
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+  it("turns the primary into Try again once the password has been refused", async () => {
+    passwordRefused({ command: COMMAND });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
@@ -237,13 +260,7 @@ describe("the command line pane", () => {
    */
   it("prefers the line the refusal itself carries over the one read at launch", async () => {
     const fresher = `sudo mkdir -p '/usr/local/bin' && sudo ln -sf '/Applications/Moved/LongClaw.app/Contents/MacOS/longclaw' '${LINK}'`;
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-      context: { command: fresher },
-    });
+    passwordRefused({ command: fresher });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
@@ -252,14 +269,10 @@ describe("the command line pane", () => {
     expect(screen.queryByText(COMMAND)).toBeNull();
   });
 
-  /** A refusal from an older build carries no command; the status still has one. */
+  /** A refusal that carries no line of its own still gets the status's: the
+   *  line is the way out of a refused password, whoever computed it. */
   it("falls back to the status's line when the refusal carries none", async () => {
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+    passwordRefused();
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Install" }));
@@ -577,12 +590,7 @@ describe("the first-launch offer", () => {
    */
   it("stays up after a refusal, holding the line to paste", async () => {
     const onDismiss = vi.fn();
-    vi.mocked(api.installCommandLine).mockRejectedValue({
-      code: "permission_denied",
-      message:
-        "LongClaw could not write to /usr/local/bin. The line below does the same thing.",
-      recoverable: true,
-    });
+    passwordRefused({ command: COMMAND });
     render(
       <CommandLineOffer
         status={status()}
@@ -609,7 +617,7 @@ describe("the first-launch offer", () => {
 describe("installing through the administrator prompt", () => {
   const ESCALATABLE = {
     code: "permission_denied",
-    message: "LongClaw could not write to /usr/local/bin.",
+    message: "Writing to /usr/local/bin needs an administrator.",
     recoverable: true,
     context: { escalate: "true", command: COMMAND },
   };
@@ -642,7 +650,7 @@ describe("installing through the administrator prompt", () => {
     vi.mocked(api.installCommandLine).mockRejectedValue({
       code: "io",
       message:
-        "Installing the longclaw command failed for bin. There is no space left on the disk.",
+        "Installing the longclaw command failed for bin. The volume it is on has no space left.",
       recoverable: true,
     });
     render(<CommandLineSection status={status()} onStatus={() => {}} />);
@@ -802,7 +810,7 @@ describe.each(["pane", "dialog"] as const)(
   (surface) => {
     const ESCALATABLE = {
       code: "permission_denied",
-      message: "LongClaw could not write to /usr/local/bin.",
+      message: "Writing to /usr/local/bin needs an administrator.",
       recoverable: true,
       context: { escalate: "true", command: COMMAND },
     };
@@ -894,9 +902,33 @@ describe.each(["pane", "dialog"] as const)(
       expect(screen.queryByText(COMMAND)).toBeNull();
     });
 
+    /** `sudo` does not make room (LC-285r, 4.1): no line, no sheet, and
+     *  `Try again` is the plain write again. */
+    it("hands over no line for a full disk, and Try again writes again", async () => {
+      const full =
+        "Installing the longclaw command failed for bin. The volume it is on has no space left.";
+      vi.mocked(api.installCommandLine).mockRejectedValue({
+        code: "io",
+        message: full,
+        recoverable: true,
+      });
+      render(<Surface />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+      await screen.findByText(full);
+      expect(screen.queryByText(COMMAND)).toBeNull();
+      expect(screen.queryByText(/sudo/)).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+      await waitFor(() =>
+        expect(api.installCommandLine).toHaveBeenCalledTimes(2),
+      );
+      expect(api.installCommandLineAsAdmin).not.toHaveBeenCalled();
+    });
+
     it("turns occupied when a file is found at the name as root", async () => {
       const refusal =
-        "/usr/local/bin/longclaw is a file LongClaw did not create, and LongClaw will not replace one. Move or rename it, then try again.";
+        "LongClaw cannot replace /usr/local/bin/longclaw. Move it or rename it, then reopen this pane, or run the line below yourself.";
       sheetAnswers({
         code: "io",
         message: refusal,
@@ -910,8 +942,9 @@ describe.each(["pane", "dialog"] as const)(
 
       fireEvent.click(screen.getByRole("button", { name: "Install" }));
 
-      await screen.findByText(/is a file LongClaw did not create, so/);
-      expect(screen.queryByText(refusal)).toBeNull();
+      // Said once, by the state — not a second time as a refusal under it.
+      await screen.findByText(/LongClaw cannot replace/);
+      expect(screen.getAllByText(/LongClaw cannot replace/)).toHaveLength(1);
       expect(screen.getByText(COMMAND)).toBeTruthy();
       expect(
         screen.queryByRole("button", {
@@ -923,7 +956,7 @@ describe.each(["pane", "dialog"] as const)(
     it("turns occupied even when the fresh status cannot be read", async () => {
       sheetAnswers({
         code: "io",
-        message: "/usr/local/bin/longclaw is a file LongClaw did not create.",
+        message: "LongClaw cannot replace /usr/local/bin/longclaw.",
         recoverable: true,
         context: { state: "occupied", command: COMMAND },
       });
@@ -932,7 +965,7 @@ describe.each(["pane", "dialog"] as const)(
 
       fireEvent.click(screen.getByRole("button", { name: "Install" }));
 
-      await screen.findByText(/is a file LongClaw did not create, so/);
+      await screen.findByText(/then reopen this pane/);
       expect(screen.getByText(COMMAND)).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     });

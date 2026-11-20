@@ -181,8 +181,7 @@ const STATES: Record<
  * - `refused` is macOS not accepting a password. `Try again` asks again, and
  *   the line is there for whoever does administer this Mac.
  * - `failed` is anything else — the script failed as root, or a write a
- *   password would not have helped. `Try again`, and the line only when the
- *   failure itself carried one.
+ *   password would not have helped. `Try again`, and no line.
  */
 type InstallStep =
   | { kind: "idle" }
@@ -191,7 +190,7 @@ type InstallStep =
   | { kind: "installed" }
   | { kind: "cancelled"; message: string }
   | { kind: "refused"; message: string; command?: string }
-  | { kind: "failed"; message: string; command?: string };
+  | { kind: "failed"; message: string };
 
 /** An install's rejection, as `normalizeError` reads it. */
 type InstallError = ReturnType<typeof normalizeError>;
@@ -214,7 +213,7 @@ function outcomeOf(error: InstallError): Outcome {
   if (error.code === "permission_denied") {
     return { kind: "refused", message, command };
   }
-  return { kind: "failed", message, command };
+  return { kind: "failed", message };
 }
 
 /** Somebody else's file holds the name — found by the write, or as root after
@@ -417,10 +416,11 @@ function StatusLine(props: { status: CommandLineStatus }) {
       );
     case "occupied":
       return (
+        // LC-285r's wording: what LongClaw cannot do and what will, without
+        // the old "try again" — there is no button here that could.
         <p className="cli-state">
-          <code>{status.linkPath}</code> is a file LongClaw did not create, so
-          LongClaw will not replace it. Move or rename it and reopen this pane,
-          or run the line below yourself.
+          LongClaw cannot replace <code>{status.linkPath}</code>. Move it or
+          rename it, then reopen this pane, or run the line below yourself.
         </p>
       );
     case "unavailable":
@@ -477,11 +477,10 @@ function statusIsNews(
  *
  * After a refused password, because it is the way out for whoever does
  * administer the Mac; and in a state the app can never write its way out of.
- * Not after a cancel, which was a choice, and not beside an unpressed button,
- * where it reads as two ways to do one thing. A failure shows one only when it
- * carried one — which a plain write's full-disk refusal still does until
- * LC-285r's item 4.1 takes it off. The refusal's own copy wins where there is
- * one — see `outcomeOf`.
+ * Not after a cancel, which was a choice; not after a failure, because the
+ * line is the same write as root and `sudo` makes no room on a full disk; and
+ * not beside an unpressed button, where it reads as two ways to do one thing.
+ * The refusal's own copy wins where there is one — see `outcomeOf`.
  */
 function lineFor(
   status: CommandLineStatus,
@@ -492,7 +491,6 @@ function lineFor(
   if (outcome.kind === "refused") {
     return outcome.command ?? status.manualCommand;
   }
-  if (outcome.kind === "failed") return outcome.command ?? null;
   return null;
 }
 

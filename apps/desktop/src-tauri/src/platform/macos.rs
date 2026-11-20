@@ -270,18 +270,21 @@ fn describe(source: Option<&Path>, link: &Path) -> CommandLineStatus {
 /// administrator is bad advice for a volume with no space left on it, which
 /// `sudo` will not fix either.
 ///
-/// The line to paste rides on both, because it is the way out of a refusal
-/// whatever the refusal was.
+/// The line to paste rides only on the first, as the way out for a caller that
+/// does not go on to the sheet — the app's own surfaces always do, and show
+/// the line `install_as_admin` attaches if the password is refused. Never on
+/// the second: it is the same write as root, so it is no way out of a failure
+/// `sudo` cannot fix (LC-285r, item 4.1).
 fn refused(at: &Path, error: std::io::Error, permission: String, command: String) -> AppError {
-    let reported = if error.kind() == std::io::ErrorKind::PermissionDenied {
+    if error.kind() == std::io::ErrorKind::PermissionDenied {
         AppError::new(ErrorCode::PermissionDenied, permission, true)
             .with_context("path", at.display().to_string())
             .with_context("systemError", error.to_string())
             .with_context(ESCALATE, "true")
+            .with_context("command", command)
     } else {
         AppError::io(INSTALL_ACTION, at, error)
-    };
-    reported.with_context("command", command)
+    }
 }
 
 /// A file this app did not create is somebody's own install — a binary they
@@ -294,9 +297,11 @@ fn refused(at: &Path, error: std::io::Error, permission: String, command: String
 fn occupied(link: &Path, command: String) -> AppError {
     AppError::new(
         ErrorCode::Io,
+        // The copy deck's `status.occupied`, so the refusal and the state it
+        // leaves the surface in say one thing.
         format!(
-            "{} is a file LongClaw did not create, and LongClaw will not \
-             replace one. Move or rename it, then try again.",
+            "LongClaw cannot replace {}. Move it or rename it, then reopen \
+             this pane, or run the line below yourself.",
             link.display()
         ),
         true,
@@ -335,8 +340,7 @@ pub fn install_into(source: &Path, link: &Path) -> AppResult<()> {
                 parent,
                 error,
                 format!(
-                    "{} does not exist, and creating it needs an administrator. \
-                     The line below does the same thing.",
+                    "{} does not exist, and creating it needs an administrator.",
                     parent.display()
                 ),
                 command.clone(),
@@ -351,11 +355,7 @@ pub fn install_into(source: &Path, link: &Path) -> AppResult<()> {
         refused(
             parent,
             error,
-            format!(
-                "LongClaw could not write to {}. The line below does the same \
-                 thing.",
-                parent.display()
-            ),
+            format!("Writing to {} needs an administrator.", parent.display()),
             command.clone(),
         )
     })?;
@@ -364,11 +364,7 @@ pub fn install_into(source: &Path, link: &Path) -> AppResult<()> {
         refused(
             link,
             error,
-            format!(
-                "LongClaw could not replace {}. The line below does the same \
-                 thing.",
-                link.display()
-            ),
+            format!("Replacing {} needs an administrator.", link.display()),
             command,
         )
     })
@@ -527,7 +523,16 @@ mod command_line_tests {
         assert_eq!(state(&source, &link), CommandLineState::Occupied);
         let error = install_into(&source, &link).unwrap_err();
 
-        assert!(error.message.contains("will not"), "{}", error.message);
+        // The copy deck's `status.occupied` (LC-285r): no "try again", because
+        // there is no button that could.
+        assert_eq!(
+            error.message,
+            format!(
+                "LongClaw cannot replace {}. Move it or rename it, then reopen \
+                 this pane, or run the line below yourself.",
+                link.display()
+            )
+        );
         assert!(error.context.contains_key("command"));
         assert_eq!(fs::read(&link).unwrap(), b"somebody else's longclaw");
     }
@@ -544,8 +549,12 @@ mod command_line_tests {
         assert_eq!(state(&source, &link), CommandLineState::Linked);
     }
 
+    /// The refusal is the password sheet's cue rather than something a person
+    /// reads (LC-285r): it carries `escalate`, and the line for a caller that
+    /// does not escalate. It no longer promises "the line below", which the
+    /// copy deck deleted with the screen that showed it (`refusal.denied`).
     #[test]
-    fn a_folder_this_process_cannot_write_is_refused_with_the_line_to_paste() {
+    fn a_folder_this_process_cannot_write_is_refused_for_the_password_sheet() {
         let (_temp, source, link) = fixture();
         let directory = link.parent().unwrap();
         fs::set_permissions(directory, fs::Permissions::from_mode(0o555)).unwrap();
@@ -554,15 +563,8 @@ mod command_line_tests {
 
         fs::set_permissions(directory, fs::Permissions::from_mode(0o755)).unwrap();
         assert_eq!(error.code, crate::core::ErrorCode::PermissionDenied);
-        // The refusal hands off to the line rather than stopping at "no". It
-        // used to say "Run the install from Terminal instead"; LC-249a's copy
-        // deck points at the line the app puts directly underneath it, which is
-        // the thing the person actually has to do next.
-        assert!(
-            error.message.contains("The line below"),
-            "{}",
-            error.message
-        );
+        assert!(error.context.contains_key(ESCALATE));
+        assert!(!error.message.contains("line below"), "{}", error.message);
         let command = error.context.get("command").unwrap();
         assert!(command.starts_with("sudo mkdir -p "), "{command}");
         assert!(command.contains("ln -sf"), "{command}");
@@ -587,6 +589,22 @@ mod command_line_tests {
         assert!(!escalates(std::io::ErrorKind::StorageFull));
         assert!(!escalates(std::io::ErrorKind::ReadOnlyFilesystem));
         assert!(!escalates(std::io::ErrorKind::QuotaExceeded));
+    }
+
+    /// And they hand over no `sudo` line either: running the same write as
+    /// root does not make room on a full disk (LC-285r, item 4.1).
+    #[test]
+    fn a_failure_sudo_cannot_fix_hands_over_no_line() {
+        let at = Path::new("/usr/local/bin");
+        let line = |kind: std::io::ErrorKind| {
+            refused(at, kind.into(), "denied".into(), "sudo …".into())
+                .context
+                .contains_key("command")
+        };
+
+        assert!(line(std::io::ErrorKind::PermissionDenied));
+        assert!(!line(std::io::ErrorKind::StorageFull));
+        assert!(!line(std::io::ErrorKind::ReadOnlyFilesystem));
     }
 
     /// The refusal promises the *exact* line. A path with a space in it is
