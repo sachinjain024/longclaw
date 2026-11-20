@@ -19,7 +19,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 
 use crate::core::storage;
-use crate::privileged::{Privileged, Script};
+use crate::privileged::{Privileged, PromptError, Script};
 
 /// Which movement failed. Carried in the error so a report can say where,
 /// which is the detail LC-265y's diagnosis did not have.
@@ -161,6 +161,17 @@ impl Disk for System {
     }
 }
 
+/// The prompt's outcome as the filesystem failure a `ReplaceError` carries:
+/// neither a cancel nor a refusal was granted the rights it asked for.
+fn io_error_of(error: PromptError) -> io::Error {
+    match error {
+        PromptError::Cancelled | PromptError::Refused => {
+            io::Error::new(io::ErrorKind::PermissionDenied, error)
+        }
+        PromptError::Failed { .. } => io::Error::other(error),
+    }
+}
+
 fn fail(step: Step) -> impl FnOnce(io::Error) -> ReplaceError {
     move |source| ReplaceError { step, source }
 }
@@ -257,7 +268,9 @@ fn replace_privileged(
     fs::create_dir(&scratch).map_err(fail(Step::Stage))?;
     let outcome = unpack_and_check(archive, &scratch).and_then(|staged| {
         let script = replacement_script(&staged, bundle, token).map_err(fail(Step::Stage))?;
-        privileged.run(&script).map_err(fail(Step::Privileged))
+        privileged
+            .run(&script)
+            .map_err(|error| fail(Step::Privileged)(io_error_of(error)))
     });
     let _ = fs::remove_dir_all(&scratch);
     outcome
@@ -531,7 +544,7 @@ mod tests {
 
     struct NoPrompt;
     impl Privileged for NoPrompt {
-        fn run(&self, _script: &Script) -> io::Result<()> {
+        fn run(&self, _script: &Script) -> Result<(), PromptError> {
             panic!("no administrator prompt was expected");
         }
     }
@@ -905,8 +918,8 @@ mod tests {
 
     struct Cancelled;
     impl Privileged for Cancelled {
-        fn run(&self, _script: &Script) -> io::Result<()> {
-            Err(io::Error::from(io::ErrorKind::PermissionDenied))
+        fn run(&self, _script: &Script) -> Result<(), PromptError> {
+            Err(PromptError::Cancelled)
         }
     }
 

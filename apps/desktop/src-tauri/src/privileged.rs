@@ -15,7 +15,7 @@
 //! in one place — and a caller can choose which and with what paths, but not
 //! what the shell is told.
 
-use std::io;
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
@@ -79,14 +79,66 @@ impl Script {
     }
 }
 
-/// Runs a [`Script`] with administrator rights, or refuses.
+/// Why a [`Script`] did not succeed — the three outcomes besides success.
+///
+/// Typed, so a caller tells a person's choice from a failure without reading
+/// AppleScript's prose: a cancel is not an error to report, a refusal wants the
+/// line an administrator can run, and only a failure has a reason worth showing.
+#[derive(Debug, PartialEq, Eq)]
+pub enum PromptError {
+    /// The person pressed Cancel. Nothing ran.
+    Cancelled,
+    /// macOS did not authorize an administrator: no name and password it
+    /// would accept. Nothing ran.
+    Refused,
+    /// The script ran and did not succeed, or the prompt itself broke.
+    Failed {
+        /// The script's exit status, so a caller can tell a refusal the script
+        /// was written to make from any other; `None` for anything that is not
+        /// an exit status — the prompt broke, or AppleScript raised an error of
+        /// its own.
+        code: Option<i32>,
+        /// What the script wrote to standard error, or what broke.
+        reason: String,
+    },
+}
+
+impl fmt::Display for PromptError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PromptError::Cancelled => f.write_str("the administrator prompt was cancelled"),
+            PromptError::Refused => f.write_str("macOS did not authorize an administrator"),
+            PromptError::Failed { reason, .. } if !reason.trim().is_empty() => {
+                f.write_str(reason.trim())
+            }
+            PromptError::Failed {
+                code: Some(code), ..
+            } => write!(f, "the script exited {code}"),
+            PromptError::Failed { code: None, .. } => f.write_str("the prompt failed"),
+        }
+    }
+}
+
+impl std::error::Error for PromptError {}
+
+impl PromptError {
+    /// A prompt that broke before its script could exit.
+    pub fn broken(reason: impl Into<String>) -> Self {
+        PromptError::Failed {
+            code: None,
+            reason: reason.into(),
+        }
+    }
+}
+
+/// Runs a [`Script`] with administrator rights, or says why it did not.
 ///
 /// A port rather than a call, because the real one puts a password prompt on
 /// the main thread and waits for a person. The suite runs the same script with
 /// `/bin/sh` and no rights at all, and stands in for a cancelled prompt with a
-/// fake that refuses.
+/// fake that cancels.
 pub trait Privileged {
-    fn run(&self, script: &Script) -> io::Result<()>;
+    fn run(&self, script: &Script) -> Result<(), PromptError>;
 }
 
 /// The real prompt: macOS's password sheet, raised on the main thread.
@@ -104,17 +156,17 @@ impl MainThreadPrompt {
 }
 
 impl Privileged for MainThreadPrompt {
-    fn run(&self, script: &Script) -> io::Result<()> {
+    fn run(&self, script: &Script) -> Result<(), PromptError> {
         let (sender, receiver) = mpsc::channel();
         let script = script.source();
         self.app
             .run_on_main_thread(move || {
                 let _ = sender.send(run_as_administrator(&script));
             })
-            .map_err(|error| io::Error::other(error.to_string()))?;
+            .map_err(|error| PromptError::broken(error.to_string()))?;
         receiver
             .recv()
-            .map_err(|_| io::Error::other("the main thread dropped the prompt"))?
+            .map_err(|_| PromptError::broken("the main thread dropped the prompt"))?
     }
 }
 
@@ -135,23 +187,67 @@ fn applescript_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', r"\\").replace('"', "\\\""))
 }
 
+/// The AppleScript that runs `script` through one administrator prompt.
+///
+/// `do shell script` raises an error for a cancel, a refusal and a non-zero
+/// exit alike, and osakit hands back only its prose. So the prompt catches its
+/// own error and returns the number first: `0` on success, otherwise the error
+/// number (the shell's exit status, or macOS's code for a cancel or refusal), a
+/// line feed, and the message.
+fn prompt_source(script: &str) -> String {
+    format!(
+        "try\n\
+         do shell script {} with administrator privileges\n\
+         return \"0\"\n\
+         on error message number code\n\
+         return (code as text) & linefeed & message\n\
+         end try",
+        applescript_string(script)
+    )
+}
+
+/// What the prompt's reply says happened.
+///
+/// A shell's exit status is 1 to 255, and `do shell script` raises it as the
+/// error number. Every other number is AppleScript's or macOS's: -128
+/// (`userCanceledErr`) for Cancel, and Security's for an authorization that
+/// ended without one (-60006, cancelled; -60005, denied; -60007, no
+/// interaction allowed). The -128 and exit-status numbers were seen through
+/// `osascript`; the Security ones are from its headers and still owe the
+/// spec's check at a real sheet (the release-candidate row). Any other
+/// negative number is a failure with no exit status.
+fn outcome_of(reply: &str) -> Result<(), PromptError> {
+    let (number, message) = reply.split_once('\n').unwrap_or((reply, ""));
+    match number.trim().parse::<i32>() {
+        Ok(0) => Ok(()),
+        Ok(-128 | -60006) => Err(PromptError::Cancelled),
+        Ok(-60005 | -60007) => Err(PromptError::Refused),
+        Ok(code @ 1..=255) => Err(PromptError::Failed {
+            code: Some(code),
+            reason: message.to_string(),
+        }),
+        Ok(number) => Err(PromptError::broken(format!("{message} ({number})"))),
+        Err(_) => Err(PromptError::broken(reply)),
+    }
+}
+
 /// Runs `script` through one administrator prompt.
 ///
 /// The prompt is AppKit's, so this must run on the main thread, which is why
 /// it is reachable only through `MainThreadPrompt`.
-fn run_as_administrator(script: &str) -> io::Result<()> {
-    let source = format!(
-        "do shell script {} with administrator privileges",
-        applescript_string(script)
-    );
-    let mut prompt = osakit::Script::new_from_source(osakit::Language::AppleScript, &source);
+fn run_as_administrator(script: &str) -> Result<(), PromptError> {
+    let mut prompt =
+        osakit::Script::new_from_source(osakit::Language::AppleScript, &prompt_source(script));
     prompt
         .compile()
-        .map_err(|error| io::Error::other(format!("{error:?}")))?;
-    prompt
-        .execute()
-        .map(|_| ())
-        .map_err(|error| io::Error::other(format!("{error:?}")))
+        .map_err(|error| PromptError::broken(format!("{error:?}")))?;
+    match prompt.execute() {
+        Ok(osakit::Value::String(reply)) => outcome_of(&reply),
+        Ok(other) => Err(PromptError::broken(format!(
+            "an unexpected reply: {other:?}"
+        ))),
+        Err(error) => Err(PromptError::broken(format!("{error:?}"))),
+    }
 }
 
 #[cfg(test)]
@@ -161,6 +257,94 @@ mod tests {
     #[test]
     fn applescript_quoting_escapes_backslashes_and_quotes() {
         assert_eq!(applescript_string(r#"a "b" \c"#), r#""a \"b\" \\c""#);
+    }
+
+    #[test]
+    fn the_prompt_reports_the_error_number_instead_of_raising_it() {
+        let source = prompt_source("/usr/bin/true");
+        assert!(
+            source.contains(r#"do shell script "/usr/bin/true" with administrator privileges"#),
+            "{source}"
+        );
+        assert!(source.contains("on error message number code"), "{source}");
+    }
+
+    /// A name AppleScript reserves would fail to compile, and every prompt
+    /// would then report a broken prompt while the reply tests stayed green.
+    #[test]
+    fn the_prompt_compiles() {
+        let mut prompt = osakit::Script::new_from_source(
+            osakit::Language::AppleScript,
+            &prompt_source("/usr/bin/true"),
+        );
+        assert_eq!(prompt.compile(), Ok(()));
+    }
+
+    #[test]
+    fn a_script_that_ran_succeeded() {
+        assert_eq!(outcome_of("0"), Ok(()));
+    }
+
+    #[test]
+    fn pressing_cancel_is_a_cancel_not_a_failure() {
+        assert_eq!(
+            outcome_of("-128\nUser canceled."),
+            Err(PromptError::Cancelled)
+        );
+        assert_eq!(outcome_of("-60006\nCanceled."), Err(PromptError::Cancelled));
+    }
+
+    #[test]
+    fn an_administrator_macos_would_not_authorize_is_refused() {
+        assert_eq!(
+            outcome_of("-60005\nThe administrator user name or password was incorrect."),
+            Err(PromptError::Refused)
+        );
+        assert_eq!(
+            outcome_of("-60007\nNot allowed."),
+            Err(PromptError::Refused)
+        );
+    }
+
+    #[test]
+    fn a_script_that_exits_non_zero_failed_with_its_status_and_reason() {
+        assert_eq!(
+            outcome_of("3\nln: /usr/local/bin/longclaw: File exists"),
+            Err(PromptError::Failed {
+                code: Some(3),
+                reason: "ln: /usr/local/bin/longclaw: File exists".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn an_applescript_error_is_not_mistaken_for_an_exit_status() {
+        assert_eq!(
+            outcome_of("-1743\nNot authorized to send Apple events."),
+            Err(PromptError::broken(
+                "Not authorized to send Apple events. (-1743)"
+            ))
+        );
+    }
+
+    #[test]
+    fn a_failure_with_nothing_on_stderr_still_says_something() {
+        let silent = PromptError::Failed {
+            code: Some(3),
+            reason: String::new(),
+        };
+        assert_eq!(silent.to_string(), "the script exited 3");
+    }
+
+    #[test]
+    fn a_reply_that_cannot_be_read_failed_without_a_status() {
+        assert_eq!(
+            outcome_of("something else"),
+            Err(PromptError::Failed {
+                code: None,
+                reason: "something else".into(),
+            })
+        );
     }
 
     #[test]

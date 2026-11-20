@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use longclaw_desktop_lib::bundle_replace::{self, probe, Step};
-use longclaw_desktop_lib::privileged::{Privileged, Script};
+use longclaw_desktop_lib::privileged::{Privileged, PromptError, Script};
 
 const NAME: &str = "LongClaw.app";
 const NEWER: &str = "99.0.0";
@@ -38,8 +38,8 @@ const NEWER: &str = "99.0.0";
 struct NoPrompt;
 
 impl Privileged for NoPrompt {
-    fn run(&self, _script: &Script) -> io::Result<()> {
-        Err(io::Error::other("the probe never prompts"))
+    fn run(&self, _script: &Script) -> Result<(), PromptError> {
+        Err(PromptError::broken("the probe never prompts"))
     }
 }
 
