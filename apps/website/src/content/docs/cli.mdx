@@ -7,7 +7,24 @@ eyebrow: CLI
 
 import CommandBlock from '../../components/CommandBlock.astro';
 
-## Build it
+## Install it
+
+The command comes with the app. LongClaw carries it inside `LongClaw.app`, built
+from the same source as the window, but nothing is on your `PATH` until you say
+so. LongClaw offers it the first time you open a project, and
+_Settings › Command line_ offers it again whenever you are ready. One press links
+`/usr/local/bin/longclaw` to the copy inside the app.
+
+`/usr/local/bin` is not writable on every Mac, and on an Apple Silicon Mac that
+has never had Homebrew there it does not exist. When the plain write is refused,
+macOS asks for an admin password once, and LongClaw makes the link with that.
+Cancel and nothing is installed. If the password is refused, the pane shows the
+exact `sudo` line for whoever administers the Mac. LongClaw never replaces a
+`longclaw` it did not put there.
+
+Run `longclaw` with no arguments for the full surface.
+
+## Or build it
 
 The binary is built from the same workspace as the app:
 
@@ -15,8 +32,6 @@ The binary is built from the same workspace as the app:
 cargo build --release \
   --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
 ```
-
-Run `longclaw` with no arguments for the full surface.
 
 ## A project, start to finish
 

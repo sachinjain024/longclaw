@@ -152,10 +152,13 @@ whenever you are ready. One press links `/usr/local/bin/longclaw` to the copy
 inside the app.
 
 That link is the only thing LongClaw writes outside a project folder, which is
-why it asks. If macOS refuses the write — `/usr/local/bin` is not writable on
-every Mac — LongClaw says so and shows the exact `sudo` line to run instead,
-with a button that copies it. It never replaces a `longclaw` you installed
-another way. And if you move the app, the link goes stale: the same pane says
+why it asks. `/usr/local/bin` is not writable on every Mac — on an Apple Silicon
+Mac that has never had Homebrew there, it does not exist — so when the plain
+write is refused, macOS asks for an admin password once and LongClaw makes the
+link with that. Cancel and nothing is installed. If the password is refused,
+LongClaw shows the exact `sudo` line for whoever administers the Mac, with a
+button that copies it. It never replaces a `longclaw` you installed another
+way, and checks that again after the password. And if you move the app, the link goes stale: the same pane says
 where it is pointing and puts it back in one press.
 
 ---
