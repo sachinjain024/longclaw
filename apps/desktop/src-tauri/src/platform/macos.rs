@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
 use std::sync::Arc;
 
+use crate::privileged::shell_quote;
+
 use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, ProtocolObject};
@@ -355,20 +357,10 @@ fn manual_command(source: &Path, link: &Path) -> String {
     let directory = link.parent().unwrap_or(Path::new(COMMAND_DIR));
     format!(
         "sudo mkdir -p {} && sudo ln -sf {} {}",
-        shell_quoted(directory),
-        shell_quoted(source),
-        shell_quoted(link)
+        shell_quote(directory),
+        shell_quote(source),
+        shell_quote(link)
     )
-}
-
-/// One argument, safe to paste into a shell.
-///
-/// Single quotes and the `'\''` escape: the POSIX form that needs no exceptions.
-/// A path with a space in it is ordinary on a Mac — `/Volumes/My Disk` — and a
-/// command that has to be edited before it runs is not the "exact line" the
-/// refusal promises.
-fn shell_quoted(path: &Path) -> String {
-    format!("'{}'", path.to_string_lossy().replace('\'', r"'\''"))
 }
 
 #[cfg(test)]
@@ -378,7 +370,7 @@ mod command_line_tests {
     use std::path::Path;
 
     use super::{
-        bundled_beside, describe, install_into, manual_command, shell_quoted, CommandLineState,
+        bundled_beside, describe, install_into, manual_command, shell_quote, CommandLineState,
     };
 
     /// A temp directory standing in for `/usr/local/bin`, and a file standing in
@@ -510,7 +502,7 @@ mod command_line_tests {
 
         assert!(quoted.contains("'/Volumes/My Disk/LongClaw.app/Contents/MacOS/longclaw'"));
         assert!(quoted.ends_with("'/usr/local/bin/longclaw'"));
-        assert_eq!(shell_quoted(Path::new("/a'b")), "'/a'\\''b'");
+        assert_eq!(shell_quote(Path::new("/a'b")), "'/a'\\''b'");
     }
 
     /// The bundle is what makes a copy of the command installable, and a

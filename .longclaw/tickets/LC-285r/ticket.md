@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: e259ac7d-0aaf-4344-8845-ca19901c76a4
 key: LC-285r
 title: "Installing the command line fails after a fresh install: LongClaw could not write to /usr/local/bin"
-status: todo
+status: in_progress
 priority: urgent
 labels:
   - platform
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-19T14:06:16.747Z
+updated_at: 2026-11-20T04:44:42.787Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -91,11 +91,32 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 
 ## Checklist
 
-- [ ] Reproduce on a clean Apple Silicon Mac with no writable /usr/local/bin <!-- longclaw:item=ck_a26ec01b -->
-- [ ] Make the one-press install succeed without a Terminal paste <!-- longclaw:item=ck_6bcb0ecc -->
-- [ ] Keep the occupied-file refusal: never replace a longclaw the app did not create <!-- longclaw:item=ck_a7503fbb -->
-- [ ] Try again must not repeat a write that is certain to fail the same way <!-- longclaw:item=ck_eab24ad8 -->
-- [ ] After install, a new terminal can run longclaw without extra PATH setup <!-- longclaw:item=ck_2e4f87fa -->
+- [ ] 1. Prefactor: one shared privileged module (blocked by: none) <!-- longclaw:item=ck_ff8688b1 -->
+- [x] 1.1 Move the Privileged port, the main-thread prompt and the AppleScript/shell quoting into the new module <!-- longclaw:item=ck_ebda3d42 -->
+- [ ] 1.2 Make the module's scripts a closed set, with the bundle replacement as its first entry <!-- longclaw:item=ck_971d0f63 -->
+- [ ] 1.3 Report a typed outcome: succeeded, cancelled, refused, failed <!-- longclaw:item=ck_4cd9867d -->
+- [x] 1.4 Move the release-audit osakit rule and its --self-test fixtures to the new module <!-- longclaw:item=ck_3d475b08 -->
+- [ ] 1.5 Amend ADR 0018's 'only privileged execution' rule <!-- longclaw:item=ck_043c6bab -->
+- [ ] 2. Tracer bullet: Install escalates and succeeds on both surfaces (blocked by: 1) <!-- longclaw:item=ck_c4ab5c4d -->
+- [ ] 2.1 Link-the-command script: create the folder, re-check the occupied path as root, link under a temporary name and rename; Rust tests over the port <!-- longclaw:item=ck_e8637f1e -->
+- [ ] 2.2 Flag only the plain write's permission-denied refusal as escalatable <!-- longclaw:item=ck_770b5dde -->
+- [ ] 2.3 Second IPC command that runs the script off the main thread <!-- longclaw:item=ck_67df6feb -->
+- [ ] 2.4 Frontend install state machine: installing, waiting, installed; button.waiting, live.waiting, both buttons disabled, focus back to the primary <!-- longclaw:item=ck_0ed8f628 -->
+- [ ] 2.5 Pass mac.prompt as the sheet's sentence <!-- longclaw:item=ck_74693766 -->
+- [ ] 3. Cancel and refusal outcomes (blocked by: 2) <!-- longclaw:item=ck_748c53a1 -->
+- [ ] 3.1 Cancel: 'Nothing was installed.', the button stays Install, no sudo line <!-- longclaw:item=ck_79fa2fe7 -->
+- [ ] 3.2 Cancelling and then closing the dialog raises the skipped toast <!-- longclaw:item=ck_a8714be2 -->
+- [ ] 3.3 Refused password: failed.admin, the sudo line, Try again re-asks; confirm the AppleScript error number on a real Mac <!-- longclaw:item=ck_dff68dfe -->
+- [ ] 3.4 Script failure: failed.script with its reason <!-- longclaw:item=ck_457cec8d -->
+- [ ] 3.5 Occupied path found after escalating: the occupied refusal, file untouched <!-- longclaw:item=ck_f79b1e60 -->
+- [ ] 4. Non-escalated failures and copy (blocked by: 2; parallel with 3) <!-- longclaw:item=ck_c0a6b7ed -->
+- [ ] 4.1 Full disk: no sudo line; Try again retries the write <!-- longclaw:item=ck_bd918b50 -->
+- [ ] 4.2 Reworded status.occupied <!-- longclaw:item=ck_5579d293 -->
+- [ ] 4.3 Delete refusal.denied <!-- longclaw:item=ck_9ddb938f -->
+- [ ] 5. Docs and release check (blocked by: 3, 4) <!-- longclaw:item=ck_088dd221 -->
+- [ ] 5.1 Rewrite the comments that say the app cannot escalate <!-- longclaw:item=ck_3bd534ff -->
+- [ ] 5.2 Update the release-candidate Filesystem scope row <!-- longclaw:item=ck_c7d4741f -->
+- [ ] 5.3 Manual release-candidate row: on a clean Apple Silicon Mac, install, cancel and wrong-password, then longclaw ticket list in a new terminal <!-- longclaw:item=ck_6d76ed60 -->
 ## Attachments
 
 <!-- longclaw:attachment
@@ -336,4 +357,197 @@ changes:
 ### Claude Code updated this ticket
 
 Spec written to docs/specs/LC-285r-install-the-command-with-an-administrator-prompt.md and recorded as a reference; labelled ready-for-agent.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b490d585
+kind: update
+occurred_at: 2026-11-19T15:02:57.850Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_81e981b1
+kind: update
+occurred_at: 2026-11-19T15:06:22.231Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_ff8688b1.added
+    to: "1. Prefactor: one shared privileged module (blocked by: none)"
+  - field: checklist.ck_ebda3d42.added
+    to: 1.1 Move the Privileged port, the main-thread prompt and the AppleScript/shell quoting into the new module
+  - field: checklist.ck_971d0f63.added
+    to: 1.2 Make the module's scripts a closed set, with the bundle replacement as its first entry
+  - field: checklist.ck_4cd9867d.added
+    to: "1.3 Report a typed outcome: succeeded, cancelled, refused, failed"
+  - field: checklist.ck_3d475b08.added
+    to: 1.4 Move the release-audit osakit rule and its --self-test fixtures to the new module
+  - field: checklist.ck_043c6bab.added
+    to: 1.5 Amend ADR 0018's 'only privileged execution' rule
+  - field: checklist.ck_c4ab5c4d.added
+    to: "2. Tracer bullet: Install escalates and succeeds on both surfaces (blocked by: 1)"
+  - field: checklist.ck_e8637f1e.added
+    to: "2.1 Link-the-command script: create the folder, re-check the occupied path as root, link under a temporary name and rename; Rust tests over the port"
+  - field: checklist.ck_770b5dde.added
+    to: 2.2 Flag only the plain write's permission-denied refusal as escalatable
+  - field: checklist.ck_67df6feb.added
+    to: 2.3 Second IPC command that runs the script off the main thread
+  - field: checklist.ck_0ed8f628.added
+    to: "2.4 Frontend install state machine: installing, waiting, installed; button.waiting, live.waiting, both buttons disabled, focus back to the primary"
+  - field: checklist.ck_74693766.added
+    to: 2.5 Pass mac.prompt as the sheet's sentence
+  - field: checklist.ck_748c53a1.added
+    to: "3. Cancel and refusal outcomes (blocked by: 2)"
+  - field: checklist.ck_79fa2fe7.added
+    to: "3.1 Cancel: 'Nothing was installed.', the button stays Install, no sudo line"
+  - field: checklist.ck_a8714be2.added
+    to: 3.2 Cancelling and then closing the dialog raises the skipped toast
+  - field: checklist.ck_dff68dfe.added
+    to: "3.3 Refused password: failed.admin, the sudo line, Try again re-asks; confirm the AppleScript error number on a real Mac"
+  - field: checklist.ck_457cec8d.added
+    to: "3.4 Script failure: failed.script with its reason"
+  - field: checklist.ck_f79b1e60.added
+    to: "3.5 Occupied path found after escalating: the occupied refusal, file untouched"
+  - field: checklist.ck_c0a6b7ed.added
+    to: "4. Non-escalated failures and copy (blocked by: 2; parallel with 3)"
+  - field: checklist.ck_bd918b50.added
+    to: "4.1 Full disk: no sudo line; Try again retries the write"
+  - field: checklist.ck_5579d293.added
+    to: 4.2 Reworded status.occupied
+  - field: checklist.ck_9ddb938f.added
+    to: 4.3 Delete refusal.denied
+  - field: checklist.ck_088dd221.added
+    to: "5. Docs and release check (blocked by: 3, 4)"
+  - field: checklist.ck_3bd534ff.added
+    to: 5.1 Rewrite the comments that say the app cannot escalate
+  - field: checklist.ck_c7d4741f.added
+    to: 5.2 Update the release-candidate Filesystem scope row
+  - field: checklist.ck_6d76ed60.added
+    to: "5.3 Manual release-candidate row: on a clean Apple Silicon Mac, install, cancel and wrong-password, then longclaw ticket list in a new terminal"
+-->
+### Claude Code updated this ticket
+
+Broke the spec into a numbered checklist (to-tickets): 1 prefactor, 2 tracer bullet, 3 and 4 outcomes, 5 docs and release. It replaces the five earlier items, which it covers.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e536676b
+kind: update
+occurred_at: 2026-11-19T15:06:22.259Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a26ec01b.removed
+    from: Reproduce on a clean Apple Silicon Mac with no writable /usr/local/bin
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ea09a54a
+kind: update
+occurred_at: 2026-11-19T15:06:22.289Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_6bcb0ecc.removed
+    from: Make the one-press install succeed without a Terminal paste
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3871967c
+kind: update
+occurred_at: 2026-11-19T15:06:22.312Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a7503fbb.removed
+    from: "Keep the occupied-file refusal: never replace a longclaw the app did not create"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_86145700
+kind: update
+occurred_at: 2026-11-19T15:06:22.333Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_eab24ad8.removed
+    from: Try again must not repeat a write that is certain to fail the same way
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2145e659
+kind: update
+occurred_at: 2026-11-19T15:06:22.354Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_2e4f87fa.removed
+    from: After install, a new terminal can run longclaw without extra PATH setup
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a101fea7
+kind: update
+occurred_at: 2026-11-20T04:44:42.762Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_ebda3d42.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+1.1 done: the Privileged port, the main-thread prompt and the shell/AppleScript quoting now live in one privileged module; the platform layer's duplicate quoting folds into it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cc16fb88
+kind: update
+occurred_at: 2026-11-20T04:44:42.787Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3d475b08.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+1.4 done with 1.1: moving the osakit call meant the release audit's privileged rule had to move too. It now exempts src/privileged.rs by path, and its self-test rejects three cases.
 <!-- /longclaw:event -->

@@ -29,7 +29,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use longclaw_desktop_lib::bundle_replace::{self, probe, Privileged, Step};
+use longclaw_desktop_lib::bundle_replace::{self, probe, Step};
+use longclaw_desktop_lib::privileged::Privileged;
 
 const NAME: &str = "LongClaw.app";
 const NEWER: &str = "99.0.0";

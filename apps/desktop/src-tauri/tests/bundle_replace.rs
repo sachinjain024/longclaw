@@ -12,7 +12,8 @@ use std::io;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-use longclaw_desktop_lib::bundle_replace::{replace, Privileged, Step};
+use longclaw_desktop_lib::bundle_replace::{replace, Step};
+use longclaw_desktop_lib::privileged::Privileged;
 
 const BUNDLE: &str = "LongClaw.app";
 

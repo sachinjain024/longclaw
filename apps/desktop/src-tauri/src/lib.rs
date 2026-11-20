@@ -8,6 +8,8 @@ pub mod github;
 mod github_client;
 mod platform;
 mod preferences;
+#[cfg(target_os = "macos")]
+pub mod privileged;
 mod registry;
 pub mod update;
 mod update_plugin;

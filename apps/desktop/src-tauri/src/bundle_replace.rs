@@ -19,6 +19,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 
 use crate::core::storage;
+use crate::privileged::{shell_quote, Privileged};
 
 /// Which movement failed. Carried in the error so a report can say where,
 /// which is the detail LC-265y's diagnosis did not have.
@@ -55,15 +56,6 @@ impl std::fmt::Display for ReplaceError {
 }
 
 impl std::error::Error for ReplaceError {}
-
-/// Runs a shell script with administrator rights, or refuses.
-///
-/// A port rather than a call, because the real one puts a password prompt on
-/// the main thread and waits for a person: the adapter owns the main thread,
-/// and the suite runs the same script with `/bin/sh` and no rights at all.
-pub trait Privileged {
-    fn run(&self, script: &str) -> io::Result<()>;
-}
 
 /// Replaces the bundle at `bundle` with the one in `archive`.
 ///
@@ -296,35 +288,6 @@ fn privileged_script(staged: &Path, bundle: &Path, token: &str) -> io::Result<St
         format!("/usr/bin/touch {bundle}"),
     ]
     .join("\n"))
-}
-
-fn shell_quote(path: &Path) -> String {
-    format!("'{}'", path.to_string_lossy().replace('\'', r"'\''"))
-}
-
-/// An AppleScript string literal holding `text`.
-fn applescript_string(text: &str) -> String {
-    format!("\"{}\"", text.replace('\\', r"\\").replace('"', "\\\""))
-}
-
-/// Runs `script` through one administrator prompt.
-///
-/// The prompt is AppKit's, so this must be called on the main thread — the
-/// adapter owns that thread and is the only caller. This is the app's one
-/// privileged execution (ADR 0018), and `osakit` appears nowhere else.
-pub fn run_as_administrator(script: &str) -> io::Result<()> {
-    let source = format!(
-        "do shell script {} with administrator privileges",
-        applescript_string(script)
-    );
-    let mut prompt = osakit::Script::new_from_source(osakit::Language::AppleScript, &source);
-    prompt
-        .compile()
-        .map_err(|error| io::Error::other(format!("{error:?}")))?;
-    prompt
-        .execute()
-        .map(|_| ())
-        .map_err(|error| io::Error::other(format!("{error:?}")))
 }
 
 fn parts_of(bundle: &Path) -> io::Result<(PathBuf, String)> {
@@ -1049,11 +1012,6 @@ mod tests {
         let line = error.to_string();
         assert!(line.contains("Swap"), "{line}");
         assert!(line.contains("os error 66"), "{line}");
-    }
-
-    #[test]
-    fn applescript_quoting_escapes_backslashes_and_quotes() {
-        assert_eq!(applescript_string(r#"a "b" \c"#), r#""a \"b\" \\c""#);
     }
 
     /// The capability read is real, or the FAT32 guard is reading nothing: the
