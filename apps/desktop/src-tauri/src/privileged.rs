@@ -2,8 +2,8 @@
 //!
 //! One module because one prompt: macOS's own password sheet, raised through
 //! AppleScript's `do shell script … with administrator privileges`. The bundle
-//! replacement is its first caller; installing the `longclaw` command will be
-//! its second (LC-285r). Each caller names a script, and this module owns the
+//! replacement is its first caller; installing the `longclaw` command is its
+//! second (LC-285r). Each caller names a script, and this module owns the
 //! rest — the script's text, the quoting that keeps a path one word, the AppleScript literal
 //! that carries the script, and the hop onto the main thread that AppKit's
 //! sheet insists on. A second way to run a shell as root would be a second set of
@@ -43,7 +43,33 @@ pub enum Script {
         /// Where the old version waits until the new one is in place.
         previous: PathBuf,
     },
+    /// Puts the bundled `longclaw` on `PATH` (LC-285r): make the folder if
+    /// there is none, refuse with [`LINK_OCCUPIED`] if the name is held by
+    /// anything but a link, then make the link under a temporary name beside
+    /// it and rename it in. The installed name is never removed first, and a
+    /// file somebody else put there is never replaced — re-checked here, as
+    /// root, because a file can arrive between the app's own look and the
+    /// password.
+    LinkCommand {
+        /// The app's own copy of the command, inside the bundle.
+        source: PathBuf,
+        /// The name on `PATH`.
+        link: PathBuf,
+        /// The link's name until it is renamed in, beside `link`.
+        temporary: PathBuf,
+    },
 }
+
+/// The exit status [`Script::LinkCommand`] refuses an occupied name with.
+///
+/// Its own number so the caller can tell *somebody else's file is there* from
+/// every other failure: it is the one that must read as the occupied refusal
+/// rather than as a script that broke. The script's other failures exit 1.
+pub const LINK_OCCUPIED: i32 = 3;
+
+/// What the password sheet says LongClaw wants, for a script that supplies
+/// it. The copy deck's `mac.prompt` (LC-285r).
+const LINK_COMMAND_PROMPT: &str = "LongClaw wants to add the longclaw command to /usr/local/bin.";
 
 impl Script {
     /// The shell text this script runs.
@@ -75,6 +101,38 @@ impl Script {
                 ]
                 .join("\n")
             }
+            Script::LinkCommand {
+                source,
+                link,
+                temporary,
+            } => {
+                let folder = shell_quote(link.parent().unwrap_or(Path::new("/")));
+                let source = shell_quote(source);
+                let link = shell_quote(link);
+                let temporary = shell_quote(temporary);
+                [
+                    format!("/bin/mkdir -p {folder} || exit 1"),
+                    format!("if [ -e {link} ] && [ ! -L {link} ]; then exit {LINK_OCCUPIED}; fi"),
+                    format!("/bin/ln -s {source} {temporary} || exit 1"),
+                    // `-h`, so a stale link that points at a folder is replaced
+                    // rather than having the new link moved inside it.
+                    format!(
+                        "/bin/mv -f -h {temporary} {link} || {{ /bin/rm -f {temporary}; exit 1; }}"
+                    ),
+                ]
+                .join("\n")
+            }
+        }
+    }
+
+    /// The sentence macOS's password sheet shows, when the script has one.
+    ///
+    /// The bundle replacement has none and keeps macOS's own wording, which is
+    /// unchanged by this module.
+    pub fn prompt(&self) -> Option<&'static str> {
+        match self {
+            Script::ReplaceBundle { .. } => None,
+            Script::LinkCommand { .. } => Some(LINK_COMMAND_PROMPT),
         }
     }
 }
@@ -158,10 +216,10 @@ impl MainThreadPrompt {
 impl Privileged for MainThreadPrompt {
     fn run(&self, script: &Script) -> Result<(), PromptError> {
         let (sender, receiver) = mpsc::channel();
-        let script = script.source();
+        let source = prompt_source(&script.source(), script.prompt());
         self.app
             .run_on_main_thread(move || {
-                let _ = sender.send(run_as_administrator(&script));
+                let _ = sender.send(run_as_administrator(&source));
             })
             .map_err(|error| PromptError::broken(error.to_string()))?;
         receiver
@@ -193,11 +251,15 @@ fn applescript_string(text: &str) -> String {
 /// exit alike, and osakit hands back only its prose. So the prompt catches its
 /// own error and returns the number first: `0` on success, otherwise the error
 /// number (the shell's exit status, or macOS's code for a cancel or refusal), a
-/// line feed, and the message.
-fn prompt_source(script: &str) -> String {
+/// line feed, and the message. `sentence`, when there is one, is what the
+/// sheet says LongClaw wants.
+fn prompt_source(script: &str, sentence: Option<&str>) -> String {
+    let prompt = sentence
+        .map(|sentence| format!(" with prompt {}", applescript_string(sentence)))
+        .unwrap_or_default();
     format!(
         "try\n\
-         do shell script {} with administrator privileges\n\
+         do shell script {}{prompt} with administrator privileges\n\
          return \"0\"\n\
          on error message number code\n\
          return (code as text) & linefeed & message\n\
@@ -231,13 +293,12 @@ fn outcome_of(reply: &str) -> Result<(), PromptError> {
     }
 }
 
-/// Runs `script` through one administrator prompt.
+/// Runs one administrator prompt, given its AppleScript from `prompt_source`.
 ///
 /// The prompt is AppKit's, so this must run on the main thread, which is why
 /// it is reachable only through `MainThreadPrompt`.
-fn run_as_administrator(script: &str) -> Result<(), PromptError> {
-    let mut prompt =
-        osakit::Script::new_from_source(osakit::Language::AppleScript, &prompt_source(script));
+fn run_as_administrator(source: &str) -> Result<(), PromptError> {
+    let mut prompt = osakit::Script::new_from_source(osakit::Language::AppleScript, source);
     prompt
         .compile()
         .map_err(|error| PromptError::broken(format!("{error:?}")))?;
@@ -259,9 +320,67 @@ mod tests {
         assert_eq!(applescript_string(r#"a "b" \c"#), r#""a \"b\" \\c""#);
     }
 
+    fn linking_the_command() -> Script {
+        Script::LinkCommand {
+            source: PathBuf::from("/Applications/LongClaw.app/Contents/MacOS/longclaw"),
+            link: PathBuf::from("/usr/local/bin/longclaw"),
+            temporary: PathBuf::from("/usr/local/bin/.longclaw.longclaw-abc.tmp"),
+        }
+    }
+
+    #[test]
+    fn the_link_is_made_under_a_temporary_name_and_renamed_into_place() {
+        let script = linking_the_command().source();
+        let folder = script
+            .find("/bin/mkdir -p '/usr/local/bin'")
+            .unwrap_or_else(|| panic!("the folder is not created: {script}"));
+        let link = script
+            .find("/bin/ln -s '/Applications/LongClaw.app/Contents/MacOS/longclaw' '/usr/local/bin/.longclaw.longclaw-abc.tmp'")
+            .unwrap_or_else(|| panic!("the link is not made beside: {script}"));
+        let rename = script
+            .find("/bin/mv -f -h '/usr/local/bin/.longclaw.longclaw-abc.tmp' '/usr/local/bin/longclaw'")
+            .unwrap_or_else(|| panic!("the link is not renamed in: {script}"));
+        assert!(folder < link && link < rename, "{script}");
+        assert!(
+            !script.contains("/bin/rm -f '/usr/local/bin/longclaw'"),
+            "the installed name is never removed: {script}"
+        );
+    }
+
+    #[test]
+    fn a_file_at_the_link_is_refused_as_root_before_anything_is_made() {
+        let script = linking_the_command().source();
+        let check = script
+            .find(&format!(
+                "if [ -e '/usr/local/bin/longclaw' ] && [ ! -L '/usr/local/bin/longclaw' ]; then exit {LINK_OCCUPIED}; fi"
+            ))
+            .unwrap_or_else(|| panic!("the occupied path is not re-checked: {script}"));
+        assert!(check < script.find("/bin/ln").unwrap(), "{script}");
+    }
+
+    #[test]
+    fn linking_the_command_says_why_on_the_sheet_and_replacing_the_bundle_does_not() {
+        assert_eq!(
+            linking_the_command().prompt(),
+            Some("LongClaw wants to add the longclaw command to /usr/local/bin.")
+        );
+        assert_eq!(replacing_applications_bundle().prompt(), None);
+        let source = prompt_source("/usr/bin/true", Some("Say \"why\"."));
+        assert!(source.contains(r#"with prompt "Say \"why\".""#), "{source}");
+    }
+
+    #[test]
+    fn the_prompt_with_a_sentence_compiles() {
+        let mut prompt = osakit::Script::new_from_source(
+            osakit::Language::AppleScript,
+            &prompt_source("/usr/bin/true", linking_the_command().prompt()),
+        );
+        assert_eq!(prompt.compile(), Ok(()));
+    }
+
     #[test]
     fn the_prompt_reports_the_error_number_instead_of_raising_it() {
-        let source = prompt_source("/usr/bin/true");
+        let source = prompt_source("/usr/bin/true", None);
         assert!(
             source.contains(r#"do shell script "/usr/bin/true" with administrator privileges"#),
             "{source}"
@@ -275,7 +394,7 @@ mod tests {
     fn the_prompt_compiles() {
         let mut prompt = osakit::Script::new_from_source(
             osakit::Language::AppleScript,
-            &prompt_source("/usr/bin/true"),
+            &prompt_source("/usr/bin/true", None),
         );
         assert_eq!(prompt.compile(), Ok(()));
     }

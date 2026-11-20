@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use crate::privileged::shell_quote;
+use crate::privileged::{shell_quote, Privileged, PromptError, Script, LINK_OCCUPIED};
 
 use block2::RcBlock;
 use objc2::rc::Retained;
@@ -189,19 +189,40 @@ pub fn command_line_status() -> CommandLineStatus {
 
 pub fn install_command_line() -> AppResult<CommandLineStatus> {
     let link = install_path();
-    let Some(source) = bundled_command() else {
-        // Nothing to install rather than a failed install: this window is not
-        // running out of a bundle, and the pane already says so.
-        return Err(AppError::new(
-            ErrorCode::Io,
-            "LongClaw has no copy of the longclaw command beside it to install. \
-             This window is not running from an installed app.",
-            false,
-        ));
-    };
+    let source = bundled_command().ok_or_else(nothing_to_install)?;
     install_into(&source, &link)?;
     Ok(describe(Some(&source), &link))
 }
+
+/// The second step, after `install_command_line` was refused with
+/// [`ESCALATE`]: the same link, made by the link script through one
+/// administrator prompt (LC-285r).
+///
+/// Blocks until a person answers the sheet, so it must be called off the main
+/// thread — the sheet needs that thread, and `MainThreadPrompt` hops onto it.
+pub fn install_command_line_as_admin(privileged: &dyn Privileged) -> AppResult<CommandLineStatus> {
+    let link = install_path();
+    let source = bundled_command().ok_or_else(nothing_to_install)?;
+    install_as_admin(&source, &link, privileged)?;
+    Ok(describe(Some(&source), &link))
+}
+
+/// Nothing to install rather than a failed install: this window is not
+/// running out of a bundle, and the pane already says so.
+fn nothing_to_install() -> AppError {
+    AppError::new(
+        ErrorCode::Io,
+        "LongClaw has no copy of the longclaw command beside it to install. \
+         This window is not running from an installed app.",
+        false,
+    )
+}
+
+/// The context key on the one refusal an administrator can answer: the plain
+/// write was refused for want of rights (`EACCES`). Nothing else carries it —
+/// not a full disk or a read-only volume, which `sudo` would not fix either,
+/// and not an occupied name, which is never replaced however it is asked.
+pub const ESCALATE: &str = "escalate";
 
 /// Reads what is installed, without writing anything.
 ///
@@ -239,15 +260,62 @@ fn describe(source: Option<&Path>, link: &Path) -> CommandLineStatus {
     }
 }
 
-/// Points `link` at `source`, and refuses rather than escalating.
+/// A refused write, in the words the *kind* of failure deserves.
 ///
-/// **No subprocess anywhere in it.** `osascript -e 'do shell script … with
-/// administrator privileges'` is the usual way an app gets an authorisation
-/// prompt, and it is not available here: the release boundary forbids a shell
-/// or process-launch plugin and `release-audit.mjs:254` fails the build on
-/// `Command::new`. The alternatives are a `Command::new` exemption or an
-/// `SMAppService` privileged helper, and neither is worth a symlink — so a
-/// refused write is answered in words, with the exact line to paste.
+/// `EACCES` is the case this whole feature is about: it gets its own sentence
+/// naming the folder, and the [`ESCALATE`] flag that sends the install on to
+/// the administrator prompt. Every other kind is handed to `AppError::io`,
+/// which classifies by `io::ErrorKind` and names the cause: ADR 0010 keeps
+/// those apart precisely because they need different actions, and an
+/// administrator is bad advice for a volume with no space left on it, which
+/// `sudo` will not fix either.
+///
+/// The line to paste rides on both, because it is the way out of a refusal
+/// whatever the refusal was.
+fn refused(at: &Path, error: std::io::Error, permission: String, command: String) -> AppError {
+    let reported = if error.kind() == std::io::ErrorKind::PermissionDenied {
+        AppError::new(ErrorCode::PermissionDenied, permission, true)
+            .with_context("path", at.display().to_string())
+            .with_context("systemError", error.to_string())
+            .with_context(ESCALATE, "true")
+    } else {
+        AppError::io(INSTALL_ACTION, at, error)
+    };
+    reported.with_context("command", command)
+}
+
+/// A file this app did not create is somebody's own install — a binary they
+/// built, or one another tool put there. It is not replaced, because the undo
+/// for replacing it does not exist: the link that would stand in its place
+/// remembers nothing about the bytes it displaced. One sentence whether the app
+/// saw it before the password or the link script found it after.
+fn occupied(link: &Path, command: String) -> AppError {
+    AppError::new(
+        ErrorCode::Io,
+        format!(
+            "{} is a file LongClaw did not create, and LongClaw will not \
+             replace one. Move or rename it, then try again.",
+            link.display()
+        ),
+        true,
+    )
+    .with_context("path", link.display().to_string())
+    .with_context("command", command)
+}
+
+/// Where a link is made before it is renamed onto the name on `PATH`.
+fn temporary_beside(folder: &Path) -> PathBuf {
+    folder.join(format!(".{COMMAND_NAME}.longclaw-{}.tmp", Uuid::new_v4()))
+}
+
+/// Points `link` at `source` with the person's own rights, and refuses rather
+/// than escalating.
+///
+/// **Always tried first.** A Mac whose `/usr/local/bin` the person can write —
+/// most developer Macs, because Homebrew chowned it — never sees a password
+/// sheet. Only a refusal for want of rights carries [`ESCALATE`], and the
+/// frontend answers that with the second command, `install_as_admin`, rather
+/// than this function asking for anything itself (LC-285r).
 ///
 /// **The replacement is a rename, not a delete-then-create.** The link is built
 /// under a temporary name first and moved onto the destination, so a working
@@ -255,38 +323,9 @@ fn describe(source: Option<&Path>, link: &Path) -> CommandLineStatus {
 /// process cannot write fails at the temporary rather than after removing what
 /// was there. That is `core::storage::atomic_write`'s shape, for the same
 /// reason.
-fn install_into(source: &Path, link: &Path) -> AppResult<()> {
-    /// A refused write, in the words the *kind* of failure deserves.
-    ///
-    /// `EACCES` is the case this whole feature is about, and it gets its own
-    /// sentence naming the folder and the way out. Every other kind is handed to
-    /// `AppError::io`, which classifies by `io::ErrorKind` and names the cause:
-    /// ADR 0010 keeps those apart precisely because they need different actions,
-    /// and "could not write it — run the line below" is bad advice for a
-    /// volume with no space left on it, which `sudo` will not fix either.
-    ///
-    /// The line to paste rides on both, because it is the way out of a refusal
-    /// whatever the refusal was.
-    fn refused(at: &Path, error: std::io::Error, permission: String, command: String) -> AppError {
-        let reported = if error.kind() == std::io::ErrorKind::PermissionDenied {
-            AppError::new(ErrorCode::PermissionDenied, permission, true)
-                .with_context("path", at.display().to_string())
-                .with_context("systemError", error.to_string())
-        } else {
-            AppError::io(INSTALL_ACTION, at, error)
-        };
-        reported.with_context("command", command)
-    }
-
+pub fn install_into(source: &Path, link: &Path) -> AppResult<()> {
     let command = manual_command(source, link);
-    let Some(parent) = link.parent() else {
-        return Err(AppError::new(
-            ErrorCode::Io,
-            format!("{} has no folder to install into.", link.display()),
-            false,
-        )
-        .with_context("path", link.display().to_string()));
-    };
+    let parent = link.parent().ok_or_else(|| no_folder(link))?;
     if !parent.exists() {
         fs::create_dir_all(parent).map_err(|error| {
             refused(
@@ -301,24 +340,10 @@ fn install_into(source: &Path, link: &Path) -> AppResult<()> {
             )
         })?;
     }
-    // A file this app did not create is somebody's own install — a binary they
-    // built, or one another tool put there. It is not replaced, because the
-    // undo for replacing it does not exist: the link that would stand in its
-    // place remembers nothing about the bytes it displaced.
     if fs::symlink_metadata(link).is_ok_and(|entry| !entry.file_type().is_symlink()) {
-        return Err(AppError::new(
-            ErrorCode::Io,
-            format!(
-                "{} is a file LongClaw did not create, and LongClaw will not \
-                 replace one. Move or rename it, then try again.",
-                link.display()
-            ),
-            true,
-        )
-        .with_context("path", link.display().to_string())
-        .with_context("command", command));
+        return Err(occupied(link, command));
     }
-    let temporary = parent.join(format!(".{COMMAND_NAME}.longclaw-{}.tmp", Uuid::new_v4()));
+    let temporary = temporary_beside(parent);
     symlink(source, &temporary).map_err(|error| {
         refused(
             parent,
@@ -346,6 +371,58 @@ fn install_into(source: &Path, link: &Path) -> AppResult<()> {
     })
 }
 
+/// Points `link` at `source` through the administrator prompt (LC-285r).
+///
+/// The link script does what `install_into` does, as root: makes the folder,
+/// refuses an occupied name, links beside and renames in. What comes back is
+/// the prompt's outcome in the words each one deserves — a cancel is nothing
+/// to report, a refusal hands over the line for whoever does administer this
+/// Mac, an occupied name found as root is the same refusal the plain write
+/// gives, and anything else is the script's own reason.
+pub fn install_as_admin(source: &Path, link: &Path, privileged: &dyn Privileged) -> AppResult<()> {
+    let command = manual_command(source, link);
+    let parent = link.parent().ok_or_else(|| no_folder(link))?;
+    let script = Script::LinkCommand {
+        source: source.to_path_buf(),
+        link: link.to_path_buf(),
+        temporary: temporary_beside(parent),
+    };
+    privileged.run(&script).map_err(|outcome| match outcome {
+        PromptError::Cancelled => {
+            AppError::new(ErrorCode::Cancelled, "Nothing was installed.", true)
+        }
+        PromptError::Refused => AppError::new(
+            ErrorCode::PermissionDenied,
+            "macOS did not accept an administrator password, so nothing was \
+             installed. If someone else administers this Mac, they can run the \
+             line below.",
+            true,
+        )
+        .with_context("path", parent.display().to_string())
+        .with_context("command", command),
+        PromptError::Failed {
+            code: Some(LINK_OCCUPIED),
+            ..
+        } => occupied(link, command),
+        failed @ PromptError::Failed { .. } => AppError::new(
+            ErrorCode::Io,
+            format!("LongClaw could not install the command, even as an administrator: {failed}"),
+            true,
+        )
+        .with_context("path", link.display().to_string()),
+    })
+}
+
+/// A link path with no folder above it, which nothing can install into.
+fn no_folder(link: &Path) -> AppError {
+    AppError::new(
+        ErrorCode::Io,
+        format!("{} has no folder to install into.", link.display()),
+        false,
+    )
+    .with_context("path", link.display().to_string())
+}
+
 /// The line a person runs when the app is refused.
 ///
 /// `mkdir -p` unconditionally, because it costs nothing on a directory that
@@ -370,7 +447,8 @@ mod command_line_tests {
     use std::path::Path;
 
     use super::{
-        bundled_beside, describe, install_into, manual_command, shell_quote, CommandLineState,
+        bundled_beside, describe, install_into, manual_command, refused, shell_quote,
+        CommandLineState, ESCALATE,
     };
 
     /// A temp directory standing in for `/usr/local/bin`, and a file standing in
@@ -488,6 +566,24 @@ mod command_line_tests {
         assert!(command.contains(&source.display().to_string()), "{command}");
         // Nothing was left behind by the attempt.
         assert!(fs::read_dir(directory).unwrap().next().is_none());
+    }
+
+    /// Only a refusal for want of rights goes on to the password sheet. A full
+    /// disk and a read-only volume are failures `sudo` cannot fix, so they are
+    /// reported and never escalated (LC-285r, Q4).
+    #[test]
+    fn only_a_permission_refusal_offers_an_administrator() {
+        let at = Path::new("/usr/local/bin");
+        let escalates = |kind: std::io::ErrorKind| {
+            refused(at, kind.into(), "denied".into(), "sudo …".into())
+                .context
+                .contains_key(ESCALATE)
+        };
+
+        assert!(escalates(std::io::ErrorKind::PermissionDenied));
+        assert!(!escalates(std::io::ErrorKind::StorageFull));
+        assert!(!escalates(std::io::ErrorKind::ReadOnlyFilesystem));
+        assert!(!escalates(std::io::ErrorKind::QuotaExceeded));
     }
 
     /// The refusal promises the *exact* line. A path with a space in it is

@@ -103,9 +103,9 @@ function failOnMatch(files, patterns) {
  * held to `github_client.rs`. That file is the shared privileged module, whose
  * closed set of fixed scripts is every privileged execution in the app (ADR
  * 0018, as amended by LC-285r): the bundle replacement reaches the prompt
- * through it, the command install will, and neither names `osakit` itself. The
- * exemption is the path and not the file name, so a `privileged.rs` in some
- * other folder is no way round it.
+ * through it, so does the command install, and neither names `osakit` itself.
+ * The exemption is the path and not the file name, so a `privileged.rs` in
+ * some other folder is no way round it.
  */
 const PRIVILEGED_FILE = "src/privileged.rs";
 

@@ -117,6 +117,14 @@ pub fn install() -> AppResult<CommandLineStatus> {
     super::macos::install_command_line()
 }
 
+/// Installs it through the administrator prompt, after `install` was refused
+/// for want of rights (LC-285r). Blocks until a person answers the sheet, so
+/// it is for the blocking pool and never the main thread.
+#[cfg(target_os = "macos")]
+pub fn install_as_admin(app: tauri::AppHandle) -> AppResult<CommandLineStatus> {
+    super::macos::install_command_line_as_admin(&crate::privileged::MainThreadPrompt::new(app))
+}
+
 /// v0 ships macOS only. Off it there is no second implementation to keep
 /// honest, so this reports that nothing is installable rather than claiming a
 /// command the human will never have — the same shape `open_in_default_app`
@@ -124,6 +132,11 @@ pub fn install() -> AppResult<CommandLineStatus> {
 #[cfg(not(target_os = "macos"))]
 pub fn status() -> CommandLineStatus {
     CommandLineStatus::unavailable(Path::new(COMMAND_NAME))
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn install_as_admin(_app: tauri::AppHandle) -> AppResult<CommandLineStatus> {
+    install()
 }
 
 #[cfg(not(target_os = "macos"))]

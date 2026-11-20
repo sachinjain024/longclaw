@@ -958,7 +958,9 @@ mod tests {
                 ),
             }
         );
-        let Script::ReplaceBundle { copy, previous, .. } = script;
+        let Script::ReplaceBundle { copy, previous, .. } = script else {
+            panic!("the bundle replacement made another script");
+        };
         for leftover in [copy, previous] {
             let name = leftover.file_name().unwrap().to_string_lossy();
             assert!(is_leftover("LongClaw.app", &name), "{name}");
@@ -975,7 +977,9 @@ mod tests {
             bundle,
             "0123456789abcdef0123456789abcdef",
         )
-        .unwrap();
+        .unwrap() else {
+            panic!("the bundle replacement made another script");
+        };
         for leftover in [copy, previous] {
             assert_eq!(leftover.parent(), bundle.parent(), "{leftover:?}");
         }

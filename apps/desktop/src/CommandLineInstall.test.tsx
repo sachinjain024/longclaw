@@ -28,6 +28,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./api";
 import {
@@ -45,7 +46,10 @@ import {
 import { useMutationStore } from "./mutations";
 import type { CommandLineStatus } from "./types";
 
-vi.mock("./api", () => ({ installCommandLine: vi.fn() }));
+vi.mock("./api", () => ({
+  installCommandLine: vi.fn(),
+  installCommandLineAsAdmin: vi.fn(),
+}));
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -592,5 +596,196 @@ describe("the first-launch offer", () => {
     expect(onDismiss).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip for now" })).toBeTruthy();
+  });
+});
+
+/**
+ * The password sheet (LC-285r). The plain write is tried first; only a refusal
+ * for want of rights — flagged `escalate` by Rust — goes on to the second
+ * command, which raises macOS's sheet and waits on a person. While it waits,
+ * both surfaces say so and nothing can be pressed.
+ */
+describe("installing through the administrator prompt", () => {
+  const ESCALATABLE = {
+    code: "permission_denied",
+    message: "LongClaw could not write to /usr/local/bin.",
+    recoverable: true,
+    context: { escalate: "true", command: COMMAND },
+  };
+
+  /** The sheet, held open until the test answers it. */
+  function sheet() {
+    let answer!: (status: CommandLineStatus) => void;
+    vi.mocked(api.installCommandLineAsAdmin).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    return (status: CommandLineStatus) => answer(status);
+  }
+
+  it("never raises the sheet when the plain write lands", async () => {
+    const onStatus = vi.fn();
+    vi.mocked(api.installCommandLine).mockResolvedValue(
+      status({ state: "linked", currentTarget: SOURCE }),
+    );
+    render(<CommandLineSection status={status()} onStatus={onStatus} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    await waitFor(() => expect(onStatus).toHaveBeenCalled());
+    expect(api.installCommandLineAsAdmin).not.toHaveBeenCalled();
+  });
+
+  it("does not raise the sheet for a refusal an administrator cannot fix", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue({
+      code: "io",
+      message:
+        "Installing the longclaw command failed for bin. There is no space left on the disk.",
+      recoverable: true,
+    });
+    render(<CommandLineSection status={status()} onStatus={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    await screen.findByText(/no space left/);
+    expect(api.installCommandLineAsAdmin).not.toHaveBeenCalled();
+  });
+
+  it("waits for the password in the pane, then reports the install", async () => {
+    const onStatus = vi.fn();
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    const answer = sheet();
+    render(<CommandLineSection status={status()} onStatus={onStatus} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    const waiting = await screen.findByRole("button", {
+      name: "Waiting for your password",
+    });
+    expect((waiting as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText("macOS is asking for an administrator password."),
+    ).toBeTruthy();
+    // The refused write is not a refusal to show: the sheet is its answer.
+    expect(screen.queryByText(/could not write/)).toBeNull();
+    expect(screen.queryByText(COMMAND)).toBeNull();
+
+    const linked = status({ state: "linked", currentTarget: SOURCE });
+    answer(linked);
+
+    await waitFor(() => expect(onStatus).toHaveBeenCalledWith(linked));
+    expect(
+      screen.queryByText("macOS is asking for an administrator password."),
+    ).toBeNull();
+  });
+
+  it("holds both footer buttons, Esc and the scrim while the sheet is up", async () => {
+    const onDismiss = vi.fn();
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    sheet();
+    render(
+      <CommandLineOffer
+        status={status()}
+        onStatus={() => {}}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    const waiting = await screen.findByRole("button", {
+      name: "Waiting for your password",
+    });
+    const skip = screen.getByRole("button", { name: "Skip for now" });
+    expect((waiting as HTMLButtonElement).disabled).toBe(true);
+    expect((skip as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText("macOS is asking for an administrator password."),
+    ).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.click(document.querySelector(".modal-scrim")!);
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("answers in the dialog and returns focus to its primary when the sheet closes", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    const answer = sheet();
+    render(
+      <CommandLineOffer
+        status={status()}
+        onStatus={() => {}}
+        onDismiss={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    await screen.findByRole("button", { name: "Waiting for your password" });
+    answer(status({ state: "linked", currentTarget: SOURCE }));
+
+    const done = await screen.findByRole("button", { name: "Done" });
+    expect(screen.getByText(/is on your PATH/)).toBeTruthy();
+    expect(document.activeElement).toBe(done);
+  });
+
+  /** A skip while the plain write is out must not be followed by a sheet. */
+  it("cannot be skipped while the plain write is out", async () => {
+    const onDismiss = vi.fn();
+    let refuse!: (error: unknown) => void;
+    vi.mocked(api.installCommandLine).mockReturnValue(
+      new Promise((_, reject) => {
+        refuse = reject;
+      }),
+    );
+    sheet();
+    render(
+      <CommandLineOffer
+        status={status()}
+        onStatus={() => {}}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    await screen.findByRole("button", { name: "Installing…" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onDismiss).not.toHaveBeenCalled();
+    refuse(ESCALATABLE);
+    await screen.findByRole("button", { name: "Waiting for your password" });
+  });
+
+  /** Linked, the pane has no primary left to return to; focus stays in it. */
+  it("keeps focus in the pane when the sheet installs and the primary goes", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    const answer = sheet();
+    function Pane() {
+      const [current, setCurrent] = useState(status());
+      return <CommandLineSection status={current} onStatus={setCurrent} />;
+    }
+    const { container } = render(<Pane />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    await screen.findByRole("button", { name: "Waiting for your password" });
+    answer(status({ state: "linked", currentTarget: SOURCE }));
+
+    await screen.findByText(/points at this copy of LongClaw/);
+    expect(document.activeElement).not.toBe(document.body);
+    expect(container.contains(document.activeElement)).toBe(true);
+  });
+
+  it("returns focus to the pane's primary when the sheet closes without an install", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue(ESCALATABLE);
+    vi.mocked(api.installCommandLineAsAdmin).mockRejectedValue({
+      code: "io",
+      message:
+        "LongClaw could not install the command, even as an administrator: ln: failed",
+      recoverable: true,
+    });
+    render(<CommandLineSection status={status()} onStatus={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    const retry = await screen.findByRole("button", { name: "Try again" });
+    expect(document.activeElement).toBe(retry);
   });
 });

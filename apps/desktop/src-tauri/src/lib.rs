@@ -6,7 +6,7 @@ pub mod core;
 pub mod engine;
 pub mod github;
 mod github_client;
-mod platform;
+pub mod platform;
 mod preferences;
 #[cfg(target_os = "macos")]
 pub mod privileged;
@@ -489,13 +489,26 @@ fn command_line_status() -> platform::command_line::CommandLineStatus {
 /// why it is offered and never silent (LC-233). The webview names no path, the
 /// same way it names none to reach the editor through `open_ticket_file`: it
 /// asks for the command to be installed and Rust decides where that is and what
-/// it is allowed to replace. A refused write comes back as an error carrying
-/// the exact line to run instead — there is no escalation here and no
-/// privileged helper, because `release-audit.mjs` forbids the subprocess that
-/// would ask for one.
+/// it is allowed to replace. A write refused for want of rights comes back
+/// flagged `escalate`, and the webview answers it with
+/// `install_command_line_as_admin` — two commands rather than one, so the
+/// webview learns the sheet is coming and can say *waiting for your password*
+/// while it is up, which one call answering only at the end could not.
 #[tauri::command]
 fn install_command_line() -> AppResult<platform::command_line::CommandLineStatus> {
     platform::command_line::install()
+}
+
+/// The same install through macOS's administrator password sheet (LC-285r).
+///
+/// `async` and then the blocking pool, because the answer waits on a person:
+/// the prompt itself is dispatched to the main thread, which must be free to
+/// draw it. The webview still names no path.
+#[tauri::command]
+async fn install_command_line_as_admin(
+    app: tauri::AppHandle,
+) -> AppResult<platform::command_line::CommandLineStatus> {
+    run_off_thread(move || platform::command_line::install_as_admin(app)).await
 }
 
 /// Whether a newer LongClaw exists ([ADR 0014](../../../docs/adr/0014-one-optional-check-for-a-newer-longclaw.md)).
@@ -631,10 +644,11 @@ async fn star_count(stars: State<'_, Arc<StarCount>>) -> AppResult<Option<u64>> 
     run_off_thread(move || Ok(stars.fetch())).await
 }
 
-/// Runs one blocking update call on the blocking pool and awaits its answer.
+/// Runs one blocking call on the blocking pool and awaits its answer.
 ///
 /// Every update command goes through here, so "nothing that draws a frame waits
-/// on a socket" is one line rather than a convention four commands remember.
+/// on a socket" is one line rather than a convention four commands remember;
+/// so does the command install's password sheet, which waits on a person.
 async fn run_off_thread<T, F>(work: F) -> AppResult<T>
 where
     F: FnOnce() -> AppResult<T> + Send + 'static,
@@ -645,7 +659,7 @@ where
         .map_err(|error| {
             core::AppError::new(
                 core::ErrorCode::Internal,
-                format!("The update worker did not finish: {error}"),
+                format!("The background worker did not finish: {error}"),
                 true,
             )
         })?
@@ -1166,6 +1180,7 @@ pub fn run() {
             reveal_reference,
             command_line_status,
             install_command_line,
+            install_command_line_as_admin,
             edit_ticket,
             create_ticket,
             stream_probe,

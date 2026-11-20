@@ -61,6 +61,13 @@ export function ConfirmDialog(props: {
    *  nothing behind it is waiting on the person (LC-249a). */
   confirmDisabled?: boolean;
   /**
+   * The way out is held too: the button, `Esc` and the scrim. For the one
+   * moment a dialog may not be answered — while macOS's password sheet is up
+   * over it, and dismissing would report a skip over an install still being
+   * decided (LC-285r).
+   */
+  cancelDisabled?: boolean;
+  /**
    * The wider box, for the offer, whose body carries a terminal block that
    * 420px breaks badly. A named modifier rather than a `className` the caller
    * fills in: the one class this takes is part of this component's vocabulary,
@@ -114,7 +121,8 @@ export function ConfirmDialog(props: {
       className="modal-scrim"
       role="presentation"
       onClick={(event) => {
-        if (event.target === event.currentTarget) props.onCancel();
+        if (event.target !== event.currentTarget) return;
+        if (!props.cancelDisabled) props.onCancel();
       }}
     >
       <div
@@ -131,7 +139,7 @@ export function ConfirmDialog(props: {
           if (event.key !== "Escape") return;
           event.preventDefault();
           event.stopPropagation();
-          props.onCancel();
+          if (!props.cancelDisabled) props.onCancel();
         }}
       >
         <h2 id={titleId}>{props.title}</h2>
@@ -143,6 +151,7 @@ export function ConfirmDialog(props: {
               tabIndex={0}
               className="secondary"
               type="button"
+              disabled={props.cancelDisabled}
               onClick={props.onCancel}
             >
               {props.cancelLabel ?? "Cancel"}
