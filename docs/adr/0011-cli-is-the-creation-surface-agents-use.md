@@ -70,6 +70,11 @@ exactly true: every command but `project init` and `project register` touches
 nothing outside the project folder. It escalates nothing. A refused write is
 answered with the `sudo` line to paste, never with an authorization prompt,
 because `release-audit.mjs` forbids the subprocess that would ask for one.
+_Amended on 2026-11-20 by [LC-285r](../../.longclaw/tickets/LC-285r/ticket.md):
+a write refused for want of rights now goes on to one macOS administrator
+prompt, which runs a fixed link script from the privileged module — see
+[ADR 0018's amendment](0018-the-app-replaces-its-own-bundle.md#the-amendment-one-privileged-module-not-one-privileged-script).
+The `sudo` line is what is left when that prompt is refused too._
 
 **The rule this puts at risk, and what holds it.** The bundled CLI is the app's
 own build, so the command and the window can never disagree about the file

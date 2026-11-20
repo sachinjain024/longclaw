@@ -22,18 +22,18 @@
  * block showing one real command and what it gets you, and the sentences that
  * survived it are the ones that are *news* — see `statusIsNews`.
  *
- * **A refusal is answered in words.** `/usr/local/bin` is admin-writable on most
- * developer Macs and Homebrew is why, so the write usually just succeeds; on a
- * clean Apple Silicon machine the directory may not exist and creating it needs
- * root. The app cannot escalate — `release-audit.mjs` fails the build on
- * `Command::new`, so `osascript … with administrator privileges` is not
- * available, and neither a subprocess exemption nor an `SMAppService` helper is
- * worth a symlink. So the refusal names what happened and hands over the exact
- * line, paths filled in, with a button that copies it. That is the whole
- * escalation story, and it is deliberately the whole of it. There is no
- * approval stage anywhere in here, because there is no approval: the write is
- * one synchronous `symlink`, and `Installing…` is a frame rather than a step
- * somebody is waiting on.
+ * **A refusal for want of rights is answered by macOS's password sheet**
+ * (LC-285r). `/usr/local/bin` is admin-writable on most developer Macs and
+ * Homebrew is why, so the plain write is tried first and usually just
+ * succeeds — `Installing…` is a frame there, not a step. On a clean Apple
+ * Silicon machine the directory may not exist and creating it needs root, so
+ * that refusal, and only that one, goes on to one administrator prompt: the
+ * link script in Rust's privileged module (ADR 0018 as amended), which is the
+ * one place the app runs anything as root. While it is up, both surfaces say
+ * they are waiting for the password, and that *is* a step somebody is in the
+ * middle of — see `InstallStep`. The exact line, paths filled in, with a button
+ * that copies it, is what is left when even the sheet is refused: it is for
+ * whoever does administer this Mac.
  *
  * One file for both surfaces because they are one set of sentences. The offer
  * and the pane differ in framing — one asks, the other reports — and must not

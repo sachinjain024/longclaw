@@ -107,8 +107,9 @@ pub fn open_web_url(url: &str) -> bool {
 /// chowned to the console user for years, which is why on most developer Macs
 /// the write below simply succeeds and no administrator is ever involved; on a
 /// clean Apple Silicon machine it may not exist at all, and creating it does
-/// need root. Both cases are answered the same way — say what happened, and
-/// hand over the line that does it.
+/// need root. That case is answered with macOS's own password sheet, once,
+/// running the link script in `privileged.rs` (LC-285r, ADR 0018 as amended);
+/// the line to paste is left for when even the sheet is refused.
 const COMMAND_DIR: &str = "/usr/local/bin";
 
 /// Where the command goes: `/usr/local/bin/longclaw`.
