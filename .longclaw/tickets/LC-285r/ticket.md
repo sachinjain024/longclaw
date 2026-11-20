@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-20T11:35:30.956Z
+updated_at: 2026-11-20T12:01:58.786Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -179,6 +179,18 @@ added_by:
   name: Claude Code
 -->
 [LC-285r-install-the-command-with-an-administrator-prompt.md](../../../docs/specs/LC-285r-install-the-command-with-an-administrator-prompt.md)
+<!-- /longclaw:reference -->
+
+<!-- longclaw:reference
+id: ref_e2fd5195
+path: docs/acceptance/LC-285r-manual-test-plan.md
+added_at: 2026-11-20T12:01:58.786Z
+added_by:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+[LC-285r-manual-test-plan.md](../../../docs/acceptance/LC-285r-manual-test-plan.md)
 <!-- /longclaw:reference -->
 
 ## Activity
@@ -789,4 +801,33 @@ changes:
 ### Claude Code updated this ticket
 
 6.1: B1 — the install says the deck's refusal.diskfull itself; the rest of the app keeps the shared AppError::io wording. 6.2: the three internal refusals are in the deck as escalate.create/write/replace, worded with 'admin'.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_067748f8
+kind: update
+occurred_at: 2026-11-20T12:01:58.786Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: references.ref_e2fd5195.added
+    to: LC-285r-manual-test-plan.md
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_62472430
+kind: comment
+occurred_at: 2026-11-20T12:01:58.817Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Added a safety net before release: when the admin prompt itself breaks (or macOS answers with an unmapped number), the failure now shows the sudo line and Try again. The manual test plan for a clean Apple Silicon Mac is in docs/acceptance/LC-285r-manual-test-plan.md; its section C closes 3.3.
 <!-- /longclaw:event -->
