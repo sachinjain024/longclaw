@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 type: bug
 created_at: 2026-11-11T11:19:28.711Z
-updated_at: 2026-11-20T08:34:08.245Z
+updated_at: 2026-11-20T09:42:51.811Z
 ---
 
 After installing LongClaw on a new Mac — especially Apple Silicon (M series) — the *Use LongClaw with Agents* intro dialog cannot install the `longclaw` command. Pressing Install CLI (then *Try again*) shows "LongClaw could not write to /usr/local/bin. The line below does the same thing." and offers a `sudo mkdir -p … && sudo ln -sf …` line to paste into Terminal. The one-press path never succeeds, so the only way through is to leave the app, open Terminal, and type an administrator password there. That is the install step this screen exists to save someone (LC-233).
@@ -96,7 +96,7 @@ Settled from the prototype. `{reason}` is the underlying error. `mac.prompt` is 
 - [x] 1.2 Make the module's scripts a closed set, with the bundle replacement as its first entry <!-- longclaw:item=ck_971d0f63 -->
 - [x] 1.3 Report a typed outcome: succeeded, cancelled, refused, failed <!-- longclaw:item=ck_4cd9867d -->
 - [x] 1.4 Move the release-audit osakit rule and its --self-test fixtures to the new module <!-- longclaw:item=ck_3d475b08 -->
-- [ ] 1.5 Amend ADR 0018's 'only privileged execution' rule <!-- longclaw:item=ck_043c6bab -->
+- [x] 1.5 Amend ADR 0018's 'only privileged execution' rule <!-- longclaw:item=ck_043c6bab -->
 - [ ] 2. Tracer bullet: Install escalates and succeeds on both surfaces (blocked by: 1) <!-- longclaw:item=ck_c4ab5c4d -->
 - [ ] 2.1 Link-the-command script: create the folder, re-check the occupied path as root, link under a temporary name and rename; Rust tests over the port <!-- longclaw:item=ck_e8637f1e -->
 - [ ] 2.2 Flag only the plain write's permission-denied refusal as escalatable <!-- longclaw:item=ck_770b5dde -->
@@ -586,4 +586,22 @@ changes:
 ### Claude Code updated this ticket
 
 1.3 done: PromptError {Cancelled, Refused, Failed{code, reason}}. -128 and exit statuses verified via osascript; the refusal numbers (-60005/-60007) and -60006 are from Security's headers and still owe a check at a real sheet in the release-candidate row.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_544bc815
+kind: update
+occurred_at: 2026-11-20T09:42:51.811Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_043c6bab.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+1.5 done: ADR 0018 amended (status line + 'The amendment: one privileged module, not one privileged script'). Item 1 is complete; item 2 (link the command) can start.
 <!-- /longclaw:event -->
