@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: a6397f61-e4c3-439c-9225-5e5f4aee5739
 key: LC-290b
 title: Esc no longer closes the ticket panel or the command palette
-status: todo
+status: canceled
 priority: p1
 labels:
   - frontend
   - platform
 type: bug
 created_at: 2026-11-22T11:29:30.425Z
-updated_at: 2026-11-22T11:29:30.425Z
+updated_at: 2026-11-25T06:22:50.066Z
 ---
 
 Esc does nothing in the dev build (reported 2026-11-22): the ticket panel stays open, and the ⌘K command palette stays open. Whether a release build is affected is not yet known. If 0.4.0 has it, that is a release blocker and needs a patch release.
@@ -42,4 +42,22 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c011c94e
+kind: update
+occurred_at: 2026-11-25T06:22:50.066Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: canceled
+-->
+### Claude Code updated this ticket
+
+Can't reproduce. Esc works again in the dev build. No code changed between the failure and the recovery, and the keyboard is fine (Esc works in other apps), so the failure was temporary — most likely keyboard focus that had left the webview. If it comes back, reopen this ticket and work through the steps under *To find out*.
 <!-- /longclaw:event -->
