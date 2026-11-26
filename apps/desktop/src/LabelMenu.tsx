@@ -137,6 +137,11 @@ function DefineRow(props: {
       className="menu-define"
       onSubmit={(event) => {
         event.preventDefault();
+        // This row's submit and nobody else's. Quick create's modal is itself
+        // a `<form>`, and the menu is not portalled, so an unstopped submit
+        // bubbled up to it and *created the ticket* — without the label, and
+        // closing the modal on a draft still being written (LC-288m).
+        event.stopPropagation();
         if (state.kind !== "ok") return;
         void (async () => {
           const written = await props.onDefine({
